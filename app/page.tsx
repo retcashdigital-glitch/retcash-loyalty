@@ -23,7 +23,6 @@ export default function GlobalEntryPoint() {
       setLoading(true)
       setError('')
 
-      // டேட்டாபேஸில் இந்த கடைக்காரரின் போன் நம்பர் உள்ளதா எனச் சோதித்தல்
       const { data: storeData } = await supabase
         .from('stores')
         .select('id, phone_number')
@@ -31,12 +30,10 @@ export default function GlobalEntryPoint() {
         .maybeSingle()
 
       if (storeData) {
-        // கணக்கு உள்ள கடைக்காரர் -> லாகின் பக்கத்திற்கு அனுப்பு
         router.push(`/merchant/login?phone=${cleanPhone}`)
         return
       }
 
-      // புதிய கடைக்காரர் -> ரெஜிஸ்டர் பக்கத்திற்கு அனுப்பு
       router.push(`/merchant/register?phone=${cleanPhone}`)
 
     } catch (err: any) {
