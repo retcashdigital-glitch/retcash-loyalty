@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 export default function CustomerHomeWalletPage({ params }: { params: Promise<{ phone: string }> }) {
-    // Safely unwrap params using React.use()
     const resolvedParams = use(params)
     const phone = resolvedParams?.phone
 
@@ -20,10 +19,12 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
     const [passwordInput, setPasswordInput] = useState('')
     const [authLoading, setAuthLoading] = useState(false)
     const [authError, setAuthError] = useState('')
+
+    // Profile setup state (Only if customer has never set a password/email before)
     const [isSettingNewPassword, setIsSettingNewPassword] = useState(false)
     const [customerEmailInput, setCustomerEmailInput] = useState('')
 
-    // Forgot Password & Security States (தனிப்பட்ட தனித்துவமான ஸ்டேட் - Separate State for Forgot Password)
+    // Forgot Password & Security States
     const [forgotStep, setForgotStep] = useState<'login' | 'enter_email' | 'enter_otp' | 'new_password'>('login')
     const [forgotEmailInput, setForgotEmailInput] = useState('')
     const [generatedOtp, setGeneratedOtp] = useState('')
@@ -100,6 +101,7 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
 
             const customerRecord = data[0]
 
+            // Check if password or email is completely missing (First time user setup)
             if (!customerRecord.password || !customerRecord.email || customerRecord.email.trim() === '') {
                 setIsSettingNewPassword(true)
                 setLoading(false)
@@ -142,14 +144,15 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
             if (data && data.length > 0) {
                 const customerRecord = data[0]
 
-                if (!customerRecord.password || !customerRecord.email || customerRecord.email.trim() === '' || isSettingNewPassword) {
+                // If setting up for the first time
+                if (isSettingNewPassword) {
                     if (!customerEmailInput.trim()) {
                         setAuthError('Please enter your email address to proceed')
                         setAuthLoading(false)
                         return
                     }
 
-                    const emailToSave = customerEmailInput.trim()
+                    const emailToSave = customerEmailInput.trim().toLowerCase()
 
                     const { error: updateError } = await supabase
                         .from('customers')
@@ -165,6 +168,7 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
                     setIsAuthed(true)
                     fetchCustomerClaims()
                 } else {
+                    // Normal Login Verification
                     if (customerRecord.password === securePassword) {
                         localStorage.removeItem(`retcash_attempts_${cleanPhone}`)
                         localStorage.setItem(`retcash_wallet_auth_${cleanPhone}`, 'true')
@@ -201,9 +205,6 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
         setAuthLoading(false)
     }
 
-    // -----------------------------------------------------------------
-    // மாற்றப்பட்ட பகுதி: பிரவுசர் அலர்ட்-க்கு பதிலாக Resend API மூலம் உண்மையான ஈமெயிலுக்கு OTP அனுப்புவது
-    // -----------------------------------------------------------------
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!forgotEmailInput.trim()) {
@@ -235,7 +236,6 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
             setGeneratedOtp(otp)
             setOtpExpiry(expiryTime)
 
-            // Resend API-க்கு கோரிக்கை அனுப்புதல்
             const response = await fetch('/api/send-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -310,17 +310,17 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
             const { data, error } = await supabase
                 .from('cashback_claims')
                 .select(`
-          id,
-          claimable_amount,
-          visit_count,
-          created_at,
-          stores (
-            id,
-            store_name,
-            store_slug,
-            logo_url
-          )
-        `)
+                    id,
+                    claimable_amount,
+                    visit_count,
+                    created_at,
+                    stores (
+                        id,
+                        store_name,
+                        store_slug,
+                        logo_url
+                    )
+                `)
                 .eq('customer_phone', cleanPhone)
                 .order('created_at', { ascending: false })
 
@@ -372,7 +372,7 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
                     ) : (
                         <>
                             {forgotStep === 'login' && (
-                                <form onSubmit={handleAuthentication} className="space-y-4">
+                                <form onSubmit={handleAuthentication} className="space-y-4" autoComplete="off">
                                     <div>
                                         <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Customer Account</label>
                                         <div className="bg-[#0B0E14] border border-gray-800 rounded-xl px-3 py-2 text-sm text-gray-300 font-bold">
@@ -380,7 +380,8 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
                                         </div>
                                     </div>
 
-                                    {(isSettingNewPassword || !customerEmailInput) && (
+                                    {/* Only show email input if customer is setting up for the first time */}
+                                    {isSettingNewPassword && (
                                         <div>
                                             <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Email Address (Mandatory)</label>
                                             <input
@@ -403,6 +404,7 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
                                             value={passwordInput}
                                             onChange={(e) => setPasswordInput(e.target.value)}
                                             placeholder="Enter your password"
+                                            autoComplete="current-password"
                                             className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition"
                                             required
                                         />
@@ -433,7 +435,7 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
                             )}
 
                             {forgotStep === 'enter_email' && (
-                                <form onSubmit={handleSendOtp} className="space-y-4">
+                                <form onSubmit={handleSendOtp} className="space-y-4" autoComplete="off">
                                     <div>
                                         <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Registered Email</label>
                                         <input
@@ -442,7 +444,6 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
                                             onChange={(e) => setForgotEmailInput(e.target.value)}
                                             placeholder="name@example.com"
                                             autoComplete="off"
-                                            name="forgot_email_field"
                                             className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition"
                                             required
                                         />
@@ -555,7 +556,7 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
                             onClick={() => router.push(`/card/${item.id}`)}
                             className="bg-[#161B26] border border-gray-800 hover:border-[#FF6B00]/50 rounded-2xl p-4 shadow-lg transition cursor-pointer active:scale-95 relative group"
                         >
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-center">
                                 <div className="flex items-center gap-3">
                                     <div className="w-11 h-11 bg-[#FF6B00]/10 border border-[#FF6B00]/30 rounded-xl flex items-center justify-center text-[#FF6B00] font-black text-base group-hover:bg-[#FF6B00] group-hover:text-white transition">
                                         {item.stores?.store_name?.charAt(0) || 'S'}
