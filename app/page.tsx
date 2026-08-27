@@ -30,10 +30,12 @@ export default function GlobalEntryPoint() {
         .maybeSingle()
 
       if (storeData) {
+        // கணக்கு உள்ள கடைக்காரர் -> லாகின் பக்கத்திற்கு அனுப்பு
         router.push(`/merchant/login?phone=${cleanPhone}`)
         return
       }
 
+      // புதிய கணக்கு -> ரெஜிஸ்டர் பக்கத்திற்கு அனுப்பு
       router.push(`/merchant/register?phone=${cleanPhone}`)
 
     } catch (err: any) {
