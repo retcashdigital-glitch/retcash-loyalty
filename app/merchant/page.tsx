@@ -23,7 +23,7 @@ export default function GlobalEntryPoint() {
             setLoading(true)
             setError('')
 
-            // 1. முதலில் 'stores' டேபிளில் இந்த போன் நம்பர் உள்ளதா எனச் சோதித்தல்
+            // 1. Check if store exists with this phone number
             const { data: storeData } = await supabase
                 .from('stores')
                 .select('id, phone_number')
@@ -31,12 +31,12 @@ export default function GlobalEntryPoint() {
                 .maybeSingle()
 
             if (storeData) {
-                // கடை உரிமையாளர் -> லாகின் பக்கத்திற்கு அனுப்பு
+                // Registered merchant -> Go to login
                 router.push(`/merchant/login?phone=${cleanPhone}`)
                 return
             }
 
-            // 2. கடை இல்லை என்றால், புதிய கடைப் பதிவிற்கோ அல்லது ரெஜிஸ்டர் பக்கத்திற்கோ திருப்புதல்
+            // 2. New merchant -> Go to register
             router.push(`/merchant/register?phone=${cleanPhone}`)
 
         } catch (err: any) {
@@ -52,7 +52,7 @@ export default function GlobalEntryPoint() {
             <div className="w-full max-w-sm bg-[#161B26] border border-gray-800 rounded-3xl p-6 shadow-xl space-y-6">
                 <div className="text-center space-y-2">
                     <h1 className="text-2xl font-black text-[#FF6B00] tracking-wider">RETCASH</h1>
-                    <p className="text-xs text-gray-400">உங்களது மொபைல் எண்ணை உள்ளிட்டுத் தொடரவும்</p>
+                    <p className="text-xs text-gray-400">Enter your mobile number to continue</p>
                 </div>
 
                 <form onSubmit={handleCheckUser} className="space-y-4">
@@ -75,9 +75,9 @@ export default function GlobalEntryPoint() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-3 rounded-xl text-sm transition shadow-lg active:scale-95 flex items-center justify-center"
+                        className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-3 rounded-xl text-sm transition shadow-lg active:scale-95 flex items-center justify-center cursor-pointer"
                     >
-                        {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'Continue →'}
+                        {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'CONTINUE →'}
                     </button>
                 </form>
             </div>
