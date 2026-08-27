@@ -15,7 +15,7 @@ export default function GlobalEntryPoint() {
     const cleanPhone = phone.replace(/\D/g, '')
 
     if (!cleanPhone || cleanPhone.length < 8) {
-      setError('தயவுசெய்து சரியான மொபைல் எண்ணை உள்ளிடவும்')
+      setError('Please enter a valid mobile number')
       return
     }
 
@@ -23,6 +23,7 @@ export default function GlobalEntryPoint() {
       setLoading(true)
       setError('')
 
+      // Check if store/merchant exists with this phone number
       const { data: storeData } = await supabase
         .from('stores')
         .select('id, phone_number')
@@ -30,17 +31,17 @@ export default function GlobalEntryPoint() {
         .maybeSingle()
 
       if (storeData) {
-        // கணக்கு உள்ள கடைக்காரர் -> லாகின் பக்கத்திற்கு அனுப்பு
+        // Registered Merchant -> Redirect to Merchant Login
         router.push(`/merchant/login?phone=${cleanPhone}`)
         return
       }
 
-      // புதிய கணக்கு -> ரெஜிஸ்டர் பக்கத்திற்கு அனுப்பு
+      // New Merchant or Customer -> Redirect to Register
       router.push(`/merchant/register?phone=${cleanPhone}`)
 
     } catch (err: any) {
-      console.error(err)
-      setError('ஏதோ தவறு நடந்துவிட்டது. மீண்டும் முயற்சிக்கவும்.')
+      console.error('Error verifying user:', err)
+      setError('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -48,15 +49,22 @@ export default function GlobalEntryPoint() {
 
   return (
     <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center justify-center p-4 font-sans selection:bg-[#FF6B00]">
-      <div className="w-full max-w-sm bg-[#161B26] border border-gray-800 rounded-3xl p-6 shadow-xl space-y-6">
+      <div className="w-full max-w-sm bg-[#161B26] border border-gray-800 rounded-3xl p-6 shadow-2xl space-y-6">
+
+        {/* Header Section */}
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-black text-[#FF6B00] tracking-wider">RETCASH</h1>
-          <p className="text-xs text-gray-400">உங்களது மொபைல் எண்ணை உள்ளிட்டுத் தொடரவும்</p>
+          <h1 className="text-3xl font-black text-[#FF6B00] tracking-wider uppercase">
+            RETCASH
+          </h1>
+          <p className="text-xs text-gray-400 font-medium">
+            Enter your mobile number to continue
+          </p>
         </div>
 
+        {/* Form Section */}
         <form onSubmit={handleCheckUser} className="space-y-4">
           <div>
-            <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">
+            <label className="text-[10px] text-gray-400 font-bold block uppercase tracking-wider mb-1.5">
               Mobile Number
             </label>
             <input
@@ -64,21 +72,41 @@ export default function GlobalEntryPoint() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="e.g. 0771234567"
-              className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-3 text-sm text-white outline-none transition font-mono"
+              className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none transition duration-200 font-mono"
               required
             />
           </div>
 
-          {error && <p className="text-[11px] text-red-500 font-medium text-center">{error}</p>}
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2.5">
+              <p className="text-xs text-red-400 font-medium text-center">
+                {error}
+              </p>
+            </div>
+          )}
 
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-3 rounded-xl text-sm transition shadow-lg active:scale-95 flex items-center justify-center cursor-pointer"
+            className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-3.5 rounded-xl text-sm transition duration-200 shadow-lg shadow-[#FF6B00]/20 active:scale-[0.98] flex items-center justify-center cursor-pointer disabled:opacity-50"
           >
-            {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'CONTINUE →'}
+            {loading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+            ) : (
+              'CONTINUE →'
+            )}
           </button>
         </form>
+
+        {/* Footer Info */}
+        <div className="pt-2 text-center border-t border-gray-800/60">
+          <p className="text-[11px] text-gray-500">
+            Secure Customer & Merchant Loyalty Portal
+          </p>
+        </div>
+
       </div>
     </div>
   )
