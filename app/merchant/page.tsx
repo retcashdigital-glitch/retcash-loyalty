@@ -23,11 +23,11 @@ export default function MerchantCheckPage() {
             setLoading(true)
             setError('')
 
-            // டேட்டாபேஸில் இந்த கடை உரிமையாளரின் போன் நம்பர் உள்ளதா எனச் சோதித்தல்
+            // டேட்டாபேஸில் phone_number பத்தியை அடிப்படையாகக் கொண்டு சோதித்தல்
             const { data, error: fetchErr } = await supabase
-                .from('stores') // உனது Supabase கடை டேபிள் பெயர் 'stores' அல்லது 'merchants' எனச் சரிபார்த்துக் கொள்
-                .select('id, owner_phone')
-                .eq('owner_phone', cleanPhone)
+                .from('stores')
+                .select('id, phone_number')
+                .eq('phone_number', cleanPhone)
                 .maybeSingle()
 
             if (fetchErr) throw fetchErr

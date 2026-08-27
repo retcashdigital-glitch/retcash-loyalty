@@ -11,40 +11,44 @@ export default function MerchantLoginPage() {
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
     const [errorMsg, setErrorMsg] = useState('')
-    const [isNotRegistered, setIsNotRegistered] = useState(false) // புதிய நிலை (State)
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
         setErrorMsg('')
-        setIsNotRegistered(false)
 
         try {
             const cleanPhone = phone.replace(/\D/g, '')
 
+            if (!cleanPhone || cleanPhone.length < 8) {
+                setErrorMsg('Please enter a valid phone number.')
+                setLoading(false)
+                return
+            }
+
+            // 1. முதலில் போன் நம்பர் டேட்டாபேஸில் உள்ளதா எனச் சோதித்தல்
             const { data: store, error } = await supabase
                 .from('stores')
                 .select('*')
                 .eq('phone_number', cleanPhone)
                 .single()
 
-            // போன் நம்பர் டேட்டாபேஸில் இல்லை என்றால்
+            // போன் நம்பர் இல்லை என்றால் -> உடனே Register பக்கத்திற்கு போன் நம்பருடன் திருப்பிவிடுதல்!
             if (error || !store) {
-                setErrorMsg('This phone number is not registered.')
-                setIsNotRegistered(true)
-                setLoading(false)
+                router.push(`/merchant/register?phone=${cleanPhone}`)
                 return
             }
 
-            // bcrypt.compare மூலம் ஹேஷ் செய்யப்பட்ட பாஸ்வேர்டை சரிபார்த்தல்
+            // 2. போன் நம்பர் இருந்தால் -> பாஸ்வேர்டை சரிபார்த்தல்
             const isPasswordValid = await bcrypt.compare(password, store.password_hash)
 
             if (!isPasswordValid) {
-                setErrorMsg('Invalid phone number or password.')
+                setErrorMsg('Invalid password. Please try again.')
                 setLoading(false)
                 return
             }
 
+            // 3. வெற்றி -> Admin / Dashboard-க்கு அனுப்புதல்
             localStorage.setItem('retcash_merchant', JSON.stringify(store))
             router.push('/admin')
         } catch (err: any) {
@@ -62,21 +66,13 @@ export default function MerchantLoginPage() {
             {/* Main Login Card */}
             <div className="w-full max-w-sm bg-[#161B26] border border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-md my-auto">
                 <h1 className="text-lg font-black text-center tracking-wider text-white uppercase mb-1">
-                    MERCHANT LOGIN
+                    MERCHANT PORTAL
                 </h1>
                 <p className="text-[11px] text-center text-gray-400 mb-6">Enter your phone number & password to access console.</p>
 
                 {errorMsg && (
                     <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-2xl mb-4 text-center">
                         <p>{errorMsg}</p>
-                        {isNotRegistered && (
-                            <button
-                                onClick={() => router.push('/merchant/register')}
-                                className="mt-2 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition cursor-pointer"
-                            >
-                                Would you like to create an account? Register Store
-                            </button>
-                        )}
                     </div>
                 )}
 
@@ -89,7 +85,7 @@ export default function MerchantLoginPage() {
                             placeholder="e.g. 0771234567"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
-                            className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white focus:outline-none focus:border-[#FF6B00] transition"
+                            className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white focus:outline-none focus:border-[#FF6B00] transition font-mono"
                         />
                     </div>
 
@@ -120,7 +116,7 @@ export default function MerchantLoginPage() {
                         disabled={loading}
                         className="w-full py-4 mt-1 bg-gradient-to-r from-[#D95200] via-[#FF6B00] to-[#D95200] text-white font-black tracking-widest uppercase rounded-xl shadow-lg shadow-[#FF6B00]/20 active:scale-98 hover:brightness-110 transition cursor-pointer"
                     >
-                        {loading ? 'LOGGING IN...' : 'LOGIN TO DASHBOARD'}
+                        {loading ? 'CHECKING...' : 'CONTINUE TO DASHBOARD'}
                     </button>
                 </form>
 
@@ -137,7 +133,7 @@ export default function MerchantLoginPage() {
 
             {/* Footer Branding & Copyright */}
             <div className="py-6 text-center text-[10px] text-gray-500 tracking-wider">
-                <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
+                <p>© 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
                 <p className="mt-1 text-gray-600">Encrypted End-to-End & Supabase Secured Connection</p>
             </div>
 
