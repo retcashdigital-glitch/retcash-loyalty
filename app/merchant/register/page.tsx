@@ -59,16 +59,18 @@ function RegisterForm() {
 
             let logoUrl = null
 
-            // 2. Upload Logo File to Supabase Storage if selected (பாதுகாப்பான Path Handling)
+            // 2. Upload Logo File to Supabase Storage (பாதுகாப்பான Clean File Path handling)
             if (logoFile) {
-                const fileExt = logoFile.name.split('.').pop() || 'png'
-                const fileName = `${cleanPhone}-${Date.now()}.${fileExt}`
+                const fileExt = (logoFile.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '')
+                // சிறப்பு எழுத்துக்கள் மற்றும் இடைவெளிகளை நீக்கி பாதுகாப்பான கோப்புப் பெயரை உருவாக்குதல்
+                const safeFileName = `${cleanPhone}-${Date.now()}.${fileExt}`
 
                 const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('store-logos')
-                    .upload(fileName, logoFile, {
+                    .upload(safeFileName, logoFile, {
                         cacheControl: '3600',
-                        upsert: true
+                        upsert: true,
+                        contentType: logoFile.type || 'image/png'
                     })
 
                 if (uploadError) {
@@ -79,7 +81,7 @@ function RegisterForm() {
                 if (uploadData) {
                     const { data: publicUrlData } = supabase.storage
                         .from('store-logos')
-                        .getPublicUrl(uploadData.path)
+                        .getPublicUrl(safeFileName)
                     logoUrl = publicUrlData.publicUrl
                 }
             }
