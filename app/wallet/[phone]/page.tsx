@@ -529,9 +529,10 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
     }
 
     return (
-        <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center p-4 font-sans selection:bg-[#FF6B00]">
-            <div className="w-full max-w-sm space-y-4 pt-4">
-                <div className="bg-[#161B26] border border-gray-800 rounded-2xl p-4 flex justify-between items-center">
+        <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center justify-start p-4 pt-6 font-sans selection:bg-[#FF6B00]">
+            <div className="w-full max-w-sm space-y-4">
+                {/* Header Profile Section */}
+                <div className="bg-[#161B26] border border-gray-800 rounded-2xl p-4 flex justify-between items-center shadow-md">
                     <div>
                         <span className="text-[10px] text-gray-400 font-semibold block uppercase">CUSTOMER ACCOUNT</span>
                         <span className="text-sm font-bold text-white">📱 +{cleanPhone}</span>
@@ -545,39 +546,93 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
                     Your Purchased Stores & Balances
                 </h2>
 
-                {claims.length === 0 ? (
+                {/* 1. Loading Skeleton Animation */}
+                {loading ? (
+                    <div className="space-y-3.5">
+                        <div className="animate-pulse bg-[#161B26] border border-gray-800/80 rounded-2xl p-4 flex items-start justify-between h-20">
+                            <div className="flex items-start gap-3.5">
+                                <div className="w-12 h-12 rounded-xl bg-gray-800/60 shrink-0"></div>
+                                <div className="space-y-2 pt-1">
+                                    <div className="h-4 bg-gray-800/60 rounded w-28"></div>
+                                    <div className="h-3 bg-gray-800/60 rounded w-20"></div>
+                                </div>
+                            </div>
+                            <div className="space-y-2 pt-1 text-right">
+                                <div className="h-3 bg-gray-800/60 rounded w-12 ml-auto"></div>
+                                <div className="h-5 bg-gray-800/60 rounded w-16 ml-auto"></div>
+                            </div>
+                        </div>
+
+                        <div className="animate-pulse bg-[#161B26] border border-gray-800/80 rounded-2xl p-4 flex items-start justify-between h-20">
+                            <div className="flex items-start gap-3.5">
+                                <div className="w-12 h-12 rounded-xl bg-gray-800/60 shrink-0"></div>
+                                <div className="space-y-2 pt-1">
+                                    <div className="h-4 bg-gray-800/60 rounded w-28"></div>
+                                    <div className="h-3 bg-gray-800/60 rounded w-20"></div>
+                                </div>
+                            </div>
+                            <div className="space-y-2 pt-1 text-right">
+                                <div className="h-3 bg-gray-800/60 rounded w-12 ml-auto"></div>
+                                <div className="h-5 bg-gray-800/60 rounded w-16 ml-auto"></div>
+                            </div>
+                        </div>
+                    </div>
+                ) : claims.length === 0 ? (
+                    /* 2. No Cards State */
                     <div className="bg-[#161B26] border border-gray-800 rounded-3xl p-8 text-center">
                         <p className="text-xs text-gray-400 mb-1">No active loyalty cards found.</p>
                     </div>
                 ) : (
-                    claims.map((item: any) => (
-                        <div
-                            key={item.id}
-                            onClick={() => router.push(`/card/${item.id}`)}
-                            className="bg-[#161B26] border border-gray-800 hover:border-[#FF6B00]/50 rounded-2xl p-4 shadow-lg transition cursor-pointer active:scale-95 relative group"
-                        >
-                            <div className="flex items-center justify-center">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-11 h-11 bg-[#FF6B00]/10 border border-[#FF6B00]/30 rounded-xl flex items-center justify-center text-[#FF6B00] font-black text-base group-hover:bg-[#FF6B00] group-hover:text-white transition">
-                                        {item.stores?.store_name?.charAt(0) || 'S'}
+                    /* 3. Render Store Cards Stack */
+                    <div className="space-y-3.5">
+                        {claims.map((item: any) => (
+                            <div
+                                key={item.id}
+                                onClick={() => router.push(`/card/${item.id}`)}
+                                className="w-full bg-[#161B26] border border-gray-800/80 hover:border-[#FF6B00]/40 rounded-2xl p-4 flex items-start justify-between cursor-pointer transition shadow-lg active:scale-95 group"
+                            >
+                                {/* Left Side: Store Logo/Initial + Store Info */}
+                                <div className="flex items-start gap-3.5">
+                                    {/* Dynamic Store Logo Container */}
+                                    <div className="w-12 h-12 rounded-xl bg-[#0D1117] border border-[#FF6B00]/30 flex items-center justify-center shrink-0 overflow-hidden group-hover:border-[#FF6B00] transition">
+                                        {item.stores?.logo_url ? (
+                                            <img
+                                                src={item.stores.logo_url}
+                                                alt={item.stores.store_name || 'Store Logo'}
+                                                className="w-full h-full object-cover rounded-xl"
+                                            />
+                                        ) : (
+                                            <span className="text-[#FF6B00] font-black text-lg group-hover:scale-110 transition">
+                                                {(item.stores?.store_name || 'S').charAt(0).toUpperCase()}
+                                            </span>
+                                        )}
                                     </div>
-                                    <div>
-                                        <h3 className="text-sm font-bold text-white group-hover:text-[#FF6B00] transition">
+
+                                    {/* Store Details (Top-aligned) */}
+                                    <div className="flex flex-col pt-0.5">
+                                        <h3 className="text-white font-bold text-base leading-tight group-hover:text-[#FF6B00] transition">
                                             {item.stores?.store_name || 'Store'}
                                         </h3>
-                                        <span className="text-[10px] text-gray-400">Visits: {item.visit_count || 1}/6 • View Card →</span>
+                                        <p className="text-[11px] text-gray-400 mt-1">
+                                            Visits: <span className="text-gray-300 font-medium">{item.visit_count || 1}/6</span>
+                                            <span className="mx-1">•</span>
+                                            <span className="text-gray-400 hover:text-white transition">View Card →</span>
+                                        </p>
                                     </div>
                                 </div>
 
-                                <div className="text-right">
-                                    <span className="text-[9px] text-gray-400 uppercase font-bold block">BALANCE</span>
-                                    <span className="text-base font-black text-[#FF6B00]">
+                                {/* Right Side: Balance Alignment */}
+                                <div className="text-right shrink-0 pt-0.5">
+                                    <span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase block mb-0.5">
+                                        BALANCE
+                                    </span>
+                                    <span className="text-[#FF6B00] font-black text-lg tracking-tight">
                                         Rs. {Number(item.claimable_amount || 0).toFixed(2)}
                                     </span>
                                 </div>
                             </div>
-                        </div>
-                    ))
+                        ))}
+                    </div>
                 )}
             </div>
         </div>
