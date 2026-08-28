@@ -13,6 +13,7 @@ function RegisterForm() {
 
     const [loading, setLoading] = useState(false)
     const [logoFile, setLogoFile] = useState<File | null>(null)
+    const [showPassword, setShowPassword] = useState(false) // 👁️ பாஸ்வேர்ட் பார்க்க/மறைக்க state
     const [formData, setFormData] = useState({
         store_name: '',
         phone_number: phoneFromUrl,
@@ -99,8 +100,8 @@ function RegisterForm() {
             if (error) throw error
 
             if (data) {
-                alert('Registration Successful! Please login.')
-                router.push('/merchant/login')
+                // ✅ alert(...) நீக்கப்பட்டு, லாகின் பக்கத்தில் Phone Auto-fill ஆகும்படி அனுப்பப்படுகிறது
+                router.push(`/merchant/login?phone=${cleanPhone}&registered=true`)
             }
         } catch (err: any) {
             console.error('Registration Error:', err)
@@ -165,14 +166,34 @@ function RegisterForm() {
 
                 <div>
                     <label className="text-gray-300 font-semibold block mb-1">Account Password *</label>
-                    <input
-                        type="password"
-                        required
-                        placeholder="Set a strong password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white focus:outline-none focus:border-[#FF6B00] transition"
-                    />
+
+                    {/* 👁️ Eye Toggle Icon உடன் கூடிய Password Input */}
+                    <div className="relative w-full">
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            required
+                            placeholder="Set a strong password"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white pr-12 focus:outline-none focus:border-[#FF6B00] transition"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition focus:outline-none cursor-pointer"
+                        >
+                            {showPassword ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.52 10.52 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                                </svg>
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12c1.274 4.057 5.065 7 9.54 7 4.478 0 8.268-2.943 9.542-7-1.274-4.057-5.064-7-9.542-7-4.477 0-8.265 2.943-9.54 7Z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                </svg>
+                            )}
+                        </button>
+                    </div>
 
                     <div className="mt-2 space-y-1 text-[11px] bg-[#0D1117]/50 p-2.5 rounded-xl border border-gray-800">
                         <p className={`flex items-center gap-1.5 transition-colors ${isMinLength ? 'text-green-400 font-medium' : 'text-gray-400'}`}>
