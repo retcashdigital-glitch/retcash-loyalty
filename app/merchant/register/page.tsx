@@ -38,7 +38,7 @@ function RegisterForm() {
         setErrorMsg('')
 
         try {
-            const cleanPhone = formData.phone_number.replace(/\D/g, '')
+            const cleanPhone = formData.phone_number.replace(/\D/g, '') || 'merchant'
 
             // 1. Check existing phone
             const { data: existingStore, error: checkError } = await supabase
@@ -59,10 +59,10 @@ function RegisterForm() {
 
             let logoUrl = null
 
-            // 2. Upload Logo File to Supabase Storage if selected (திருத்தப்பட்ட பாதுகாப்பான பாதை)
+            // 2. Upload Logo File to Supabase Storage if selected (பாதுகாப்பான Path Handling)
             if (logoFile) {
-                const cleanFileName = logoFile.name.replace(/[^a-zA-Z0-9.]/g, '_')
-                const fileName = `${cleanPhone}-${Date.now()}-${cleanFileName}`
+                const fileExt = logoFile.name.split('.').pop() || 'png'
+                const fileName = `${cleanPhone}-${Date.now()}.${fileExt}`
 
                 const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('store-logos')
@@ -79,7 +79,7 @@ function RegisterForm() {
                 if (uploadData) {
                     const { data: publicUrlData } = supabase.storage
                         .from('store-logos')
-                        .getPublicUrl(fileName)
+                        .getPublicUrl(uploadData.path)
                     logoUrl = publicUrlData.publicUrl
                 }
             }
@@ -243,7 +243,7 @@ function RegisterForm() {
                 <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-4 mt-3 bg-gradient-to-r from-[#D95200] via-[#FF6B00] to-[#D95200] text-white font-black tracking-widest uppercase rounded-xl shadow-lg shadow-[#FF6B00]/20 active:scale-98 hover:brightness-110 transition cursor-pointer"
+                    className="w-full py-4 mt-3 bg-gradient-to-r from-[#D95200] via-[#FF6B00] to-[#D95200] text-[#FFFFFF] font-black tracking-widest uppercase rounded-xl shadow-lg shadow-[#FF6B00]/20 active:scale-98 hover:brightness-110 transition cursor-pointer"
                 >
                     {loading ? 'REGISTERING STORE...' : 'CREATE STORE ACCOUNT'}
                 </button>
@@ -272,7 +272,7 @@ export default function MerchantRegisterPage() {
             </Suspense>
 
             <div className="py-6 text-center text-[10px] text-gray-500 tracking-wider">
-                <p>© 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
+                <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
                 <p className="mt-1 text-gray-600">Encrypted End-to-End & Supabase Secured Connection</p>
             </div>
         </div>
