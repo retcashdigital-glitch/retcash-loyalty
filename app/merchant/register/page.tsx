@@ -59,11 +59,14 @@ function RegisterForm() {
 
             let logoUrl = null
 
-            // 2. Upload Logo File to Supabase Storage (பாதுகாப்பான Clean File Path handling)
+            // 2. Upload Logo File to Supabase Storage (Invalid Path Error திருத்தப்பட்ட பகுதி)
             if (logoFile) {
-                const fileExt = (logoFile.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '')
-                // சிறப்பு எழுத்துக்கள் மற்றும் இடைவெளிகளை நீக்கி பாதுகாப்பான கோப்புப் பெயரை உருவாக்குதல்
-                const safeFileName = `${cleanPhone}-${Date.now()}.${fileExt}`
+                // Extension-ஐ மட்டும் பாதுகாப்பாகப் பிரித்தெடுத்தல்
+                const originalExt = logoFile.name.split('.').pop() || 'png'
+                const cleanExt = originalExt.toLowerCase().replace(/[^a-z0-9]/g, '') || 'png'
+
+                // கோப்புப் பெயரில் எண்கள் மற்றும் ஆங்கில எழுத்துக்கள் மட்டுமே இருக்கும்படி சுத்தப்படுத்துதல்
+                const safeFileName = `logo-${cleanPhone}-${Date.now()}.${cleanExt}`
 
                 const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('store-logos')
