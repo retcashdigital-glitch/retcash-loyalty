@@ -9,14 +9,13 @@ function RegisterForm() {
     const router = useRouter()
     const searchParams = useSearchParams()
 
-    // URL-ல் இருந்து phone parameter-ஐ வாங்குதல்
     const phoneFromUrl = searchParams.get('phone') || ''
 
     const [loading, setLoading] = useState(false)
     const [logoFile, setLogoFile] = useState<File | null>(null)
     const [formData, setFormData] = useState({
         store_name: '',
-        phone_number: phoneFromUrl, // URL-ல் போன் நம்பர் இருந்தால் தானாக நிரம்பும்
+        phone_number: phoneFromUrl,
         email: '',
         password: '',
         location_url: '',
@@ -25,12 +24,21 @@ function RegisterForm() {
     })
     const [errorMsg, setErrorMsg] = useState('')
 
-    // URL parameter மாறும் போது phone_number-ஐ update செய்தல்
     useEffect(() => {
         if (phoneFromUrl) {
             setFormData(prev => ({ ...prev, phone_number: phoneFromUrl }))
         }
     }, [phoneFromUrl])
+
+    // படத்தை Base64 Text ஆக மாற்றும் எளிய முறை (Storage பிழைகளைத் தவிர்க்க)
+    const convertBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const fileReader = new FileReader()
+            fileReader.readAsDataURL(file)
+            fileReader.onload = () => resolve(fileReader.result as string)
+            fileReader.onerror = (error) => reject(error)
+        })
+    }
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -40,16 +48,12 @@ function RegisterForm() {
         try {
             const cleanPhone = formData.phone_number.replace(/\D/g, '') || 'merchant'
 
-            // 1. Check existing phone
-            const { data: existingStore, error: checkError } = await supabase
+            // 1. Phone number ஏற்கனவே உள்ளதா என சரிபார்த்தல்
+            const { data: existingStore } = await supabase
                 .from('stores')
                 .select('id')
                 .eq('phone_number', cleanPhone)
                 .maybeSingle()
-
-            if (checkError) {
-                console.error('Phone check error:', checkError)
-            }
 
             if (existingStore) {
                 setErrorMsg('This phone number is already registered. Please login.')
@@ -57,50 +61,27 @@ function RegisterForm() {
                 return
             }
 
+            // 2. Logo இருந்தால் அதை உரையாக (Data URL) மாற்றுதல்
             let logoUrl = null
-
-            // 2. Upload Logo File to Supabase Storage (Invalid Path Error திருத்தப்பட்ட பகுதி)
             if (logoFile) {
-                // Extension-ஐ மட்டும் பாதுகாப்பாகப் பிரித்தெடுத்தல்
-                const originalExt = logoFile.name.split('.').pop() || 'png'
-                const cleanExt = originalExt.toLowerCase().replace(/[^a-z0-9]/g, '') || 'png'
-
-                // கோப்புப் பெயரில் எண்கள் மற்றும் ஆங்கில எழுத்துக்கள் மட்டுமே இருக்கும்படி சுத்தப்படுத்துதல்
-                const safeFileName = `logo-${cleanPhone}-${Date.now()}.${cleanExt}`
-
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('store-logos')
-                    .upload(safeFileName, logoFile, {
-                        cacheControl: '3600',
-                        upsert: true,
-                        contentType: logoFile.type || 'image/png'
-                    })
-
-                if (uploadError) {
-                    console.error('Logo upload error:', uploadError)
-                    throw new Error(`Logo Upload Failed: ${uploadError.message}`)
-                }
-
-                if (uploadData) {
-                    const { data: publicUrlData } = supabase.storage
-                        .from('store-logos')
-                        .getPublicUrl(safeFileName)
-                    logoUrl = publicUrlData.publicUrl
+                try {
+                    logoUrl = await convertBase64(logoFile)
+                } catch (imgErr) {
+                    console.error('Image Conversion Error:', imgErr)
                 }
             }
 
-            // Create Unique Store Slug (e.g., "Royal Bakery" -> "royal-bakery")
+            // 3. Store Slug உருவாக்குதல்
             const storeSlug = formData.store_name
                 .trim()
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, '-')
                 .replace(/(^-|-$)+/g, '')
 
-            // 3. Hash Password securely using bcrypt
-            const saltRounds = 10
-            const hashedPassword = await bcrypt.hash(formData.password, saltRounds)
+            // 4. Password Hash செய்தல்
+            const hashedPassword = await bcrypt.hash(formData.password, 10)
 
-            // 4. Save Store Profile with Hashed Password and Email
+            // 5. Database-இல் புதிய கடையைப் பதிவேற்றுதல்
             const { data, error } = await supabase.from('stores').insert([
                 {
                     store_name: formData.store_name.trim(),
@@ -122,14 +103,13 @@ function RegisterForm() {
                 router.push('/merchant/login')
             }
         } catch (err: any) {
-            console.error('Registration Catch Error:', err)
+            console.error('Registration Error:', err)
             setErrorMsg(err.message || 'Registration failed. Try again.')
         } finally {
             setLoading(false)
         }
     }
 
-    // பாஸ்வேர்ட் நிபந்தனைகளை செக் செய்வதற்கான வேரியபிள்கள்
     const isMinLength = formData.password.length >= 8
     const hasLetterAndNumber = /[A-Za-z]/.test(formData.password) && /\d/.test(formData.password)
 
