@@ -41,11 +41,15 @@ function RegisterForm() {
             const cleanPhone = formData.phone_number.replace(/\D/g, '')
 
             // 1. Check existing phone
-            const { data: existingStore } = await supabase
+            const { data: existingStore, error: checkError } = await supabase
                 .from('stores')
                 .select('id')
                 .eq('phone_number', cleanPhone)
-                .single()
+                .maybeSingle()
+
+            if (checkError) {
+                console.error('Phone check error:', checkError)
+            }
 
             if (existingStore) {
                 setErrorMsg('This phone number is already registered. Please login.')
@@ -55,18 +59,24 @@ function RegisterForm() {
 
             let logoUrl = null
 
-            // 2. Upload Logo File to Supabase Storage if selected
+            // 2. Upload Logo File to Supabase Storage if selected (திருத்தப்பட்ட பாதுகாப்பான பாதை)
             if (logoFile) {
-                const fileExt = logoFile.name.split('.').pop()
-                const fileName = `${cleanPhone}-${Date.now()}.${fileExt}`
+                const cleanFileName = logoFile.name.replace(/[^a-zA-Z0-9.]/g, '_')
+                const fileName = `${cleanPhone}-${Date.now()}-${cleanFileName}`
 
                 const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('store-logos')
-                    .upload(fileName, logoFile)
+                    .upload(fileName, logoFile, {
+                        cacheControl: '3600',
+                        upsert: true
+                    })
 
                 if (uploadError) {
                     console.error('Logo upload error:', uploadError)
-                } else if (uploadData) {
+                    throw new Error(`Logo Upload Failed: ${uploadError.message}`)
+                }
+
+                if (uploadData) {
                     const { data: publicUrlData } = supabase.storage
                         .from('store-logos')
                         .getPublicUrl(fileName)
@@ -75,7 +85,11 @@ function RegisterForm() {
             }
 
             // Create Unique Store Slug (e.g., "Royal Bakery" -> "royal-bakery")
-            const storeSlug = formData.store_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
+            const storeSlug = formData.store_name
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/(^-|-$)+/g, '')
 
             // 3. Hash Password securely using bcrypt
             const saltRounds = 10
@@ -103,6 +117,7 @@ function RegisterForm() {
                 router.push('/merchant/login')
             }
         } catch (err: any) {
+            console.error('Registration Catch Error:', err)
             setErrorMsg(err.message || 'Registration failed. Try again.')
         } finally {
             setLoading(false)
@@ -121,7 +136,7 @@ function RegisterForm() {
             <p className="text-[11px] text-center text-gray-400 mb-6">Create your official store profile to start rewarding customers.</p>
 
             {errorMsg && (
-                <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-2xl mb-4 text-center">
+                <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-2xl mb-4 text-center break-words">
                     {errorMsg}
                 </div>
             )}
@@ -257,7 +272,7 @@ export default function MerchantRegisterPage() {
             </Suspense>
 
             <div className="py-6 text-center text-[10px] text-gray-500 tracking-wider">
-                <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
+                <p>© 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
                 <p className="mt-1 text-gray-600">Encrypted End-to-End & Supabase Secured Connection</p>
             </div>
         </div>
