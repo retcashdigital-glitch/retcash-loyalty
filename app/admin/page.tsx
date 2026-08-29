@@ -14,9 +14,13 @@ export default function AdminDashboard() {
 
     const [recentCustomers, setRecentCustomers] = useState<any[]>([])
     const [filteredPhones, setFilteredPhones] = useState<string[]>([])
-    const [previewData, setPreviewData] = useState<{ visitCount: number; cashback: number; totalBalance: number } | null>(null)
+    const [previewData, setPreviewData] = useState<{ visitCount: number; cashback: number; totalBalance: number; isVisitIncremented: boolean } | null>(null)
 
     const [showAnalyticsModal, setShowAnalyticsModal] = useState(false)
+    const [showSettingsModal, setShowSettingsModal] = useState(false)
+    const [selectedLimitType, setSelectedLimitType] = useState('daily_1')
+    const [savingSettings, setSavingSettings] = useState(false)
+
     const [storeStats, setStoreStats] = useState({ totalCustomers: 0, totalRevenue: 0, totalCashbackGiven: 0 })
 
     useEffect(() => {
@@ -26,6 +30,7 @@ export default function AdminDashboard() {
         } else {
             const parsedMerchant = JSON.parse(storedMerchant)
             setMerchant(parsedMerchant)
+            setSelectedLimitType(parsedMerchant.visit_limit_type || 'daily_1')
             fetchRecentCustomers(parsedMerchant.id)
         }
     }, [router])
@@ -34,7 +39,7 @@ export default function AdminDashboard() {
         try {
             const { data, error } = await supabase
                 .from('cashback_claims')
-                .select('customer_phone, visit_count, claimable_amount, status, bill_amount, cashback_amount')
+                .select('customer_phone, visit_count, claimable_amount, status, bill_amount, cashback_amount, updated_at, created_at')
                 .eq('store_id', storeId)
 
             if (!error && data) {
@@ -95,6 +100,37 @@ export default function AdminDashboard() {
         calculateLivePreview(phone, val)
     }
 
+    // Dynamic Cooldown & Daily Limit Helper
+    const checkVisitEligibility = (existingRecord: any) => {
+        if (!existingRecord) return true
+
+        const limitType = merchant.visit_limit_type || 'daily_1'
+        const lastClaimTime = new Date(existingRecord.updated_at || existingRecord.created_at).getTime()
+        const currentTime = new Date().getTime()
+
+        if (limitType === 'unlimited') {
+            return true // எப்போதும் Visit Count அதிகரிக்கும்
+        } else if (limitType === 'daily_1') {
+            const lastClaimDate = new Date(lastClaimTime).toDateString()
+            const currentDate = new Date(currentTime).toDateString()
+            if (lastClaimDate === currentDate) {
+                return false
+            }
+        } else if (limitType === 'cooldown_2h') {
+            const diffInHours = (currentTime - lastClaimTime) / (1000 * 60 * 60)
+            if (diffInHours < 2) {
+                return false
+            }
+        } else if (limitType === 'cooldown_12h') {
+            const diffInHours = (currentTime - lastClaimTime) / (1000 * 60 * 60)
+            if (diffInHours < 12) {
+                return false
+            }
+        }
+
+        return true
+    }
+
     const calculateLivePreview = (currentPhone: string, currentBill: string) => {
         const bill = Number(currentBill)
         if (!merchant || !currentPhone || isNaN(bill) || bill <= 0) {
@@ -119,16 +155,26 @@ export default function AdminDashboard() {
 
         let nextVisit = 1
         let nextBalance = currentCashback
+        let isVisitIncremented = true
 
         if (existing) {
             const oldVisits = Number(existing.visit_count || 0)
             const oldBalance = Number(existing.claimable_amount || 0)
 
+            const isEligible = checkVisitEligibility(existing)
+
             if (existing.status === 'COMPLETED' || oldVisits >= 6) {
                 nextVisit = 1
                 nextBalance = currentCashback
+                isVisitIncremented = true
             } else {
-                nextVisit = oldVisits + 1
+                if (isEligible) {
+                    nextVisit = oldVisits + 1
+                    isVisitIncremented = true
+                } else {
+                    nextVisit = oldVisits
+                    isVisitIncremented = false
+                }
                 nextBalance = oldBalance + currentCashback
             }
         }
@@ -136,8 +182,35 @@ export default function AdminDashboard() {
         setPreviewData({
             visitCount: nextVisit,
             cashback: currentCashback,
-            totalBalance: nextBalance
+            totalBalance: nextBalance,
+            isVisitIncremented
         })
+    }
+
+    const handleSaveSettings = async () => {
+        if (!merchant || !merchant.id) return
+        setSavingSettings(true)
+
+        try {
+            const { error } = await supabase
+                .from('stores')
+                .update({ visit_limit_type: selectedLimitType })
+                .eq('id', merchant.id)
+
+            if (error) throw error
+
+            const updatedMerchant = { ...merchant, visit_limit_type: selectedLimitType }
+            localStorage.setItem('retcash_merchant', JSON.stringify(updatedMerchant))
+            setMerchant(updatedMerchant)
+
+            setMessage('Store Rules Updated Successfully!')
+            setShowSettingsModal(false)
+        } catch (err: any) {
+            console.error(err)
+            setMessage(`Settings Error: ${err.message || 'Failed to update rules'}`)
+        } finally {
+            setSavingSettings(false)
+        }
     }
 
     const handleCreateBill = async (e: React.FormEvent) => {
@@ -151,8 +224,16 @@ export default function AdminDashboard() {
             return
         }
 
+        const bill = Number(billAmount)
+        const minBill = Number(merchant.min_bill_amount || 0)
+
+        if (bill < minBill) {
+            setMessage(`Warning: Minimum bill amount for cashback is Rs.${minBill}`)
+            setLoading(false)
+            return
+        }
+
         try {
-            const bill = Number(billAmount)
             const cashbackRate = (merchant.default_cashback_percent || 10) / 100
             const currentCashback = Number((bill * cashbackRate).toFixed(2))
 
@@ -172,17 +253,27 @@ export default function AdminDashboard() {
             let finalBalance = currentCashback
             let finalVisitCount = 1
             let claimId = ''
+            let isVisitAdded = true
 
             if (existingClaims && existingClaims.length > 0) {
                 const existingClaim = existingClaims[0]
                 const oldVisits = Number(existingClaim.visit_count || 0)
                 const oldBalance = Number(existingClaim.claimable_amount || 0)
 
+                const isEligible = checkVisitEligibility(existingClaim)
+
                 if (existingClaim.status === 'COMPLETED' || oldVisits >= 6) {
                     finalVisitCount = 1
                     finalBalance = currentCashback
+                    isVisitAdded = true
                 } else {
-                    finalVisitCount = oldVisits + 1
+                    if (isEligible) {
+                        finalVisitCount = oldVisits + 1
+                        isVisitAdded = true
+                    } else {
+                        finalVisitCount = oldVisits
+                        isVisitAdded = false
+                    }
                     finalBalance = oldBalance + currentCashback
                 }
 
@@ -193,7 +284,8 @@ export default function AdminDashboard() {
                         cashback_amount: currentCashback,
                         claimable_amount: finalBalance,
                         visit_count: finalVisitCount,
-                        status: 'PENDING'
+                        status: 'PENDING',
+                        updated_at: new Date().toISOString()
                     })
                     .eq('id', existingClaim.id)
                     .select()
@@ -204,6 +296,7 @@ export default function AdminDashboard() {
             } else {
                 finalVisitCount = 1
                 finalBalance = currentCashback
+                isVisitAdded = true
 
                 const { data: inserted, error: insertErr } = await supabase
                     .from('cashback_claims')
@@ -253,7 +346,9 @@ export default function AdminDashboard() {
             const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(whatsappText)}`
             window.open(waUrl, '_blank')
 
-            setMessage(`Successfully Recorded! (Visit: ${finalVisitCount}/6 | Balance: Rs.${finalBalance.toFixed(2)})`)
+            const statusNote = isVisitAdded ? '' : ' (Note: Visit limit reached for today/cooldown. Cashback added, Visit count unchanged.)'
+            setMessage(`Successfully Recorded! (Visit: ${finalVisitCount}/6 | Balance: Rs.${finalBalance.toFixed(2)})${statusNote}`)
+
             setPhone('')
             setBillAmount('')
             setFilteredPhones([])
@@ -290,12 +385,20 @@ export default function AdminDashboard() {
                         <span className="text-[10px] text-[#FF6B00] uppercase font-bold tracking-wider">LOGGED IN AS</span>
                         <h1 className="text-xl font-bold tracking-wide text-white">{merchant.store_name}</h1>
                     </div>
-                    <button
-                        onClick={handleLogout}
-                        className="text-[11px] text-gray-400 hover:text-red-400 border border-gray-800 px-3 py-1 rounded-lg transition cursor-pointer"
-                    >
-                        Logout
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowSettingsModal(true)}
+                            className="text-[11px] text-gray-300 hover:text-white bg-gray-800 border border-gray-700 px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1"
+                        >
+                            ⚙️ Rules
+                        </button>
+                        <button
+                            onClick={handleLogout}
+                            className="text-[11px] text-gray-400 hover:text-red-400 border border-gray-800 px-3 py-1 rounded-lg transition cursor-pointer"
+                        >
+                            Logout
+                        </button>
+                    </div>
                 </div>
 
                 <div className="mb-6 grid grid-cols-2 gap-2">
@@ -369,7 +472,12 @@ export default function AdminDashboard() {
                             <div className="text-[10px] text-[#FF6B00] font-bold uppercase tracking-wider mb-1">Live Preview / Summary:</div>
                             <div className="flex justify-between text-gray-300">
                                 <span>Current Visit Count:</span>
-                                <span className="font-bold text-white">{previewData.visitCount} / 6</span>
+                                <span className="font-bold text-white">
+                                    {previewData.visitCount} / 6
+                                    {!previewData.isVisitIncremented && (
+                                        <span className="ml-2 text-[10px] text-amber-400 font-normal">(Limit Reached)</span>
+                                    )}
+                                </span>
                             </div>
                             <div className="flex justify-between text-gray-300">
                                 <span>Cashback Earned:</span>
@@ -396,6 +504,63 @@ export default function AdminDashboard() {
                 )}
             </div>
 
+            {/* STORE RULES / SETTINGS MODAL */}
+            {showSettingsModal && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-[#1c1f24] border border-gray-800 rounded-2xl w-full max-w-sm flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-[#141619]">
+                            <div>
+                                <h2 className="text-base font-bold text-white">Store Visit Rules</h2>
+                                <p className="text-[11px] text-gray-400">Configure Cooldown & Daily Limits</p>
+                            </div>
+                            <button
+                                onClick={() => setShowSettingsModal(false)}
+                                className="text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 w-8 h-8 rounded-full flex items-center justify-center text-sm transition"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Visit Count Policy</label>
+                                <select
+                                    value={selectedLimitType}
+                                    onChange={(e) => setSelectedLimitType(e.target.value)}
+                                    className="w-full p-3 bg-[#141619] border border-gray-800 rounded-xl text-white outline-none focus:border-[#FF6B00] text-xs"
+                                >
+                                    <option value="daily_1">1 Visit per Day (Default)</option>
+                                    <option value="cooldown_2h">2 Hours Cooldown</option>
+                                    <option value="cooldown_12h">12 Hours Cooldown</option>
+                                    <option value="unlimited">Unlimited (Testing / Fast Track)</option>
+                                </select>
+                            </div>
+
+                            <p className="text-[11px] text-gray-400 leading-relaxed bg-[#141619] p-3 rounded-xl border border-gray-800/80">
+                                💡 <strong className="text-gray-300">Note:</strong> Cashback will always be calculated and added to the customer balance on every bill. This setting only controls whether the <strong>Visit Count (1-6)</strong> should increase immediately or wait.
+                            </p>
+                        </div>
+
+                        <div className="p-4 border-t border-gray-800 bg-[#141619] flex justify-end gap-2">
+                            <button
+                                onClick={() => setShowSettingsModal(false)}
+                                className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-gray-800 hover:bg-gray-700 text-white transition cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveSettings}
+                                disabled={savingSettings}
+                                className="px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-[#FF6B00] hover:bg-[#e05e00] text-white transition cursor-pointer"
+                            >
+                                {savingSettings ? 'Saving...' : 'Save Rules'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ANALYTICS MODAL */}
             {showAnalyticsModal && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-[#1c1f24] border border-gray-800 rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
