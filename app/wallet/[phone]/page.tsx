@@ -76,10 +76,8 @@ export default function CustomerWalletPage() {
 
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${phone}`;
 
-    // Format phone number nicely for display (e.g., +94 76 ••• •142)
     const formatPhoneNumber = (num: string) => {
         if (!num) return ''
-        // If it starts with country code or digits
         const cleaned = num.replace(/\D/g, '')
         if (cleaned.length >= 11) {
             const country = cleaned.slice(0, 2)
@@ -98,17 +96,17 @@ export default function CustomerWalletPage() {
     return (
         <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col pb-28 font-sans selection:bg-[#EE8838]">
 
-            {/* Clean Single Top Header */}
-            <header className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-white/90 backdrop-blur-md sticky top-0 z-40 shadow-sm">
+            {/* Clean Static Single Header to Avoid Glitches */}
+            <header className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-white/95 relative z-10 shadow-xs">
                 <div className="flex items-center space-x-2.5">
-                    <div className="bg-[#EE8838] p-2 rounded-xl text-white shadow-md shadow-orange-500/20">
-                        <Wallet className="w-5 h-5" />
+                    <div className="bg-[#EE8838] p-1.5 rounded-xl text-white shadow-xs">
+                        <Wallet className="w-4 h-4" />
                     </div>
-                    <span className="font-black text-xl tracking-wider text-[#0F172A]">RET<span className="text-[#EE8838]">CASH</span></span>
+                    <span className="font-black text-lg tracking-wider text-[#0F172A]">RET<span className="text-[#EE8838]">CASH</span></span>
                 </div>
-                <div className="flex items-center space-x-1.5 bg-orange-50 text-[#EE8838] px-3 py-1.5 rounded-full text-xs font-bold border border-orange-100">
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Verified User</span>
+                <div className="flex items-center space-x-1 bg-orange-50 text-[#EE8838] px-2.5 py-1 rounded-full text-[11px] font-bold border border-orange-100/60">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Verified</span>
                 </div>
             </header>
 
@@ -118,7 +116,7 @@ export default function CustomerWalletPage() {
                 {/* ================= 1. WALLET TAB ================= */}
                 {activeTab === 'wallet' && (
                     <>
-                        <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm space-y-4">
+                        <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs space-y-4">
                             <div className="flex justify-between items-start">
                                 <div className="space-y-1">
                                     <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">WELCOME BACK</p>
@@ -126,7 +124,7 @@ export default function CustomerWalletPage() {
                                 </div>
                                 <button
                                     onClick={() => setShowQrModal(true)}
-                                    className="bg-orange-50 hover:bg-orange-100 text-[#EE8838] p-2.5 rounded-2xl border border-orange-100 transition flex items-center justify-center cursor-pointer shadow-sm"
+                                    className="bg-orange-50 hover:bg-orange-100 text-[#EE8838] p-2.5 rounded-2xl border border-orange-100 transition flex items-center justify-center cursor-pointer shadow-xs"
                                     title="Show My QR"
                                 >
                                     <QrCode className="w-5 h-5" />
@@ -165,7 +163,7 @@ export default function CustomerWalletPage() {
                         {/* Stores Header */}
                         <div className="flex items-center justify-between pt-1">
                             <h2 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">YOUR STORES & LOYALTY CARDS</h2>
-                            <span className="text-xs font-bold bg-white text-[#EE8838] px-2.5 py-1 rounded-full border border-slate-200 shadow-sm">
+                            <span className="text-xs font-bold bg-white text-[#EE8838] px-2.5 py-1 rounded-full border border-slate-200 shadow-xs">
                                 {filteredStores.length} stores
                             </span>
                         </div>
@@ -174,7 +172,7 @@ export default function CustomerWalletPage() {
                         {loading ? (
                             <div className="text-center py-12 text-slate-400 text-xs font-medium">Loading wallet data...</div>
                         ) : filteredStores.length === 0 ? (
-                            <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-sm">
+                            <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-xs">
                                 <p className="text-xs text-slate-500">No stores found in your wallet yet.</p>
                             </div>
                         ) : (
@@ -188,7 +186,7 @@ export default function CustomerWalletPage() {
                                             console.warn("No active card/claim found for this store:", store.store_name)
                                         }
                                     }}
-                                    className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 hover:border-[#EE8838] transition cursor-pointer shadow-sm hover:shadow-md group"
+                                    className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 hover:border-[#EE8838] transition cursor-pointer shadow-xs hover:shadow-sm group"
                                 >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center space-x-3.5">
@@ -239,7 +237,7 @@ export default function CustomerWalletPage() {
                         </div>
 
                         {stores.map((store, idx) => (
-                            <div key={idx} className="bg-white border border-slate-200 rounded-3xl p-5 space-y-3 shadow-sm">
+                            <div key={idx} className="bg-white border border-slate-200 rounded-3xl p-5 space-y-3 shadow-xs">
                                 <div className="flex items-center justify-between">
                                     <h3 className="text-sm font-bold text-[#0F172A]">{store.store_name}</h3>
                                     <span className="text-[10px] bg-orange-50 text-[#EE8838] px-2.5 py-1 rounded-full font-bold border border-orange-100">
@@ -260,9 +258,9 @@ export default function CustomerWalletPage() {
                             <p className="text-xs text-slate-500">Manage your account details and session.</p>
                         </div>
 
-                        <div className="bg-white border border-slate-200 rounded-3xl p-5 space-y-4 shadow-sm">
+                        <div className="bg-white border border-slate-200 rounded-3xl p-5 space-y-4 shadow-xs">
                             <div className="flex items-center space-x-3.5 pb-4 border-b border-slate-100">
-                                <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#EE8838] flex items-center justify-center font-black text-lg border border-orange-100 shadow-sm">
+                                <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#EE8838] flex items-center justify-center font-black text-lg border border-orange-100 shadow-xs">
                                     <User className="w-6 h-6" />
                                 </div>
                                 <div>
@@ -274,7 +272,7 @@ export default function CustomerWalletPage() {
                             <div className="space-y-2">
                                 <button
                                     onClick={() => router.push('/customer/login')}
-                                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3.5 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition outline-none cursor-pointer shadow-sm"
+                                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3.5 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition outline-none cursor-pointer shadow-xs"
                                 >
                                     <LogOut className="w-4 h-4" />
                                     <span>Logout / Switch Account</span>
@@ -288,8 +286,8 @@ export default function CustomerWalletPage() {
 
             {/* QR Code Modal Popup */}
             {showQrModal && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+                    <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-xl relative animate-in fade-in zoom-in duration-200">
                         <button
                             onClick={() => setShowQrModal(false)}
                             className="absolute top-4 right-4 text-slate-400 hover:text-[#0F172A] bg-slate-100 p-1.5 rounded-full outline-none cursor-pointer transition"
@@ -313,8 +311,8 @@ export default function CustomerWalletPage() {
                 </div>
             )}
 
-            {/* Bottom Navigation Bar with Integrated Quick QR Button */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2 px-6 flex justify-around items-center z-50 max-w-md mx-auto rounded-t-3xl shadow-lg">
+            {/* Balanced Subtle Bottom Navigation Bar */}
+            <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2 px-6 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-lg">
                 <button
                     onClick={() => setActiveTab('wallet')}
                     className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'wallet' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
@@ -323,13 +321,13 @@ export default function CustomerWalletPage() {
                     <span className="text-[10px] font-bold">Wallet</span>
                 </button>
 
-                {/* Center Quick QR Button in Nav Bar */}
+                {/* Harmonized Subtle Center QR Button */}
                 <button
                     onClick={() => setShowQrModal(true)}
-                    className="flex flex-col items-center justify-center -mt-6 bg-[#EE8838] hover:bg-[#e07b2f] text-white w-12 h-12 rounded-full shadow-lg shadow-orange-500/30 transition outline-none cursor-pointer border-4 border-[#F8FAFC]"
+                    className="flex flex-col items-center justify-center -mt-5 bg-[#EE8838] hover:bg-[#e07b2f] text-white w-11 h-11 rounded-full shadow-md shadow-orange-500/20 transition outline-none cursor-pointer border-3 border-[#F8FAFC]"
                     title="My QR"
                 >
-                    <QrCode className="w-5 h-5" />
+                    <QrCode className="w-4 h-4" />
                 </button>
 
                 <button
