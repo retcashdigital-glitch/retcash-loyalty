@@ -1,310 +1,117 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import React, { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
+function VisitProgress({ visits, total }: { visits: number; total: number }) {
+    const totalPills = total || 6
+    return (
+        <div className="flex gap-1">
+            {Array.from({ length: totalPills }).map((_, i) => (
+                <div
+                    key={i}
+                    style={{
+                        width: `${Math.min(32, Math.max(6, 120 / totalPills))}px`,
+                        height: '5px',
+                        borderRadius: '99px',
+                        backgroundColor: i < visits ? '#F97316' : '#E2E8F0',
+                        transition: 'background-color 0.2s',
+                    }}
+                />
+            ))}
+        </div>
+    )
+}
+
+function NavIcon({ id, active }: { id: string; active: boolean }) {
+    const color = active ? '#F97316' : '#94A3B8'
+    if (id === 'wallet') {
+        return (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="6" width="20" height="14" rx="3" fill={active ? '#FFF7ED' : 'none'} stroke={color} strokeWidth="1.8" />
+                <path d="M16 13C16 13.55 16.45 14 17 14C17.55 14 18 13.55 18 13C16.45 12 16 12.45 17 12Z" fill={color} />
+                <path d="M2 10H22" stroke={color} strokeWidth="1.8" />
+            </svg>
+        )
+    }
+    if (id === 'explore') {
+        return (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" fill={active ? '#FFF7ED' : 'none'} stroke={color} strokeWidth="1.8" />
+                <path d="M16.24 7.76L13.41 13.41L7.76 16.24L10.59 10.59L16.24 7.76Z" fill={color} />
+            </svg>
+        )
+    }
+    return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="8" r="4" fill={active ? '#FFF7ED' : 'none'} stroke={color} strokeWidth="1.8" />
+            <path d="M4 20C4 16.69 7.58 14 12 14C16.42 14 20 16.69 20 20" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+    )
+}
+
 export default function CustomerHomeWalletPage({ params }: { params: Promise<{ phone: string }> }) {
     const resolvedParams = use(params)
-    const phone = resolvedParams?.phone
-
+    const phone = resolvedParams?.phone || ''
     const router = useRouter()
-    const cleanPhone = phone?.replace(/\D/g, '') || ''
+    const cleanPhone = phone ? phone.replace(/\D/g, '') : ''
 
     const [claims, setClaims] = useState<any[]>([])
+    const [filteredClaims, setFilteredClaims] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
 
-    // Auth States
-    const [isAuthed, setIsAuthed] = useState(false)
-    const [passwordInput, setPasswordInput] = useState('')
-    const [authLoading, setAuthLoading] = useState(false)
-    const [authError, setAuthError] = useState('')
-
-    // Profile setup state (Only if customer has never set a password/email before)
-    const [isSettingNewPassword, setIsSettingNewPassword] = useState(false)
-    const [customerEmailInput, setCustomerEmailInput] = useState('')
-
-    // Forgot Password & Security States
-    const [forgotStep, setForgotStep] = useState<'login' | 'enter_email' | 'enter_otp' | 'new_password'>('login')
-    const [forgotEmailInput, setForgotEmailInput] = useState('')
-    const [generatedOtp, setGeneratedOtp] = useState('')
-    const [otpExpiry, setOtpExpiry] = useState<number>(0)
-    const [otpInput, setOtpInput] = useState('')
-    const [newPasswordInput, setNewPasswordInput] = useState('')
-
-    // Brute-force & Lockout States
-    const [loginAttempts, setLoginAttempts] = useState(0)
-    const [lockoutUntil, setLockoutUntil] = useState<number>(0)
-    const [lockoutTimerText, setLockoutTimerText] = useState('')
+    const [activeCategory, setActiveCategory] = useState<string>('All Stores')
+    const [searchQuery, setSearchQuery] = useState('')
+    const [showQrModal, setShowQrModal] = useState(false)
+    const [activeTab, setActiveTab] = useState<'wallet' | 'explore' | 'profile'>('wallet')
 
     useEffect(() => {
         if (cleanPhone) {
-            checkLocalSessionAndCustomer()
-            checkLockoutStatus()
+            checkAuthAndFetchData()
         }
     }, [cleanPhone])
 
-    const checkLockoutStatus = () => {
-        const storedLockout = localStorage.getItem(`retcash_lockout_${cleanPhone}`)
-        if (storedLockout) {
-            const lockoutTime = parseInt(storedLockout, 10)
-            if (Date.now() < lockoutTime) {
-                setLockoutUntil(lockoutTime)
-            } else {
-                localStorage.removeItem(`retcash_lockout_${cleanPhone}`)
-                localStorage.removeItem(`retcash_attempts_${cleanPhone}`)
-            }
-        }
-    }
-
-    useEffect(() => {
-        if (lockoutUntil > 0) {
-            const interval = setInterval(() => {
-                const remaining = lockoutUntil - Date.now()
-                if (remaining <= 0) {
-                    setLockoutUntil(0)
-                    setLoginAttempts(0)
-                    localStorage.removeItem(`retcash_lockout_${cleanPhone}`)
-                    localStorage.removeItem(`retcash_attempts_${cleanPhone}`)
-                    clearInterval(interval)
-                } else {
-                    const minutes = Math.floor(remaining / 60000)
-                    const seconds = Math.floor((remaining % 60000) / 1000)
-                    setLockoutTimerText(`${minutes}m ${seconds}s`)
-                }
-            }, 1000)
-            return () => clearInterval(interval)
-        }
-    }, [lockoutUntil, cleanPhone])
-
-    const checkLocalSessionAndCustomer = async () => {
+    const checkAuthAndFetchData = async () => {
         try {
             const savedAuth = localStorage.getItem(`retcash_wallet_auth_${cleanPhone}`)
 
-            const { data, error } = await supabase
-                .from('customers')
-                .select('password, email')
-                .eq('phone_number', cleanPhone)
-                .limit(1)
-
-            if (error || !data || data.length === 0) {
-                const { error: insertErr } = await supabase
-                    .from('customers')
-                    .insert([{ phone_number: cleanPhone, email: '' }])
-
-                if (!insertErr) {
-                    setIsSettingNewPassword(true)
-                    setLoading(false)
-                    return
-                }
-            }
-
-            const customerRecord = data[0]
-
-            // Check if password or email is completely missing (First time user setup)
-            if (!customerRecord.password || !customerRecord.email || customerRecord.email.trim() === '') {
-                setIsSettingNewPassword(true)
-                setLoading(false)
+            // லாகின் செய்யவில்லை எனில் நேராக Login பக்கத்திற்கு அனுப்பவும்
+            if (savedAuth !== 'true') {
+                router.push(`/customer/login?phone=${cleanPhone}`)
                 return
             }
 
-            if (savedAuth === 'true') {
-                setIsAuthed(true)
-                fetchCustomerClaims()
-            } else {
-                setLoading(false)
-            }
+            // டேட்டாக்களைப் பெற்றுக்கொள்ளுதல்
+            await fetchCustomerClaims()
         } catch (err) {
             console.error(err)
             setLoading(false)
         }
     }
 
-    const handleAuthentication = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (lockoutUntil > 0) return
+    // Filter Logic
+    useEffect(() => {
+        let result = claims
 
-        if (!passwordInput.trim()) {
-            setAuthError('Please enter a password')
-            return
-        }
-
-        try {
-            setAuthLoading(true)
-            setAuthError('')
-            const securePassword = btoa(passwordInput.trim())
-
-            const { data, error } = await supabase
-                .from('customers')
-                .select('id, password, email')
-                .eq('phone_number', cleanPhone)
-
-            if (error) throw error
-
-            if (data && data.length > 0) {
-                const customerRecord = data[0]
-
-                // If setting up for the first time
-                if (isSettingNewPassword) {
-                    if (!customerEmailInput.trim()) {
-                        setAuthError('Please enter your email address to proceed')
-                        setAuthLoading(false)
-                        return
-                    }
-
-                    const emailToSave = customerEmailInput.trim().toLowerCase()
-
-                    const { error: updateError } = await supabase
-                        .from('customers')
-                        .update({
-                            password: securePassword,
-                            email: emailToSave
-                        })
-                        .eq('phone_number', cleanPhone)
-
-                    if (updateError) throw updateError
-
-                    localStorage.setItem(`retcash_wallet_auth_${cleanPhone}`, 'true')
-                    setIsAuthed(true)
-                    fetchCustomerClaims()
-                } else {
-                    // Normal Login Verification
-                    if (customerRecord.password === securePassword) {
-                        localStorage.removeItem(`retcash_attempts_${cleanPhone}`)
-                        localStorage.setItem(`retcash_wallet_auth_${cleanPhone}`, 'true')
-                        setIsAuthed(true)
-                        fetchCustomerClaims()
-                    } else {
-                        handleFailedAttempt()
-                    }
-                }
-            } else {
-                setAuthError('Customer account not found.')
-                setAuthLoading(false)
-            }
-        } catch (err: any) {
-            console.error(err)
-            setAuthError('An error occurred. Please try again.')
-            setAuthLoading(false)
-        }
-    }
-
-    const handleFailedAttempt = () => {
-        const currentAttempts = loginAttempts + 1
-        setLoginAttempts(currentAttempts)
-        localStorage.setItem(`retcash_attempts_${cleanPhone}`, currentAttempts.toString())
-
-        if (currentAttempts >= 3) {
-            const lockoutTime = Date.now() + 5 * 60 * 1000
-            setLockoutUntil(lockoutTime)
-            localStorage.setItem(`retcash_lockout_${cleanPhone}`, lockoutTime.toString())
-            setAuthError('Too many incorrect attempts. Account locked for 5 minutes.')
-        } else {
-            setAuthError(`Incorrect password. ${3 - currentAttempts} attempts remaining.`)
-        }
-        setAuthLoading(false)
-    }
-
-    const handleSendOtp = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!forgotEmailInput.trim()) {
-            setAuthError('Please enter your registered email')
-            return
-        }
-
-        try {
-            setAuthLoading(true)
-            setAuthError('')
-
-            const cleanEmail = forgotEmailInput.trim().toLowerCase()
-
-            const { data, error } = await supabase
-                .from('customers')
-                .select('email')
-                .eq('phone_number', cleanPhone)
-                .single()
-
-            if (error || !data || data.email?.toLowerCase() !== cleanEmail) {
-                setAuthError('Email does not match our records for this phone number.')
-                setAuthLoading(false)
-                return
-            }
-
-            const otp = Math.floor(100000 + Math.random() * 900000).toString()
-            const expiryTime = Date.now() + 5 * 60 * 1000
-
-            setGeneratedOtp(otp)
-            setOtpExpiry(expiryTime)
-
-            const response = await fetch('/api/send-otp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: cleanEmail, otp }),
+        if (activeCategory !== 'All Stores') {
+            result = result.filter(item => {
+                const category = item.stores?.category?.toLowerCase() || 'others'
+                return category === activeCategory.toLowerCase()
             })
-
-            const result = await response.json()
-            if (!response.ok) {
-                throw new Error(result.error || 'Failed to send OTP email.')
-            }
-
-            setAuthLoading(false)
-            setForgotStep('enter_otp')
-        } catch (err: any) {
-            console.error(err)
-            setAuthError(err.message || 'Failed to send OTP. Try again.')
-            setAuthLoading(false)
-        }
-    }
-
-    const handleVerifyOtp = (e: React.FormEvent) => {
-        e.preventDefault()
-
-        if (Date.now() > otpExpiry) {
-            setAuthError('OTP has expired. Please request a new one.')
-            return
         }
 
-        if (otpInput.trim() === generatedOtp) {
-            setAuthError('')
-            setForgotStep('new_password')
-        } else {
-            setAuthError('Invalid OTP. Please check and try again.')
-        }
-    }
-
-    const handleResetPassword = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!newPasswordInput.trim()) {
-            setAuthError('Please enter a new password')
-            return
+        if (searchQuery.trim() !== '') {
+            result = result.filter(item =>
+                item.stores?.store_name?.toLowerCase().includes(searchQuery.toLowerCase())
+            )
         }
 
-        try {
-            setAuthLoading(true)
-            setAuthError('')
-            const securePassword = btoa(newPasswordInput.trim())
-
-            const { error } = await supabase
-                .from('customers')
-                .update({ password: securePassword })
-                .eq('phone_number', cleanPhone)
-
-            if (error) throw error
-
-            alert('Password reset successfully! Please login with your new password.')
-            setForgotStep('login')
-            setPasswordInput('')
-            setForgotEmailInput('')
-            setNewPasswordInput('')
-            setAuthLoading(false)
-        } catch (err) {
-            console.error(err)
-            setAuthError('Failed to update password.')
-            setAuthLoading(false)
-        }
-    }
+        setFilteredClaims(result)
+    }, [claims, activeCategory, searchQuery])
 
     const fetchCustomerClaims = async () => {
+        if (!cleanPhone) return
         try {
             setLoading(true)
             const { data, error } = await supabase
@@ -318,7 +125,8 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
                         id,
                         store_name,
                         store_slug,
-                        logo_url
+                        logo_url,
+                        category
                     )
                 `)
                 .eq('customer_phone', cleanPhone)
@@ -326,12 +134,24 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
 
             if (!error && data) {
                 const uniqueStoresMap = new Map()
-                data.forEach((item) => {
-                    if (item.stores && !uniqueStoresMap.has(item.stores.id)) {
-                        uniqueStoresMap.set(item.stores.id, item)
+                let totalAcc = 0
+
+                data.forEach((item: any) => {
+                    const storeObj = Array.isArray(item.stores) ? item.stores[0] : item.stores
+                    const amount = Number(item.claimable_amount || 0)
+                    totalAcc += amount
+
+                    if (storeObj && storeObj.id && !uniqueStoresMap.has(storeObj.id)) {
+                        uniqueStoresMap.set(storeObj.id, {
+                            ...item,
+                            stores: storeObj
+                        })
                     }
                 })
-                setClaims(Array.from(uniqueStoresMap.values()))
+
+                const uniqueList = Array.from(uniqueStoresMap.values())
+                setClaims(uniqueList)
+                setFilteredClaims(uniqueList)
             }
         } catch (err) {
             console.error(err)
@@ -340,300 +160,226 @@ export default function CustomerHomeWalletPage({ params }: { params: Promise<{ p
         }
     }
 
-    if (loading && !isAuthed) {
-        return (
-            <div className="min-h-screen bg-[#0B0E14] text-white flex items-center justify-center font-sans">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#FF6B00]"></div>
-            </div>
-        )
+    const handleLogout = () => {
+        localStorage.removeItem(`retcash_wallet_auth_${cleanPhone}`)
+        router.push(`/customer/login?phone=${cleanPhone}`)
     }
 
-    if (!isAuthed) {
+    if (loading) {
         return (
-            <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center justify-center p-4 font-sans selection:bg-[#FF6B00]">
-                <div className="w-full max-w-sm bg-[#161B26] border border-gray-800 rounded-3xl p-6 shadow-xl space-y-6">
-                    <div className="text-center space-y-2">
-                        <h1 className="text-xl font-black text-[#FF6B00] tracking-wider">RETCASH</h1>
-                        <h2 className="text-sm font-bold text-white">
-                            {forgotStep === 'login' && (isSettingNewPassword ? 'Complete Your Profile (Email Required)' : 'Wallet Security Verification')}
-                            {forgotStep === 'enter_email' && 'Reset Password via Email'}
-                            {forgotStep === 'enter_otp' && 'Enter Verification OTP'}
-                            {forgotStep === 'new_password' && 'Create New Password'}
-                        </h2>
-                    </div>
-
-                    {lockoutUntil > 0 ? (
-                        <div className="bg-red-950/30 border border-red-800/50 rounded-2xl p-4 text-center space-y-2">
-                            <p className="text-xs font-bold text-red-400 uppercase">Too Many Failed Attempts</p>
-                            <div className="text-base font-mono font-black text-white bg-red-900/40 py-2 rounded-xl">
-                                ⏳ {lockoutTimerText}
-                            </div>
-                        </div>
-                    ) : (
-                        <>
-                            {forgotStep === 'login' && (
-                                <form onSubmit={handleAuthentication} className="space-y-4" autoComplete="off">
-                                    <div>
-                                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Customer Account</label>
-                                        <div className="bg-[#0B0E14] border border-gray-800 rounded-xl px-3 py-2 text-sm text-gray-300 font-bold">
-                                            📱 +{cleanPhone}
-                                        </div>
-                                    </div>
-
-                                    {/* Only show email input if customer is setting up for the first time */}
-                                    {isSettingNewPassword && (
-                                        <div>
-                                            <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Email Address (Mandatory)</label>
-                                            <input
-                                                type="email"
-                                                value={customerEmailInput}
-                                                onChange={(e) => setCustomerEmailInput(e.target.value)}
-                                                placeholder="Enter your email address"
-                                                className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition"
-                                                required
-                                            />
-                                        </div>
-                                    )}
-
-                                    <div>
-                                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">
-                                            {isSettingNewPassword ? 'Create Password' : 'Password'}
-                                        </label>
-                                        <input
-                                            type="password"
-                                            value={passwordInput}
-                                            onChange={(e) => setPasswordInput(e.target.value)}
-                                            placeholder="Enter your password"
-                                            autoComplete="current-password"
-                                            className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition"
-                                            required
-                                        />
-                                    </div>
-
-                                    {!isSettingNewPassword && (
-                                        <div className="text-right">
-                                            <button
-                                                type="button"
-                                                onClick={() => { setForgotStep('enter_email'); setAuthError(''); }}
-                                                className="text-[11px] text-[#FF6B00] hover:underline font-medium"
-                                            >
-                                                Forgot Password?
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {authError && <p className="text-[11px] text-red-500 font-medium text-center">{authError}</p>}
-
-                                    <button
-                                        type="submit"
-                                        disabled={authLoading}
-                                        className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-2.5 rounded-xl text-sm transition shadow-lg active:scale-95 flex items-center justify-center"
-                                    >
-                                        {authLoading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : (isSettingNewPassword ? 'Save & Access Wallet' : 'Login to Wallet')}
-                                    </button>
-                                </form>
-                            )}
-
-                            {forgotStep === 'enter_email' && (
-                                <form onSubmit={handleSendOtp} className="space-y-4" autoComplete="off">
-                                    <div>
-                                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Registered Email</label>
-                                        <input
-                                            type="email"
-                                            value={forgotEmailInput}
-                                            onChange={(e) => setForgotEmailInput(e.target.value)}
-                                            placeholder="name@example.com"
-                                            autoComplete="off"
-                                            className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition"
-                                            required
-                                        />
-                                    </div>
-
-                                    {authError && <p className="text-[11px] text-red-500 font-medium text-center">{authError}</p>}
-
-                                    <div className="flex gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => { setForgotStep('login'); setAuthError(''); setForgotEmailInput(''); }}
-                                            className="w-1/2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-2.5 rounded-xl text-sm transition"
-                                        >
-                                            Back
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={authLoading}
-                                            className="w-1/2 bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-2.5 rounded-xl text-sm transition flex items-center justify-center"
-                                        >
-                                            {authLoading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'Send OTP'}
-                                        </button>
-                                    </div>
-                                </form>
-                            )}
-
-                            {forgotStep === 'enter_otp' && (
-                                <form onSubmit={handleVerifyOtp} className="space-y-4">
-                                    <div>
-                                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Enter 6-Digit OTP</label>
-                                        <input
-                                            type="text"
-                                            maxLength={6}
-                                            value={otpInput}
-                                            onChange={(e) => setOtpInput(e.target.value)}
-                                            placeholder="123456"
-                                            className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-center text-lg tracking-widest text-white outline-none transition font-mono"
-                                            required
-                                        />
-                                    </div>
-
-                                    {authError && <p className="text-[11px] text-red-500 font-medium text-center">{authError}</p>}
-
-                                    <button
-                                        type="submit"
-                                        className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-2.5 rounded-xl text-sm transition"
-                                    >
-                                        Verify OTP
-                                    </button>
-                                </form>
-                            )}
-
-                            {forgotStep === 'new_password' && (
-                                <form onSubmit={handleResetPassword} className="space-y-4">
-                                    <div>
-                                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">New Password</label>
-                                        <input
-                                            type="password"
-                                            value={newPasswordInput}
-                                            onChange={(e) => setNewPasswordInput(e.target.value)}
-                                            placeholder="Enter new password"
-                                            className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition"
-                                            required
-                                        />
-                                    </div>
-
-                                    {authError && <p className="text-[11px] text-red-500 font-medium text-center">{authError}</p>}
-
-                                    <button
-                                        type="submit"
-                                        disabled={authLoading}
-                                        className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-2.5 rounded-xl text-sm transition flex items-center justify-center"
-                                    >
-                                        {authLoading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'Update Password'}
-                                    </button>
-                                </form>
-                            )}
-                        </>
-                    )}
-                </div>
+            <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#F97316]"></div>
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center justify-start p-4 pt-6 font-sans selection:bg-[#FF6B00]">
-            <div className="w-full max-w-sm space-y-4">
-                {/* Header Profile Section */}
-                <div className="bg-[#161B26] border border-gray-800 rounded-2xl p-4 flex justify-between items-center shadow-md">
-                    <div>
-                        <span className="text-[10px] text-gray-400 font-semibold block uppercase">CUSTOMER ACCOUNT</span>
-                        <span className="text-sm font-bold text-white">📱 +{cleanPhone}</span>
+        <div className="min-h-screen bg-[#F8FAFC] flex flex-col w-full max-w-[420px] mx-auto relative overflow-hidden font-sans pb-[calc(5rem+env(safe-area-inset-bottom))]">
+            <div className="flex-1 overflow-y-auto w-full">
+
+                <div className="bg-white border-b border-slate-100 p-5 space-y-4 w-full">
+                    <div className="flex items-center justify-between w-full">
+                        <div>
+                            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Welcome Back</p>
+                            <p className="text-base font-bold text-slate-900">+{cleanPhone}</p>
+                        </div>
+                        <button
+                            onClick={() => setShowQrModal(true)}
+                            className="bg-[#F97316] hover:bg-[#ea580c] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-1.5 active:scale-95 transition shrink-0"
+                        >
+                            <span>📱</span> My QR
+                        </button>
                     </div>
-                    <span className="text-[10px] bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/40 px-2.5 py-1 rounded-lg font-bold">
-                        {claims.length} {claims.length === 1 ? 'Store Card' : 'Store Cards'}
-                    </span>
+
+                    {activeTab === 'wallet' && (
+                        <div className="flex items-center bg-slate-50 border border-slate-200 focus-within:border-[#F97316] rounded-xl px-3.5 py-2.5 gap-2.5 shadow-xs transition w-full">
+                            <span className="text-slate-400 text-sm">🔍</span>
+                            <input
+                                type="text"
+                                placeholder="Search stores, categories..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="border-none outline-none bg-transparent text-sm text-slate-900 flex-1 font-sans placeholder:text-slate-400 w-full min-w-0"
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="bg-slate-200 rounded-full w-5 h-5 flex items-center justify-center text-xs text-slate-600 shrink-0"
+                                >
+                                    ✕
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
-                <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider pt-2">
-                    Your Purchased Stores & Balances
-                </h2>
-
-                {/* 1. Loading Skeleton Animation */}
-                {loading ? (
-                    <div className="space-y-3.5">
-                        <div className="animate-pulse bg-[#161B26] border border-gray-800/80 rounded-2xl p-4 flex items-start justify-between h-20">
-                            <div className="flex items-start gap-3.5">
-                                <div className="w-12 h-12 rounded-xl bg-gray-800/60 shrink-0"></div>
-                                <div className="space-y-2 pt-1">
-                                    <div className="h-4 bg-gray-800/60 rounded w-28"></div>
-                                    <div className="h-3 bg-gray-800/60 rounded w-20"></div>
-                                </div>
-                            </div>
-                            <div className="space-y-2 pt-1 text-right">
-                                <div className="h-3 bg-gray-800/60 rounded w-12 ml-auto"></div>
-                                <div className="h-5 bg-gray-800/60 rounded w-16 ml-auto"></div>
-                            </div>
+                {activeTab === 'wallet' && (
+                    <div className="p-5 space-y-4 w-full">
+                        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar w-full">
+                            {['All Stores', 'Food', 'Retail', 'Others'].map((cat) => {
+                                const isActive = activeCategory === cat
+                                return (
+                                    <button
+                                        key={cat}
+                                        onClick={() => setActiveCategory(cat)}
+                                        className={`px-4 py-1.5 rounded-full text-xs font-semibold transition whitespace-nowrap shrink-0 ${isActive
+                                            ? 'bg-[#F97316] text-white shadow-xs'
+                                            : 'bg-white text-slate-600 border border-slate-200 hover:text-slate-900'
+                                            }`}
+                                    >
+                                        {cat}
+                                    </button>
+                                )
+                            })}
                         </div>
 
-                        <div className="animate-pulse bg-[#161B26] border border-gray-800/80 rounded-2xl p-4 flex items-start justify-between h-20">
-                            <div className="flex items-start gap-3.5">
-                                <div className="w-12 h-12 rounded-xl bg-gray-800/60 shrink-0"></div>
-                                <div className="space-y-2 pt-1">
-                                    <div className="h-4 bg-gray-800/60 rounded w-28"></div>
-                                    <div className="h-3 bg-gray-800/60 rounded w-20"></div>
-                                </div>
-                            </div>
-                            <div className="space-y-2 pt-1 text-right">
-                                <div className="h-3 bg-gray-800/60 rounded w-12 ml-auto"></div>
-                                <div className="h-5 bg-gray-800/60 rounded w-16 ml-auto"></div>
-                            </div>
+                        <div className="flex items-center justify-between pt-1 w-full">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                Your Stores & Loyalty Cards <span className="text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full text-[11px] lowercase font-semibold ml-1">{filteredClaims.length} stores</span>
+                            </p>
                         </div>
-                    </div>
-                ) : claims.length === 0 ? (
-                    /* 2. No Cards State */
-                    <div className="bg-[#161B26] border border-gray-800 rounded-3xl p-8 text-center">
-                        <p className="text-xs text-gray-400 mb-1">No active loyalty cards found.</p>
-                    </div>
-                ) : (
-                    /* 3. Render Store Cards Stack */
-                    <div className="space-y-3.5">
-                        {claims.map((item: any) => (
-                            <div
-                                key={item.id}
-                                onClick={() => router.push(`/card/${item.id}`)}
-                                className="w-full bg-[#161B26] border border-gray-800/80 hover:border-[#FF6B00]/40 rounded-2xl p-4 flex items-start justify-between cursor-pointer transition shadow-lg active:scale-95 group"
-                            >
-                                {/* Left Side: Store Logo/Initial + Store Info */}
-                                <div className="flex items-start gap-3.5">
-                                    {/* Dynamic Store Logo Container */}
-                                    <div className="w-12 h-12 rounded-xl bg-[#0D1117] border border-[#FF6B00]/30 flex items-center justify-center shrink-0 overflow-hidden group-hover:border-[#FF6B00] transition">
-                                        {item.stores?.logo_url ? (
-                                            <img
-                                                src={item.stores.logo_url}
-                                                alt={item.stores.store_name || 'Store Logo'}
-                                                className="w-full h-full object-cover rounded-xl"
-                                            />
-                                        ) : (
-                                            <span className="text-[#FF6B00] font-black text-lg group-hover:scale-110 transition">
-                                                {(item.stores?.store_name || 'S').charAt(0).toUpperCase()}
-                                            </span>
-                                        )}
-                                    </div>
 
-                                    {/* Store Details (Top-aligned) */}
-                                    <div className="flex flex-col pt-0.5">
-                                        <h3 className="text-white font-bold text-base leading-tight group-hover:text-[#FF6B00] transition">
-                                            {item.stores?.store_name || 'Store'}
-                                        </h3>
-                                        <p className="text-[11px] text-gray-400 mt-1">
-                                            Visits: <span className="text-gray-300 font-medium">{item.visit_count || 1}/6</span>
-                                            <span className="mx-1">•</span>
-                                            <span className="text-gray-400 hover:text-white transition">View Card →</span>
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Right Side: Balance Alignment */}
-                                <div className="text-right shrink-0 pt-0.5">
-                                    <span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase block mb-0.5">
-                                        BALANCE
-                                    </span>
-                                    <span className="text-[#FF6B00] font-black text-lg tracking-tight">
-                                        Rs. {Number(item.claimable_amount || 0).toFixed(2)}
-                                    </span>
-                                </div>
+                        {filteredClaims.length === 0 ? (
+                            <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center space-y-1 w-full">
+                                <p className="text-sm font-semibold text-slate-700">No stores found</p>
+                                <p className="text-xs text-slate-400">Try adjusting your category filters</p>
                             </div>
-                        ))}
+                        ) : (
+                            <div className="space-y-3 w-full">
+                                {filteredClaims.map((item: any) => {
+                                    const visits = item.visit_count || 1
+                                    const storeName = item.stores?.store_name || 'Store'
+                                    const storeCategory = item.stores?.category || 'Others'
+
+                                    return (
+                                        <div
+                                            key={item.id}
+                                            onClick={() => router.push(`/card/${item.id}`)}
+                                            className="bg-white rounded-2xl p-4 border border-slate-100 shadow-xs hover:shadow-md transition cursor-pointer space-y-3 w-full"
+                                        >
+                                            <div className="flex items-center gap-3 w-full">
+                                                <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                                    {item.stores?.logo_url ? (
+                                                        <img src={item.stores.logo_url} alt={storeName} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="text-[#F97316] font-bold text-lg">{storeName.charAt(0)}</span>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-sm font-bold text-slate-900 truncate">{storeName}</p>
+                                                        <span className="text-[10px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full shrink-0">
+                                                            Pass
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-400 font-medium capitalize truncate">{storeCategory}</p>
+                                                </div>
+
+                                                <button className="bg-[#F97316] text-white w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shadow-xs hover:bg-[#ea580c] transition shrink-0">
+                                                    →
+                                                </button>
+                                            </div>
+
+                                            <div className="flex items-end justify-between pt-1 border-t border-slate-50 w-full">
+                                                <div>
+                                                    <p className="text-[10px] text-slate-400 font-bold tracking-wider uppercase mb-0.5">BALANCE</p>
+                                                    <p className="text-base font-black text-[#F97316]">
+                                                        Rs. {Number(item.claimable_amount || 0).toFixed(2)}
+                                                    </p>
+                                                </div>
+
+                                                <div className="text-right">
+                                                    <p className="text-[10px] text-slate-400 font-bold mb-1 uppercase">{visits}/6 VISITS</p>
+                                                    <VisitProgress visits={visits} total={6} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
                     </div>
                 )}
+
+                {activeTab === 'explore' && (
+                    <div className="p-5 space-y-4 w-full">
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center space-y-2 w-full shadow-xs">
+                            <span className="text-3xl">🎁</span>
+                            <h3 className="text-sm font-bold text-slate-900">Exclusive Deals</h3>
+                            <p className="text-xs text-slate-500">Partner offers and active campaigns will appear here.</p>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'profile' && (
+                    <div className="p-5 space-y-4 w-full">
+                        <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3 w-full shadow-xs">
+                            <h3 className="text-sm font-bold text-slate-900 border-b pb-2">Account Profile</h3>
+                            <div className="flex justify-between text-xs py-1">
+                                <span className="text-slate-400">Phone Number:</span>
+                                <span className="text-slate-900 font-bold">+{cleanPhone}</span>
+                            </div>
+                            <div className="flex justify-between text-xs py-1">
+                                <span className="text-slate-400">Total Passes:</span>
+                                <span className="text-slate-900 font-bold">{claims.length}</span>
+                            </div>
+                            <button
+                                onClick={handleLogout}
+                                className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl text-xs border border-red-200 transition mt-2 active:scale-98"
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {showQrModal && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-2xl">
+                        <div className="flex justify-between items-center border-b pb-2">
+                            <h3 className="text-xs font-bold text-slate-600 uppercase">Customer Identification QR</h3>
+                            <button onClick={() => setShowQrModal(false)} className="text-slate-400 hover:text-slate-800 text-lg">✕</button>
+                        </div>
+                        <div className="bg-slate-50 p-4 border rounded-2xl inline-block">
+                            <img
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${cleanPhone}`}
+                                alt="Customer QR"
+                                className="w-44 h-44"
+                            />
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-slate-400 uppercase font-semibold">Phone ID</p>
+                            <p className="text-base font-mono font-black text-[#F97316]">+{cleanPhone}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="fixed bottom-0 left-0 right-0 max-w-[420px] mx-auto bg-white border-t border-slate-100 px-4 py-2 flex justify-around items-center z-40 shadow-lg pb-[env(safe-area-inset-bottom)]">
+                {[
+                    { id: 'wallet', label: 'Wallet' },
+                    { id: 'explore', label: 'Discover' },
+                    { id: 'profile', label: 'Profile' }
+                ].map((item) => {
+                    const isActive = activeTab === item.id
+                    return (
+                        <button
+                            key={item.id}
+                            onClick={() => setActiveTab(item.id as any)}
+                            className="flex flex-col items-center gap-1 py-1 px-3 relative"
+                        >
+                            <NavIcon id={item.id} active={isActive} />
+                            <span className={`text-[10px] font-medium ${isActive ? 'text-[#F97316] font-semibold' : 'text-slate-400'}`}>
+                                {item.label}
+                            </span>
+                            {isActive && (
+                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-gradient-to-r from-[#F97316] to-[#FB923C]" />
+                            )}
+                        </button>
+                    )
+                })}
             </div>
         </div>
     )
