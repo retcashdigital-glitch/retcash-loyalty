@@ -3,22 +3,42 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function CustomerRegisterPage() {
     const router = useRouter()
+    const [fullNameInput, setFullNameInput] = useState('')
     const [phoneInput, setPhoneInput] = useState('')
     const [emailInput, setEmailInput] = useState('')
     const [passwordInput, setPasswordInput] = useState('')
+    const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [errorMsg, setErrorMsg] = useState('')
+
+    // Phone normalization: ensures it becomes 94xxxxxxxxx format
+    const normalizePhone = (input: string) => {
+        let cleaned = input.replace(/\D/g, '')
+        if (cleaned.startsWith('0')) {
+            cleaned = cleaned.slice(1)
+        }
+        if (!cleaned.startsWith('94') && cleaned.length > 0) {
+            cleaned = '94' + cleaned
+        }
+        return cleaned
+    }
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault()
         setErrorMsg('')
 
-        const cleanPhone = phoneInput.replace(/\D/g, '')
-        if (!cleanPhone || cleanPhone.length < 9) {
-            setErrorMsg('దయவுசெய்து சரியான தொலைபேசி எண்ணை உள்ளிடவும் (Please enter a valid phone number)')
+        const cleanPhone = normalizePhone(phoneInput)
+        if (!cleanPhone || cleanPhone.length < 11) {
+            setErrorMsg('தயவுசெய்து சரியான தொலைபேசி எண்ணை உள்ளிடவும் (Please enter a valid phone number)')
+            return
+        }
+
+        if (!fullNameInput.trim()) {
+            setErrorMsg('பெயர் கட்டாயமானது (Full name is mandatory)')
             return
         }
 
@@ -45,24 +65,24 @@ export default function CustomerRegisterPage() {
             if (checkError) throw checkError
 
             if (existingData && existingData.length > 0) {
-                // ஏற்கனவே கணக்கு உள்ளது, ஆனால் ஈமெயில் இல்லையென்றால் அப்டேட் செய்வோம்
+                // ஏற்கனவே கணக்கு உள்ளது, அப்டேட் செய்வோம்
                 const { error: updateError } = await supabase
                     .from('customers')
                     .update({
+                        full_name: fullNameInput.trim(),
                         email: emailInput.trim(),
                         password: securePassword
                     })
                     .eq('phone_number', cleanPhone)
 
                 if (updateError) throw updateError
-
-                alert('உங்கள் கணக்கு வெற்றிகரமாகப் புதுப்பிக்கப்பட்டது!')
             } else {
                 // 2. புதிய கஸ்டமர் பதிவேீடு
                 const { error: insertError } = await supabase
                     .from('customers')
                     .insert([
                         {
+                            full_name: fullNameInput.trim(),
                             phone_number: cleanPhone,
                             email: emailInput.trim(),
                             password: securePassword
@@ -70,11 +90,9 @@ export default function CustomerRegisterPage() {
                     ])
 
                 if (insertError) throw insertError
-
-                alert('பதிவு வெற்றிகரமாக முடிந்தது!')
             }
 
-            // லோக்கல் ஸ்டோரேஜில் லாகின் செஷனைச் சேமித்து நேராக வாலட்டுக்கு அனுப்புதல்
+            // லோக்கல் ஸ்டோரேஜில் லாகின் செஷனைச் சேமித்து பாப்-அப் இல்லாமல் உடனடியாக வாலட்டுக்கு அனுப்புதல்
             localStorage.setItem(`retcash_wallet_auth_${cleanPhone}`, 'true')
             router.push(`/wallet/${cleanPhone}`)
 
@@ -94,23 +112,41 @@ export default function CustomerRegisterPage() {
                     <h1 className="text-xl font-black text-[#FF6B00] tracking-wider">RETCASH</h1>
                     <h2 className="text-sm font-bold text-white">Customer Registration</h2>
                     <p className="text-[11px] text-gray-400">
-                        Enter your phone number, email, and create a password to access your cashback wallet.
+                        Enter your details, phone number, email, and create a password to access your cashback wallet.
                     </p>
                 </div>
 
                 <form onSubmit={handleRegister} className="space-y-4">
+                    {/* Full Name Field */}
                     <div>
-                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Phone Number</label>
+                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Full Name</label>
                         <input
-                            type="tel"
-                            value={phoneInput}
-                            onChange={(e) => setPhoneInput(e.target.value)}
-                            placeholder="e.g. 0771234567"
+                            type="text"
+                            value={fullNameInput}
+                            onChange={(e) => setFullNameInput(e.target.value)}
+                            placeholder="உங்கள் பெயர்"
                             className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition"
                             required
                         />
                     </div>
 
+                    {/* Phone Number Field */}
+                    <div>
+                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Phone Number</label>
+                        <div className="flex items-center w-full bg-[#0B0E14] border border-gray-800 focus-within:border-[#FF6B00] rounded-xl px-3 py-2 transition">
+                            <span className="text-gray-400 text-sm pr-2 border-r border-gray-800">+94</span>
+                            <input
+                                type="tel"
+                                value={phoneInput}
+                                onChange={(e) => setPhoneInput(e.target.value)}
+                                placeholder="771234567"
+                                className="w-full bg-transparent pl-3 text-sm text-white outline-none"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {/* Email Field */}
                     <div>
                         <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Email Address (Mandatory)</label>
                         <input
@@ -123,16 +159,27 @@ export default function CustomerRegisterPage() {
                         />
                     </div>
 
+                    {/* Password Field with Eye Icon */}
                     <div>
                         <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Create Password</label>
-                        <input
-                            type="password"
-                            value={passwordInput}
-                            onChange={(e) => setPasswordInput(e.target.value)}
-                            placeholder="At least 6 characters"
-                            className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition"
-                            required
-                        />
+                        <div className="relative flex items-center w-full bg-[#0B0E14] border border-gray-800 focus-within:border-[#FF6B00] rounded-xl px-3 py-2 transition">
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={passwordInput}
+                                onChange={(e) => setPasswordInput(e.target.value)}
+                                placeholder="At least 6 characters"
+                                className="w-full bg-transparent pr-8 text-sm text-white outline-none"
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 text-gray-400 hover:text-white outline-none"
+                            >
+                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-1">Use 6 or more characters with a mix of letters & numbers.</p>
                     </div>
 
                     {errorMsg && <p className="text-[11px] text-red-500 font-medium text-center">{errorMsg}</p>}
