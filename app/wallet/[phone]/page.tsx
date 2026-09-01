@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Wallet, Compass, User, Search, QrCode, ChevronRight, X, LogOut } from 'lucide-react'
+import { Wallet, Compass, User, Search, QrCode, ChevronRight, X, LogOut, ShieldCheck } from 'lucide-react'
 
 export default function CustomerWalletPage() {
     const params = useParams()
@@ -76,29 +76,40 @@ export default function CustomerWalletPage() {
 
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${phone}`;
 
+    // Format phone number nicely for display (e.g., +94 76 ••• •142)
+    const formatPhoneNumber = (num: string) => {
+        if (!num) return ''
+        // If it starts with country code or digits
+        const cleaned = num.replace(/\D/g, '')
+        if (cleaned.length >= 11) {
+            const country = cleaned.slice(0, 2)
+            const operator = cleaned.slice(2, 4)
+            const last = cleaned.slice(-4)
+            return `+${country} ${operator} ••• •${last}`
+        }
+        return `+${num}`
+    }
+
     const filteredStores = stores.filter(store => {
         const matchesSearch = store.store_name?.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesSearch
     })
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col pb-24 font-sans selection:bg-[#EE8838]">
+        <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col pb-28 font-sans selection:bg-[#EE8838]">
 
-            {/* Top Header */}
-            <header className="flex items-center justify-between px-4 py-4 border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
-                <div className="flex items-center space-x-2">
-                    <div className="bg-[#EE8838] p-1.5 rounded-xl text-white">
+            {/* Clean Single Top Header */}
+            <header className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-white/90 backdrop-blur-md sticky top-0 z-40 shadow-sm">
+                <div className="flex items-center space-x-2.5">
+                    <div className="bg-[#EE8838] p-2 rounded-xl text-white shadow-md shadow-orange-500/20">
                         <Wallet className="w-5 h-5" />
                     </div>
-                    <span className="font-black text-lg tracking-wider text-[#0F172A]">RET<span className="text-[#EE8838]">CASH</span></span>
+                    <span className="font-black text-xl tracking-wider text-[#0F172A]">RET<span className="text-[#EE8838]">CASH</span></span>
                 </div>
-                <button
-                    onClick={() => setShowQrModal(true)}
-                    className="flex items-center space-x-1.5 bg-[#EE8838] hover:bg-[#e07b2f] text-white px-3 py-1.5 rounded-full text-xs font-bold transition shadow-md shadow-orange-500/20 outline-none cursor-pointer"
-                >
-                    <QrCode className="w-4 h-4" />
-                    <span>My QR</span>
-                </button>
+                <div className="flex items-center space-x-1.5 bg-orange-50 text-[#EE8838] px-3 py-1.5 rounded-full text-xs font-bold border border-orange-100">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Verified User</span>
+                </div>
             </header>
 
             {/* Main Content Container */}
@@ -107,21 +118,32 @@ export default function CustomerWalletPage() {
                 {/* ================= 1. WALLET TAB ================= */}
                 {activeTab === 'wallet' && (
                     <>
-                        <div className="space-y-1">
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">WELCOME BACK</p>
-                            <h1 className="text-xl font-extrabold text-[#0F172A]">+{phone}</h1>
-                        </div>
+                        <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm space-y-4">
+                            <div className="flex justify-between items-start">
+                                <div className="space-y-1">
+                                    <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">WELCOME BACK</p>
+                                    <h1 className="text-xl font-black text-[#0F172A]">{formatPhoneNumber(phone)}</h1>
+                                </div>
+                                <button
+                                    onClick={() => setShowQrModal(true)}
+                                    className="bg-orange-50 hover:bg-orange-100 text-[#EE8838] p-2.5 rounded-2xl border border-orange-100 transition flex items-center justify-center cursor-pointer shadow-sm"
+                                    title="Show My QR"
+                                >
+                                    <QrCode className="w-5 h-5" />
+                                </button>
+                            </div>
 
-                        {/* Search Bar */}
-                        <div className="relative">
-                            <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search stores, categories..."
-                                className="w-full bg-white border border-slate-200 focus:border-[#EE8838] rounded-2xl pl-10 pr-4 py-2.5 text-sm text-[#0F172A] outline-none transition shadow-sm"
-                            />
+                            {/* Search Bar */}
+                            <div className="relative pt-1">
+                                <Search className="absolute left-3.5 top-4.5 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search stores, categories..."
+                                    className="w-full bg-slate-50/80 border border-slate-200 focus:border-[#EE8838] focus:bg-white rounded-2xl pl-10 pr-4 py-3 text-sm text-[#0F172A] outline-none transition shadow-inner"
+                                />
+                            </div>
                         </div>
 
                         {/* Category Filters */}
@@ -141,7 +163,7 @@ export default function CustomerWalletPage() {
                         </div>
 
                         {/* Stores Header */}
-                        <div className="flex items-center justify-between pt-2">
+                        <div className="flex items-center justify-between pt-1">
                             <h2 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">YOUR STORES & LOYALTY CARDS</h2>
                             <span className="text-xs font-bold bg-white text-[#EE8838] px-2.5 py-1 rounded-full border border-slate-200 shadow-sm">
                                 {filteredStores.length} stores
@@ -150,9 +172,9 @@ export default function CustomerWalletPage() {
 
                         {/* Dynamic Stores List */}
                         {loading ? (
-                            <div className="text-center py-10 text-slate-400 text-xs">Loading wallet data...</div>
+                            <div className="text-center py-12 text-slate-400 text-xs font-medium">Loading wallet data...</div>
                         ) : filteredStores.length === 0 ? (
-                            <div className="bg-white border border-slate-200 rounded-3xl p-6 text-center space-y-2 shadow-sm">
+                            <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-sm">
                                 <p className="text-xs text-slate-500">No stores found in your wallet yet.</p>
                             </div>
                         ) : (
@@ -166,35 +188,37 @@ export default function CustomerWalletPage() {
                                             console.warn("No active card/claim found for this store:", store.store_name)
                                         }
                                     }}
-                                    className="bg-white border border-slate-200 rounded-3xl p-4 space-y-4 hover:border-[#EE8838] transition cursor-pointer shadow-sm"
+                                    className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 hover:border-[#EE8838] transition cursor-pointer shadow-sm hover:shadow-md group"
                                 >
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="w-10 h-10 rounded-2xl bg-orange-50 overflow-hidden flex items-center justify-center border border-slate-100">
-                                                <span className="text-xs font-bold text-[#EE8838]">
+                                        <div className="flex items-center space-x-3.5">
+                                            <div className="w-11 h-11 rounded-2xl bg-orange-50 overflow-hidden flex items-center justify-center border border-orange-100 group-hover:scale-105 transition">
+                                                <span className="text-sm font-black text-[#EE8838]">
                                                     {store.store_name?.[0] || 'S'}
                                                 </span>
                                             </div>
                                             <div>
-                                                <h3 className="text-sm font-bold text-[#0F172A]">{store.store_name}</h3>
-                                                <p className="text-[11px] text-slate-400">Partner Store</p>
+                                                <h3 className="text-sm font-bold text-[#0F172A] group-hover:text-[#EE8838] transition">{store.store_name}</h3>
+                                                <p className="text-[11px] text-slate-400 font-medium">Partner Store</p>
                                             </div>
                                         </div>
-                                        <ChevronRight className="w-5 h-5 text-slate-400" />
+                                        <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 group-hover:bg-orange-50 transition">
+                                            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#EE8838]" />
+                                        </div>
                                     </div>
 
-                                    <div className="pt-2 border-t border-slate-100 flex items-end justify-between">
+                                    <div className="pt-3 border-t border-slate-100 flex items-end justify-between">
                                         <div>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase">CASHBACK BALANCE</p>
-                                            <p className="text-lg font-black text-[#0F172A]">Rs. {Number(store.balance).toFixed(2)}</p>
+                                            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">CASHBACK BALANCE</p>
+                                            <p className="text-lg font-black text-[#0F172A] mt-0.5">Rs. {Number(store.balance).toFixed(2)}</p>
                                         </div>
-                                        <div className="text-right space-y-1">
-                                            <p className="text-[10px] font-bold text-slate-400">{store.visits || 0}/6 VISITS</p>
+                                        <div className="text-right space-y-1.5">
+                                            <p className="text-[10px] font-extrabold text-slate-400">{store.visits || 0}/6 VISITS</p>
                                             <div className="flex space-x-1">
                                                 {[1, 2, 3, 4, 5, 6].map((v) => (
                                                     <div
                                                         key={v}
-                                                        className={`w-3 h-3 rounded-full ${v <= (store.visits || 0) ? 'bg-[#EE8838]' : 'bg-slate-200'}`}
+                                                        className={`w-2.5 h-2.5 rounded-full transition ${v <= (store.visits || 0) ? 'bg-[#EE8838]' : 'bg-slate-200'}`}
                                                     ></div>
                                                 ))}
                                             </div>
@@ -210,19 +234,19 @@ export default function CustomerWalletPage() {
                 {activeTab === 'discover' && (
                     <div className="space-y-4 animate-in fade-in duration-200">
                         <div className="space-y-1">
-                            <h1 className="text-xl font-extrabold text-[#0F172A]">Discover Offers</h1>
+                            <h1 className="text-xl font-black text-[#0F172A]">Discover Offers</h1>
                             <p className="text-xs text-slate-500">Explore partner stores offering special cashback and rewards.</p>
                         </div>
 
                         {stores.map((store, idx) => (
-                            <div key={idx} className="bg-white border border-slate-200 rounded-3xl p-4 space-y-2 shadow-sm">
+                            <div key={idx} className="bg-white border border-slate-200 rounded-3xl p-5 space-y-3 shadow-sm">
                                 <div className="flex items-center justify-between">
                                     <h3 className="text-sm font-bold text-[#0F172A]">{store.store_name}</h3>
                                     <span className="text-[10px] bg-orange-50 text-[#EE8838] px-2.5 py-1 rounded-full font-bold border border-orange-100">
                                         Active Offer
                                     </span>
                                 </div>
-                                <p className="text-xs text-slate-500">Visit this store and earn exciting cashback rewards on every purchase!</p>
+                                <p className="text-xs text-slate-500 leading-relaxed">Visit this store and earn exciting cashback rewards on every purchase!</p>
                             </div>
                         ))}
                     </div>
@@ -232,25 +256,25 @@ export default function CustomerWalletPage() {
                 {activeTab === 'profile' && (
                     <div className="space-y-5 animate-in fade-in duration-200">
                         <div className="space-y-1">
-                            <h1 className="text-xl font-extrabold text-[#0F172A]">My Profile</h1>
+                            <h1 className="text-xl font-black text-[#0F172A]">My Profile</h1>
                             <p className="text-xs text-slate-500">Manage your account details and session.</p>
                         </div>
 
                         <div className="bg-white border border-slate-200 rounded-3xl p-5 space-y-4 shadow-sm">
-                            <div className="flex items-center space-x-3 pb-4 border-b border-slate-100">
-                                <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#EE8838] flex items-center justify-center font-black text-lg border border-orange-100">
+                            <div className="flex items-center space-x-3.5 pb-4 border-b border-slate-100">
+                                <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#EE8838] flex items-center justify-center font-black text-lg border border-orange-100 shadow-sm">
                                     <User className="w-6 h-6" />
                                 </div>
                                 <div>
                                     <p className="text-xs text-slate-400 font-bold">Phone Number</p>
-                                    <p className="text-base font-extrabold text-[#0F172A]">+{phone}</p>
+                                    <p className="text-base font-extrabold text-[#0F172A]">{formatPhoneNumber(phone)}</p>
                                 </div>
                             </div>
 
                             <div className="space-y-2">
                                 <button
                                     onClick={() => router.push('/customer/login')}
-                                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition outline-none cursor-pointer"
+                                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3.5 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition outline-none cursor-pointer shadow-sm"
                                 >
                                     <LogOut className="w-4 h-4" />
                                     <span>Logout / Switch Account</span>
@@ -264,53 +288,64 @@ export default function CustomerWalletPage() {
 
             {/* QR Code Modal Popup */}
             {showQrModal && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-2xl relative animate-in fade-in zoom-in duration-200">
                         <button
                             onClick={() => setShowQrModal(false)}
-                            className="absolute top-4 right-4 text-slate-400 hover:text-[#0F172A] bg-slate-100 p-1.5 rounded-full outline-none cursor-pointer"
+                            className="absolute top-4 right-4 text-slate-400 hover:text-[#0F172A] bg-slate-100 p-1.5 rounded-full outline-none cursor-pointer transition"
                         >
                             <X className="w-4 h-4" />
                         </button>
 
                         <div className="space-y-1 pt-2">
-                            <h3 className="text-sm font-bold text-[#0F172A] uppercase tracking-wider">My Wallet QR</h3>
+                            <h3 className="text-sm font-black text-[#0F172A] uppercase tracking-wider">My Wallet QR</h3>
                             <p className="text-[11px] text-slate-500">Scan this QR to get your phone number</p>
                         </div>
 
-                        <div className="bg-slate-50 p-4 rounded-2xl inline-block border border-slate-200">
-                            <img src={qrCodeUrl} alt="Customer QR Code" className="w-48 h-48 mx-auto" />
+                        <div className="bg-slate-50 p-4 rounded-2xl inline-block border border-slate-200/80 shadow-inner">
+                            <img src={qrCodeUrl} alt="Customer QR Code" className="w-48 h-48 mx-auto rounded-xl" />
                         </div>
 
-                        <div className="bg-slate-50 border border-slate-200 py-2 px-4 rounded-xl">
-                            <p className="text-xs font-bold text-[#EE8838]">+{phone}</p>
+                        <div className="bg-orange-50 border border-orange-100 py-2.5 px-4 rounded-xl">
+                            <p className="text-xs font-extrabold text-[#EE8838]">{formatPhoneNumber(phone)}</p>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Bottom Navigation Bar */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-2.5 px-6 flex justify-around items-center z-50 max-w-md mx-auto rounded-t-3xl shadow-lg">
+            {/* Bottom Navigation Bar with Integrated Quick QR Button */}
+            <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2 px-6 flex justify-around items-center z-50 max-w-md mx-auto rounded-t-3xl shadow-lg">
                 <button
                     onClick={() => setActiveTab('wallet')}
-                    className={`flex flex-col items-center space-x-1 outline-none transition cursor-pointer ${activeTab === 'wallet' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
+                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'wallet' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
                 >
                     <Wallet className="w-5 h-5" />
                     <span className="text-[10px] font-bold">Wallet</span>
                 </button>
+
+                {/* Center Quick QR Button in Nav Bar */}
+                <button
+                    onClick={() => setShowQrModal(true)}
+                    className="flex flex-col items-center justify-center -mt-6 bg-[#EE8838] hover:bg-[#e07b2f] text-white w-12 h-12 rounded-full shadow-lg shadow-orange-500/30 transition outline-none cursor-pointer border-4 border-[#F8FAFC]"
+                    title="My QR"
+                >
+                    <QrCode className="w-5 h-5" />
+                </button>
+
                 <button
                     onClick={() => setActiveTab('discover')}
-                    className={`flex flex-col items-center space-x-1 outline-none transition cursor-pointer ${activeTab === 'discover' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
+                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'discover' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
                 >
                     <Compass className="w-5 h-5" />
-                    <span className="text-[10px] font-medium">Discover</span>
+                    <span className="text-[10px] font-bold">Discover</span>
                 </button>
+
                 <button
                     onClick={() => setActiveTab('profile')}
-                    className={`flex flex-col items-center space-x-1 outline-none transition cursor-pointer ${activeTab === 'profile' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-slate-700'}`}
+                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'profile' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
                 >
                     <User className="w-5 h-5" />
-                    <span className="text-[10px] font-medium">Profile</span>
+                    <span className="text-[10px] font-bold">Profile</span>
                 </button>
             </nav>
 
