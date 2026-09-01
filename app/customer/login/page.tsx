@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabase';
 import { Eye, EyeOff, Wallet } from 'lucide-react';
 import Link from 'next/link';
 
@@ -13,9 +13,8 @@ export default function CustomerLoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setMessage] = useState('');
     const router = useRouter();
-    const supabase = createClientComponentClient();
 
-    // Phone number normalization helper (Standardizing to 9 digits after 94/0)
+    // Phone number normalization helper
     const normalizePhone = (input: string) => {
         let cleaned = input.replace(/\D/g, '');
         if (cleaned.startsWith('94') && cleaned.length > 9) {
@@ -38,7 +37,6 @@ export default function CustomerLoginPage() {
             return;
         }
 
-        // Using phone as email format for Supabase auth or custom lookup
         const emailPseudo = `${formattedPhone}@retcash.com`;
 
         const { error: authError } = await supabase.auth.signInWithPassword({
@@ -151,4 +149,3 @@ export default function CustomerLoginPage() {
         </div>
     );
 }
-
