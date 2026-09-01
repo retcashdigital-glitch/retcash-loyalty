@@ -67,8 +67,8 @@ function Chip() {
         <div
             className="w-[34px] h-[25px] rounded-[6px]"
             style={{
-                background: "linear-gradient(145deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.05) 100%)",
-                border: "1px solid rgba(255,255,255,0.12)",
+                background: "linear-gradient(145deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 100%)",
+                border: "1px solid rgba(255,255,255,0.5)",
             }}
         />
     );
@@ -87,7 +87,6 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
             fetchClaimDetails()
         }
 
-        // Real-time listener to instantly catch store admin scan action
         const channel = supabase
             .channel(`card_status_${id}`)
             .on(
@@ -112,7 +111,6 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
     const fetchClaimDetails = async () => {
         try {
             setLoading(true)
-
             const { data: claim, error: claimError } = await supabase
                 .from('cashback_claims')
                 .select(`
@@ -130,13 +128,11 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                 .maybeSingle()
 
             if (claimError || !claim) {
-                console.error('Error fetching claim:', claimError)
                 setClaimData(null)
             } else {
                 setClaimData(claim)
             }
         } catch (err) {
-            console.error(err)
             setClaimData(null)
         } finally {
             setLoading(false)
@@ -145,7 +141,7 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#181D26] text-[#F8FAFC] flex items-center justify-center font-sans">
+            <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex items-center justify-center font-sans">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#EE8838]"></div>
             </div>
         )
@@ -153,10 +149,10 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
 
     if (!claimData) {
         return (
-            <div className="min-h-screen bg-[#181D26] text-[#F8FAFC] flex flex-col items-center justify-center p-6 text-center font-sans">
-                <div className="bg-[#222A36] border border-[#333D4E] p-6 rounded-3xl max-w-sm w-full shadow-lg">
-                    <p className="text-sm font-semibold text-[#F8FAFC] mb-2">Card details not found or expired.</p>
-                    <p className="text-xs text-[#94A3B8]">Please check the link sent to your WhatsApp or try refreshing.</p>
+            <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col items-center justify-center p-6 text-center font-sans">
+                <div className="bg-white border border-slate-200 p-6 rounded-3xl max-w-sm w-full shadow-md">
+                    <p className="text-sm font-semibold text-[#0F172A] mb-2">Card details not found or expired.</p>
+                    <p className="text-xs text-slate-500">Please check the link sent to your WhatsApp or try refreshing.</p>
                 </div>
             </div>
         )
@@ -169,91 +165,87 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
     const isRewardReady = currentVisits >= totalVisits
     const isCompleted = claimData.status === 'COMPLETED'
 
-    // Initials for Store Logo Placeholder
     const storeInitials = store?.store_name
         ? store.store_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
         : 'RC'
 
     return (
-        <div className="min-h-screen bg-[#181D26] text-[#F8FAFC] flex flex-col items-center p-4 font-sans selection:bg-[#EE8838]">
+        <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col items-center p-4 font-sans selection:bg-[#EE8838]">
 
             {/* Top Header Navigation Bar */}
-            <div className="w-full max-w-sm flex items-center justify-between pt-3 pb-3 border-b border-[#2C3545] mb-4">
+            <div className="w-full max-w-sm flex items-center justify-between pt-3 pb-3 border-b border-slate-200 mb-4">
                 {customerPhone ? (
                     <button
                         onClick={() => router.push(`/wallet/${customerPhone}`)}
-                        className="flex items-center gap-2 text-xs font-bold text-[#EE8838] bg-[#EE8838]/10 border border-[#EE8838]/30 px-3 py-1.5 rounded-xl hover:bg-[#EE8838]/20 transition active:scale-95 cursor-pointer"
+                        className="flex items-center gap-2 text-xs font-bold text-[#EE8838] bg-[#EE8838]/10 border border-[#EE8838]/20 px-3 py-1.5 rounded-xl hover:bg-[#EE8838]/20 transition active:scale-95 cursor-pointer"
                     >
                         <IconWallet />
                         <span>My All Stores Wallet</span>
                     </button>
                 ) : (
-                    <div className="text-xs text-[#94A3B8] font-bold tracking-wider">RETCASH PASS</div>
+                    <div className="text-xs text-slate-400 font-bold tracking-wider">RETCASH PASS</div>
                 )}
-                <span className="text-[10px] text-[#94A3B8] font-semibold uppercase tracking-wider">Digital Loyalty</span>
+                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Digital Loyalty</span>
             </div>
 
             <div className="w-full max-w-sm space-y-4">
 
                 {/* Main Loyalty Pass Card */}
                 <div
-                    className="relative rounded-3xl p-6 shadow-2xl overflow-hidden"
+                    className="relative rounded-3xl p-6 shadow-xl overflow-hidden text-white"
                     style={{
-                        background: "linear-gradient(150deg, #242B38 0%, #1A202C 60%, #141923 100%)",
-                        border: "1px solid rgba(255, 255, 255, 0.08)",
-                        boxShadow: "0 20px 40px -15px rgba(0,0,0,0.5)"
+                        background: "linear-gradient(135deg, #1E293B 0%, #0F172A 100%)",
+                        boxShadow: "0 20px 30px -10px rgba(15, 23, 42, 0.15)"
                     }}
                 >
                     <div className="flex justify-between items-start mb-6">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-[#EE8838]/15 border border-[#EE8838]/30 flex items-center justify-center font-bold text-[#EE8838] text-sm">
+                            <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center font-bold text-[#EE8838] text-sm">
                                 {storeInitials}
                             </div>
                             <div>
                                 <span className="text-[9px] font-bold text-[#EE8838] uppercase tracking-widest block">RETCASH PARTNER</span>
-                                <h1 className="text-lg font-black text-[#F8FAFC] leading-tight">{store?.store_name || 'PARTNER STORE'}</h1>
+                                <h1 className="text-lg font-black text-white leading-tight">{store?.store_name || 'PARTNER STORE'}</h1>
                             </div>
                         </div>
                         <Chip />
                     </div>
 
                     <div className="mb-6">
-                        <span className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-wider block mb-1">STORE CREDIT BALANCE</span>
-                        <div className="text-3xl font-black text-[#F8FAFC] tracking-tight">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">STORE CREDIT BALANCE</span>
+                        <div className="text-3xl font-black text-white tracking-tight">
                             Rs. {Number(claimData.claimable_amount || 0).toFixed(2)}
                         </div>
                     </div>
 
-                    {/* Footer Details */}
-                    <div className="pt-4 border-t border-white/5 flex items-center justify-between text-[11px]">
+                    <div className="pt-4 border-t border-white/10 flex items-center justify-between text-[11px]">
                         <div>
-                            <span className="text-[9px] text-[#94A3B8] block font-semibold uppercase tracking-wider">MEMBER PASS</span>
-                            <span className="text-[#F8FAFC] font-medium">VIP MEMBER</span>
+                            <span className="text-[9px] text-slate-400 block font-semibold uppercase tracking-wider">MEMBER PASS</span>
+                            <span className="text-white font-medium">VIP MEMBER</span>
                         </div>
                         <div className="text-right">
-                            <span className="text-[9px] text-[#94A3B8] block font-semibold uppercase tracking-wider">PASS ID</span>
-                            <span className="text-[#94A3B8] font-mono">•••• {customerPhone.slice(-4) || '0000'}</span>
+                            <span className="text-[9px] text-slate-400 block font-semibold uppercase tracking-wider">PASS ID</span>
+                            <span className="text-slate-300 font-mono">•••• {customerPhone.slice(-4) || '0000'}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Dynamic Condition & Challenge Box */}
-                <div className="bg-[#222A36] border border-[#2C3545] rounded-3xl p-6 text-center relative overflow-hidden shadow-xl">
+                <div className="bg-white border border-slate-200/80 rounded-3xl p-6 text-center relative overflow-hidden shadow-sm">
 
                     {/* Today's Cashback Banner */}
-                    <div className="bg-[#181D26] border border-[#2C3545] p-3 rounded-2xl mb-5 flex justify-between items-center text-xs">
-                        <span className="text-[#94A3B8] font-medium">TODAY'S CASHBACK</span>
+                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl mb-5 flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-medium">TODAY'S CASHBACK</span>
                         <span className="text-[#EE8838] font-black">+ Rs. {Number(claimData.cashback_amount || 0).toFixed(2)}</span>
                     </div>
 
                     {/* 6 Visit Challenge Tracker */}
                     <div className="mb-6">
                         <div className="flex justify-between text-[11px] font-bold tracking-wider uppercase mb-3">
-                            <span className="text-[#94A3B8]">6 Visit Challenge</span>
+                            <span className="text-slate-500">6 Visit Challenge</span>
                             <span className="text-[#EE8838]">{currentVisits} / {totalVisits} Visits</span>
                         </div>
 
-                        {/* Node progress bar */}
                         <div className="grid grid-cols-6 gap-2">
                             {Array.from({ length: totalVisits }).map((_, i) => {
                                 const step = i + 1;
@@ -262,8 +254,8 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                                     <div
                                         key={step}
                                         className={`h-9 rounded-xl flex items-center justify-center font-bold text-xs transition-all duration-300 ${done
-                                            ? 'bg-[#EE8838] text-white shadow-[0_4px_12px_rgba(238,136,56,0.35)]'
-                                            : 'bg-[#181D26] border border-[#2C3545] text-[#475569]'
+                                            ? 'bg-[#EE8838] text-white shadow-md shadow-orange-500/20'
+                                            : 'bg-slate-100 border border-slate-200 text-slate-400'
                                             }`}
                                     >
                                         {done ? <IconCheck /> : <span className="scale-75"><IconLock /></span>}
@@ -279,11 +271,11 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                         {/* Success Screen */}
                         <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-out transform ${isCompleted ? 'opacity-100 scale-100 translate-y-0 blur-0' : 'opacity-0 scale-90 translate-y-6 blur-md pointer-events-none'
                             }`}>
-                            <div className="w-14 h-14 bg-green-500/10 border border-green-500/30 text-green-400 rounded-full flex items-center justify-center mx-auto text-3xl mb-3 animate-bounce shadow-[0_0_20px_rgba(34,197,94,0.3)]">
+                            <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl mb-3 animate-bounce shadow-sm">
                                 🎉
                             </div>
-                            <h3 className="text-xs font-black text-green-400 uppercase tracking-wider mb-1">REWARD SUCCESSFULLY REDEEMED!</h3>
-                            <p className="text-[11px] text-[#94A3B8] px-2 font-medium">
+                            <h3 className="text-xs font-black text-emerald-600 uppercase tracking-wider mb-1">REWARD SUCCESSFULLY REDEEMED!</h3>
+                            <p className="text-[11px] text-slate-500 px-2 font-medium">
                                 Your 6th visit reward has been claimed successfully. Thank you for visiting!
                             </p>
                         </div>
@@ -293,11 +285,11 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                             }`}>
                             {isRewardReady ? (
                                 <div className="w-full">
-                                    <div className="bg-[#EE8838]/10 border border-[#EE8838]/40 text-[#EE8838] text-xs font-bold py-2 px-3 rounded-xl mb-3">
+                                    <div className="bg-[#EE8838]/10 border border-[#EE8838]/30 text-[#EE8838] text-xs font-bold py-2 px-3 rounded-xl mb-3">
                                         🎉 Congratulations! Your 6th Visit Reward is ready!
                                     </div>
-                                    <p className="text-[11px] text-[#94A3B8] mb-2 font-semibold">Show QR code at billing counter:</p>
-                                    <div className="bg-white p-3 rounded-2xl inline-block shadow-xl border border-white/20">
+                                    <p className="text-[11px] text-slate-500 mb-2 font-semibold">Show QR code at billing counter:</p>
+                                    <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-200">
                                         <img
                                             src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${id}`}
                                             alt="Redemption QR"
@@ -306,14 +298,14 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                                     </div>
                                 </div>
                             ) : (
-                                <div className="py-5 px-4 border border-dashed border-[#2C3545] rounded-2xl bg-[#181D26] w-full">
+                                <div className="py-5 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50 w-full">
                                     <div className="w-10 h-10 bg-[#EE8838]/10 border border-[#EE8838]/30 text-[#EE8838] rounded-full flex items-center justify-center mx-auto mb-2 text-base">
                                         <IconGift />
                                     </div>
-                                    <h3 className="text-xs font-bold text-[#F8FAFC] mb-1">
+                                    <h3 className="text-xs font-bold text-[#0F172A] mb-1">
                                         {totalVisits - currentVisits} More {totalVisits - currentVisits === 1 ? 'Visit' : 'Visits'} Needed!
                                     </h3>
-                                    <p className="text-[11px] text-[#94A3B8]">
+                                    <p className="text-[11px] text-slate-500">
                                         Redemption QR code will appear automatically on your 6th visit.
                                     </p>
                                 </div>
@@ -323,19 +315,19 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                     </div>
 
                     {/* Quick Action Buttons */}
-                    <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[#2C3545] mt-4">
+                    <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100 mt-4">
                         {store?.location_url ? (
                             <a
                                 href={store.location_url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="py-3 px-3 bg-[#181D26] border border-[#2C3545] rounded-xl text-center text-xs text-[#F8FAFC] font-bold hover:border-[#EE8838]/50 transition flex items-center justify-center gap-2"
+                                className="py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-[#0F172A] font-bold hover:border-[#EE8838] transition flex items-center justify-center gap-2"
                             >
                                 <IconLocation />
                                 <span>LOCATION</span>
                             </a>
                         ) : (
-                            <button disabled className="py-3 px-3 bg-[#181D26]/50 border border-[#2C3545]/40 rounded-xl text-center text-xs text-[#475569] font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                            <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200 rounded-xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 cursor-not-allowed">
                                 <IconLocation />
                                 <span>LOCATION</span>
                             </button>
@@ -346,13 +338,13 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                                 href={store.review_url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="py-3 px-3 bg-[#181D26] border border-[#2C3545] rounded-xl text-center text-xs text-[#EE8838] font-bold hover:border-[#EE8838]/50 transition flex items-center justify-center gap-2"
+                                className="py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-[#EE8838] font-bold hover:border-[#EE8838] transition flex items-center justify-center gap-2"
                             >
                                 <IconStar />
                                 <span>REVIEW</span>
                             </a>
                         ) : (
-                            <button disabled className="py-3 px-3 bg-[#181D26]/50 border border-[#2C3545]/40 rounded-xl text-center text-xs text-[#475569] font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                            <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200 rounded-xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 cursor-not-allowed">
                                 <IconStar />
                                 <span>REVIEW</span>
                             </button>
@@ -363,8 +355,8 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
             </div>
 
             {/* Footer */}
-            <div className="py-8 text-center text-[10px] text-[#475569] tracking-wider uppercase font-semibold">
-                <p>© RETCASH DIGITAL LOYALTY PLATFORM</p>
+            <div className="py-8 text-center text-[10px] text-slate-400 tracking-wider uppercase font-semibold">
+                <p>©️ RETCASH DIGITAL LOYALTY PLATFORM</p>
             </div>
 
         </div>

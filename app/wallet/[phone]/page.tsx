@@ -15,7 +15,6 @@ export default function CustomerWalletPage() {
     const [stores, setStores] = useState<any[]>([])
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('All Stores')
-
     const [showQrModal, setShowQrModal] = useState(false)
 
     useEffect(() => {
@@ -24,19 +23,16 @@ export default function CustomerWalletPage() {
         }
     }, [phone])
 
-    // cashback_claims மற்றும் stores டேபிள்களிலிருந்து துல்லியமான விசிட் மற்றும் பேலன்ஸ் எடுத்தல்
     const fetchWalletAndClaimsData = async () => {
         try {
             setLoading(true)
 
-            // 1. அனைத்து கடைகளையும் எடுத்தல்
             const { data: allStores, error: storeError } = await supabase
                 .from('stores')
                 .select('*')
 
             if (storeError) throw storeError
 
-            // 2. இந்த கஸ்டமர் ஃபோன் எண்ணுக்கான அனைத்து கிளைம்களையும் எடுத்தல்
             const { data: claimsData, error: claimsError } = await supabase
                 .from('cashback_claims')
                 .select('*')
@@ -46,24 +42,19 @@ export default function CustomerWalletPage() {
                 console.error('Error fetching claims:', claimsError)
             }
 
-            // 3. ஒவ்வொரு கடை வாரியாக பேலன்ஸ், விசிட் மற்றும் சரியான claim ID-ஐ கணக்கிடுதல்
             const mergedStores = allStores?.map((store: any) => {
-                // இந்தக் கடைக்குரிய கிளைம்களை மட்டும் பில்டர் செய்தல்
                 const storeClaims = claimsData?.filter(
                     (claim: any) => claim.store_id === store.id || claim.store_id === store.store_id
                 ) || []
 
-                // மொத்த கேஷ்பேக் தொகையைக் கூட்டுதல்
                 const totalBalance = storeClaims.reduce((sum: number, claim: any) => {
                     return sum + (Number(claim.claimable_amount) || Number(claim.cashback_amount) || 0)
                 }, 0)
 
-                // துல்லியமான விசிட் எண்ணிக்கை (visit_count அல்லது மொத்த கிளைம்களின் எண்ணிக்கை)
                 const visitCount = storeClaims.reduce((max: number, claim: any) => {
                     return Math.max(max, Number(claim.visit_count) || 1)
                 }, storeClaims.length > 0 ? storeClaims.length : 0)
 
-                // கார்டு பக்கத்திற்கு ரூட் செய்ய லேட்டஸ்ட் கிளைம் ஐடியை எடுத்தல்
                 const latestClaim = storeClaims[0] || {}
 
                 return {
@@ -91,19 +82,19 @@ export default function CustomerWalletPage() {
     })
 
     return (
-        <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col pb-24 font-sans selection:bg-[#FF6B00]">
+        <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col pb-24 font-sans selection:bg-[#EE8838]">
 
             {/* Top Header */}
-            <header className="flex items-center justify-between px-4 py-4 border-b border-gray-800 bg-[#161B26]/50 backdrop-blur-md sticky top-0 z-50">
+            <header className="flex items-center justify-between px-4 py-4 border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
                 <div className="flex items-center space-x-2">
-                    <div className="bg-[#FF6B00] p-1.5 rounded-xl text-white">
+                    <div className="bg-[#EE8838] p-1.5 rounded-xl text-white">
                         <Wallet className="w-5 h-5" />
                     </div>
-                    <span className="font-black text-lg tracking-wider text-white">RET<span className="text-[#FF6B00]">CASH</span></span>
+                    <span className="font-black text-lg tracking-wider text-[#0F172A]">RET<span className="text-[#EE8838]">CASH</span></span>
                 </div>
                 <button
                     onClick={() => setShowQrModal(true)}
-                    className="flex items-center space-x-1.5 bg-[#FF6B00] hover:bg-[#ff8526] text-white px-3 py-1.5 rounded-full text-xs font-bold transition shadow-lg shadow-orange-500/20 outline-none"
+                    className="flex items-center space-x-1.5 bg-[#EE8838] hover:bg-[#e07b2f] text-white px-3 py-1.5 rounded-full text-xs font-bold transition shadow-md shadow-orange-500/20 outline-none cursor-pointer"
                 >
                     <QrCode className="w-4 h-4" />
                     <span>My QR</span>
@@ -117,19 +108,19 @@ export default function CustomerWalletPage() {
                 {activeTab === 'wallet' && (
                     <>
                         <div className="space-y-1">
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">WELCOME BACK</p>
-                            <h1 className="text-xl font-extrabold text-white">+{phone}</h1>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">WELCOME BACK</p>
+                            <h1 className="text-xl font-extrabold text-[#0F172A]">+{phone}</h1>
                         </div>
 
                         {/* Search Bar */}
                         <div className="relative">
-                            <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
+                            <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
                             <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search stores, categories..."
-                                className="w-full bg-[#161B26] border border-gray-800 focus:border-[#FF6B00] rounded-2xl pl-10 pr-4 py-2.5 text-sm text-white outline-none transition shadow-inner"
+                                className="w-full bg-white border border-slate-200 focus:border-[#EE8838] rounded-2xl pl-10 pr-4 py-2.5 text-sm text-[#0F172A] outline-none transition shadow-sm"
                             />
                         </div>
 
@@ -139,9 +130,9 @@ export default function CustomerWalletPage() {
                                 <button
                                     key={category}
                                     onClick={() => setSelectedCategory(category)}
-                                    className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition ${selectedCategory === category
-                                        ? 'bg-[#FF6B00] text-white shadow-lg shadow-orange-500/20'
-                                        : 'bg-[#161B26] text-gray-400 border border-gray-800 hover:text-white'
+                                    className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer ${selectedCategory === category
+                                        ? 'bg-[#EE8838] text-white shadow-md shadow-orange-500/20'
+                                        : 'bg-white text-slate-500 border border-slate-200 hover:text-[#0F172A]'
                                         }`}
                                 >
                                     {category}
@@ -151,60 +142,59 @@ export default function CustomerWalletPage() {
 
                         {/* Stores Header */}
                         <div className="flex items-center justify-between pt-2">
-                            <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">YOUR STORES & LOYALTY CARDS</h2>
-                            <span className="text-xs font-bold bg-[#161B26] text-[#FF6B00] px-2.5 py-1 rounded-full border border-gray-800">
+                            <h2 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">YOUR STORES & LOYALTY CARDS</h2>
+                            <span className="text-xs font-bold bg-white text-[#EE8838] px-2.5 py-1 rounded-full border border-slate-200 shadow-sm">
                                 {filteredStores.length} stores
                             </span>
                         </div>
 
                         {/* Dynamic Stores List */}
                         {loading ? (
-                            <div className="text-center py-10 text-gray-500 text-xs">Loading wallet data...</div>
+                            <div className="text-center py-10 text-slate-400 text-xs">Loading wallet data...</div>
                         ) : filteredStores.length === 0 ? (
-                            <div className="bg-[#161B26] border border-gray-800 rounded-3xl p-6 text-center space-y-2">
-                                <p className="text-xs text-gray-400">No stores found in your wallet yet.</p>
+                            <div className="bg-white border border-slate-200 rounded-3xl p-6 text-center space-y-2 shadow-sm">
+                                <p className="text-xs text-slate-500">No stores found in your wallet yet.</p>
                             </div>
                         ) : (
                             filteredStores.map((store, index) => (
                                 <div
                                     key={index}
                                     onClick={() => {
-                                        // துல்லியமான cashback_claim ID-ஐ வைத்து குறிப்பிட்ட store-ன் card பக்கத்திற்கு ரூட் செய்தல்
                                         if (store.latestClaimId) {
                                             router.push(`/card/${store.latestClaimId}`)
                                         } else {
                                             console.warn("No active card/claim found for this store:", store.store_name)
                                         }
                                     }}
-                                    className="bg-[#161B26] border border-gray-800 rounded-3xl p-4 space-y-4 hover:border-[#FF6B00] transition cursor-pointer shadow-xl"
+                                    className="bg-white border border-slate-200 rounded-3xl p-4 space-y-4 hover:border-[#EE8838] transition cursor-pointer shadow-sm"
                                 >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center space-x-3">
-                                            <div className="w-10 h-10 rounded-2xl bg-gray-800 overflow-hidden flex items-center justify-center border border-gray-700">
-                                                <span className="text-xs font-bold text-[#FF6B00]">
+                                            <div className="w-10 h-10 rounded-2xl bg-orange-50 overflow-hidden flex items-center justify-center border border-slate-100">
+                                                <span className="text-xs font-bold text-[#EE8838]">
                                                     {store.store_name?.[0] || 'S'}
                                                 </span>
                                             </div>
                                             <div>
-                                                <h3 className="text-sm font-bold text-white">{store.store_name}</h3>
-                                                <p className="text-[11px] text-gray-400">Partner Store</p>
+                                                <h3 className="text-sm font-bold text-[#0F172A]">{store.store_name}</h3>
+                                                <p className="text-[11px] text-slate-400">Partner Store</p>
                                             </div>
                                         </div>
-                                        <ChevronRight className="w-5 h-5 text-gray-500" />
+                                        <ChevronRight className="w-5 h-5 text-slate-400" />
                                     </div>
 
-                                    <div className="pt-2 border-t border-gray-800/80 flex items-end justify-between">
+                                    <div className="pt-2 border-t border-slate-100 flex items-end justify-between">
                                         <div>
-                                            <p className="text-[10px] font-bold text-gray-400 uppercase">CASHBACK BALANCE</p>
-                                            <p className="text-lg font-black text-white">Rs. {Number(store.balance).toFixed(2)}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase">CASHBACK BALANCE</p>
+                                            <p className="text-lg font-black text-[#0F172A]">Rs. {Number(store.balance).toFixed(2)}</p>
                                         </div>
                                         <div className="text-right space-y-1">
-                                            <p className="text-[10px] font-bold text-gray-400">{store.visits || 0}/6 VISITS</p>
+                                            <p className="text-[10px] font-bold text-slate-400">{store.visits || 0}/6 VISITS</p>
                                             <div className="flex space-x-1">
                                                 {[1, 2, 3, 4, 5, 6].map((v) => (
                                                     <div
                                                         key={v}
-                                                        className={`w-3 h-3 rounded-full ${v <= (store.visits || 0) ? 'bg-[#FF6B00]' : 'bg-gray-800'}`}
+                                                        className={`w-3 h-3 rounded-full ${v <= (store.visits || 0) ? 'bg-[#EE8838]' : 'bg-slate-200'}`}
                                                     ></div>
                                                 ))}
                                             </div>
@@ -220,19 +210,19 @@ export default function CustomerWalletPage() {
                 {activeTab === 'discover' && (
                     <div className="space-y-4 animate-in fade-in duration-200">
                         <div className="space-y-1">
-                            <h1 className="text-xl font-extrabold text-white">Discover Offers</h1>
-                            <p className="text-xs text-gray-400">Explore partner stores offering special cashback and rewards.</p>
+                            <h1 className="text-xl font-extrabold text-[#0F172A]">Discover Offers</h1>
+                            <p className="text-xs text-slate-500">Explore partner stores offering special cashback and rewards.</p>
                         </div>
 
                         {stores.map((store, idx) => (
-                            <div key={idx} className="bg-[#161B26] border border-gray-800 rounded-3xl p-4 space-y-2 shadow-xl">
+                            <div key={idx} className="bg-white border border-slate-200 rounded-3xl p-4 space-y-2 shadow-sm">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="text-sm font-bold text-white">{store.store_name}</h3>
-                                    <span className="text-[10px] bg-orange-500/10 text-[#FF6B00] px-2 py-1 rounded-full font-bold">
+                                    <h3 className="text-sm font-bold text-[#0F172A]">{store.store_name}</h3>
+                                    <span className="text-[10px] bg-orange-50 text-[#EE8838] px-2.5 py-1 rounded-full font-bold border border-orange-100">
                                         Active Offer
                                     </span>
                                 </div>
-                                <p className="text-xs text-gray-400">Visit this store and earn exciting cashback rewards on every purchase!</p>
+                                <p className="text-xs text-slate-500">Visit this store and earn exciting cashback rewards on every purchase!</p>
                             </div>
                         ))}
                     </div>
@@ -242,25 +232,25 @@ export default function CustomerWalletPage() {
                 {activeTab === 'profile' && (
                     <div className="space-y-5 animate-in fade-in duration-200">
                         <div className="space-y-1">
-                            <h1 className="text-xl font-extrabold text-white">My Profile</h1>
-                            <p className="text-xs text-gray-400">Manage your account details and session.</p>
+                            <h1 className="text-xl font-extrabold text-[#0F172A]">My Profile</h1>
+                            <p className="text-xs text-slate-500">Manage your account details and session.</p>
                         </div>
 
-                        <div className="bg-[#161B26] border border-gray-800 rounded-3xl p-5 space-y-4 shadow-xl">
-                            <div className="flex items-center space-x-3 pb-4 border-b border-gray-800">
-                                <div className="w-12 h-12 rounded-2xl bg-[#FF6B00]/20 text-[#FF6B00] flex items-center justify-center font-black text-lg">
+                        <div className="bg-white border border-slate-200 rounded-3xl p-5 space-y-4 shadow-sm">
+                            <div className="flex items-center space-x-3 pb-4 border-b border-slate-100">
+                                <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#EE8838] flex items-center justify-center font-black text-lg border border-orange-100">
                                     <User className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <p className="text-xs text-gray-400 font-bold">Phone Number</p>
-                                    <p className="text-base font-extrabold text-white">+{phone}</p>
+                                    <p className="text-xs text-slate-400 font-bold">Phone Number</p>
+                                    <p className="text-base font-extrabold text-[#0F172A]">+{phone}</p>
                                 </div>
                             </div>
 
                             <div className="space-y-2">
                                 <button
                                     onClick={() => router.push('/customer/login')}
-                                    className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 py-3 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition outline-none"
+                                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition outline-none cursor-pointer"
                                 >
                                     <LogOut className="w-4 h-4" />
                                     <span>Logout / Switch Account</span>
@@ -274,50 +264,50 @@ export default function CustomerWalletPage() {
 
             {/* QR Code Modal Popup */}
             {showQrModal && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-[#161B26] border border-gray-800 rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-2xl relative animate-in fade-in zoom-in duration-200">
                         <button
                             onClick={() => setShowQrModal(false)}
-                            className="absolute top-4 right-4 text-gray-400 hover:text-white bg-gray-800 p-1.5 rounded-full outline-none"
+                            className="absolute top-4 right-4 text-slate-400 hover:text-[#0F172A] bg-slate-100 p-1.5 rounded-full outline-none cursor-pointer"
                         >
                             <X className="w-4 h-4" />
                         </button>
 
                         <div className="space-y-1 pt-2">
-                            <h3 className="text-sm font-bold text-white uppercase tracking-wider">My Wallet QR</h3>
-                            <p className="text-[11px] text-gray-400">Scan this QR to get your phone number</p>
+                            <h3 className="text-sm font-bold text-[#0F172A] uppercase tracking-wider">My Wallet QR</h3>
+                            <p className="text-[11px] text-slate-500">Scan this QR to get your phone number</p>
                         </div>
 
-                        <div className="bg-white p-4 rounded-2xl inline-block shadow-inner">
+                        <div className="bg-slate-50 p-4 rounded-2xl inline-block border border-slate-200">
                             <img src={qrCodeUrl} alt="Customer QR Code" className="w-48 h-48 mx-auto" />
                         </div>
 
-                        <div className="bg-[#0B0E14] border border-gray-800 py-2 px-4 rounded-xl">
-                            <p className="text-xs font-bold text-[#FF6B00]">+{phone}</p>
+                        <div className="bg-slate-50 border border-slate-200 py-2 px-4 rounded-xl">
+                            <p className="text-xs font-bold text-[#EE8838]">+{phone}</p>
                         </div>
                     </div>
                 </div>
             )}
 
             {/* Bottom Navigation Bar */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-[#161B26] border-t border-gray-800 py-2.5 px-6 flex justify-around items-center z-50 max-w-md mx-auto rounded-t-3xl shadow-2xl">
+            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-2.5 px-6 flex justify-around items-center z-50 max-w-md mx-auto rounded-t-3xl shadow-lg">
                 <button
                     onClick={() => setActiveTab('wallet')}
-                    className={`flex flex-col items-center space-x-1 outline-none transition ${activeTab === 'wallet' ? 'text-[#FF6B00]' : 'text-gray-400 hover:text-white'}`}
+                    className={`flex flex-col items-center space-x-1 outline-none transition cursor-pointer ${activeTab === 'wallet' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
                 >
                     <Wallet className="w-5 h-5" />
                     <span className="text-[10px] font-bold">Wallet</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('discover')}
-                    className={`flex flex-col items-center space-x-1 outline-none transition ${activeTab === 'discover' ? 'text-[#FF6B00]' : 'text-gray-400 hover:text-white'}`}
+                    className={`flex flex-col items-center space-x-1 outline-none transition cursor-pointer ${activeTab === 'discover' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
                 >
                     <Compass className="w-5 h-5" />
                     <span className="text-[10px] font-medium">Discover</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('profile')}
-                    className={`flex flex-col items-center space-x-1 outline-none transition ${activeTab === 'profile' ? 'text-[#FF6B00]' : 'text-gray-400 hover:text-white'}`}
+                    className={`flex flex-col items-center space-x-1 outline-none transition cursor-pointer ${activeTab === 'profile' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-slate-700'}`}
                 >
                     <User className="w-5 h-5" />
                     <span className="text-[10px] font-medium">Profile</span>
