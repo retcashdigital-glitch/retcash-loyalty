@@ -17,55 +17,62 @@ export default function CustomerWalletPage() {
     const [selectedCategory, setSelectedCategory] = useState('All Stores')
 
     const [showQrModal, setShowQrModal] = useState(false)
-    const [selectedStore, setSelectedStore] = useState<any>(null)
 
     useEffect(() => {
         if (phone) {
-            fetchCustomerBalancesFromDatabase()
+            fetchWalletAndClaimsData()
         }
     }, [phone])
 
-    // சரியான முறையில் customer_store_balances மற்றும் stores டேபிள்களிலிருந்து டேட்டா எடுத்தல்
-    const fetchCustomerBalancesFromDatabase = async () => {
+    // cashback_claims மற்றும் stores டேபிள்களிலிருந்து துல்லியமாக டேட்டா எடுத்தல்
+    const fetchWalletAndClaimsData = async () => {
         try {
             setLoading(true)
 
-            // 1. முதலில் எல்லா கடைகளையும் எடுப்போம்
+            // 1. அனைத்து கடைகளையும் எடுத்தல்
             const { data: allStores, error: storeError } = await supabase
                 .from('stores')
                 .select('*')
 
             if (storeError) throw storeError
 
-            // 2. குறிப்பிட்ட கஸ்டமரின் ஃபோன் எண்ணுக்கான பேலன்ஸ் விவரங்களை customer_store_balances டேபிளிலிருந்து எடுப்போம்
-            const { data: balancesData, error: balanceError } = await supabase
-                .from('customer_store_balances')
+            // 2. இந்த கஸ்டமர் ஃபோன் எண்ணுக்கான அனைத்து கிளைம்களையும் (Claims/Transactions) எடுத்தல்
+            // கவனிக்க: உமது டேபிளில் காலம் பெயர் 'customer_phone' அல்லது 'phone_number' என இருக்கலாம்
+            const { data: claimsData, error: claimsError } = await supabase
+                .from('cashback_claims')
                 .select('*')
-                .eq('phone_number', phone) // உமது டேபிளில் காலம் பெயர் 'phone_number' அல்லது 'customer_phone' என இருக்கலாம்
+                .eq('customer_phone', phone)
 
-            if (balanceError) {
-                console.error('Balance fetch error:', balanceError)
+            if (claimsError) {
+                console.error('Error fetching claims:', claimsError)
             }
 
-            // 3. கடைகளையும் கஸ்டமர் பேலன்ஸையும் இணைத்து சரியான அரே உருவாக்குதல்
-            const formattedList = allStores?.map((store: any) => {
-                // customer_store_balances டேபிளில் இந்த ஸ்டோர் ஐடிக்குரிய டேட்டா உள்ளதா எனப் பார்த்தல்
-                const userBalance = balancesData?.find(
-                    (b: any) => b.store_id === store.id || b.store_id === store.store_id
-                )
+            // 3. ஒவ்வொரு கடை வாரியாக பேலன்ஸ் மற்றும் விசிட்களை கணக்கிடுதல்
+            const mergedStores = allStores?.map((store: any) => {
+                // இந்தக் கடைக்குரிய கிளைம்களை மட்டும் ફિલ્ட்டர் செய்தல்
+                const storeClaims = claimsData?.filter(
+                    (claim: any) => claim.store_id === store.id || claim.store_id === store.store_id
+                ) || []
+
+                // மொத்த கேஷ்பேக் தொகையைக் கூட்டுதல்
+                const totalBalance = storeClaims.reduce((sum: number, claim: any) => {
+                    return sum + (Number(claim.cashback_amount) || 0)
+                }, 0)
+
+                // விசிட் எண்ணிக்கை (எத்தனை முறை கிளைம் செய்துள்ளார் அல்லது பில் செய்துள்ளார்)
+                const visitCount = storeClaims.length
 
                 return {
                     ...store,
-                    // டேபிளில் உள்ள உண்மையான பேலன்ஸ் மற்றும் விசிட்களை எடுத்தல். டேட்டா இல்லையெனில் 0.
-                    balance: userBalance?.balance ?? userBalance?.store_credit_balance ?? 0.00,
-                    visits: userBalance?.visits ?? userBalance?.completed_visits ?? 0
+                    balance: totalBalance,
+                    visits: visitCount
                 }
             }) || []
 
-            setStores(formattedList)
+            setStores(mergedStores)
 
         } catch (err) {
-            console.error('Error fetching data from Supabase:', err)
+            console.error('Error in fetching wallet data:', err)
         } finally {
             setLoading(false)
         }
@@ -147,17 +154,21 @@ export default function CustomerWalletPage() {
 
                         {/* Dynamic Stores List */}
                         {loading ? (
-                            <div className="text-center py-10 text-gray-500 text-xs">Loading correct data from database...</div>
+                            <div className="text-center py-10 text-gray-500 text-xs">Loading wallet data...</div>
                         ) : filteredStores.length === 0 ? (
                             <div className="bg-[#161B26] border border-gray-800 rounded-3xl p-6 text-center space-y-2">
-                                <p className="text-xs text-gray-400">No stores found.</p>
+                                <p className="text-xs text-gray-400">No stores found in your wallet yet.</p>
                             </div>
                         ) : (
                             filteredStores.map((store, index) => (
                                 <div
                                     key={index}
-                                    onClick={() => setSelectedStore(store)}
-                                    className="bg-[#161B26] border border-gray-800 rounded-3xl p-4 space-y-4 hover:border-gray-700 transition cursor-pointer shadow-xl"
+                                    onClick={() => {
+                                        // ஸ்டோரைக் கிளிக் செய்தவுடன் அந்த கடைக்கான கார்டு பக்கத்திற்கு செல்ல வழிசெய்தல் 
+                                        // (உதாரணத்திற்கு /card/[store_id] அல்லது /card/[phone]?store=... )
+                                        router.push(`/card/${store.id}?phone=${phone}`)
+                                    }}
+                                    className="bg-[#161B26] border border-gray-800 rounded-3xl p-4 space-y-4 hover:border-[#FF6B00] transition cursor-pointer shadow-xl"
                                 >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center space-x-3">
@@ -252,40 +263,6 @@ export default function CustomerWalletPage() {
                 )}
 
             </main>
-
-            {/* Store Detail Modal Popup */}
-            {selectedStore && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-[#161B26] border border-gray-800 rounded-3xl p-6 w-full max-w-sm space-y-4 shadow-2xl relative animate-in fade-in zoom-in duration-200">
-                        <button
-                            onClick={() => setSelectedStore(null)}
-                            className="absolute top-4 right-4 text-gray-400 hover:text-white bg-gray-800 p-1.5 rounded-full outline-none"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-
-                        <div className="space-y-1 pt-2">
-                            <h3 className="text-base font-extrabold text-white">{selectedStore.store_name}</h3>
-                            <p className="text-[11px] text-gray-400">Loyalty Card Details</p>
-                        </div>
-
-                        <div className="bg-[#0B0E14] border border-gray-800 p-4 rounded-2xl space-y-3">
-                            <div className="flex justify-between items-center">
-                                <span className="text-xs text-gray-400">Available Balance</span>
-                                <span className="text-sm font-black text-[#FF6B00]">Rs. {Number(selectedStore.balance).toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-xs text-gray-400">Visits Completed</span>
-                                <span className="text-xs font-bold text-white">{selectedStore.visits || 0} / 6 Visits</span>
-                            </div>
-                        </div>
-
-                        <div className="text-center pt-2">
-                            <p className="text-[10px] text-gray-500">Show your My QR at the counter to update visits and cashback.</p>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* QR Code Modal Popup */}
             {showQrModal && (
