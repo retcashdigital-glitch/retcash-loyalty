@@ -105,10 +105,12 @@ export default function CustomerWalletPage() {
                         <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs space-y-4 mt-2">
                             <div className="flex justify-between items-start">
                                 <div className="space-y-1">
-                                    <div className="flex items-center space-x-2">
-                                        <div className="bg-[#EE8838] p-1.5 rounded-xl text-white shadow-xs">
-                                            <Wallet className="w-4 h-4" />
-                                        </div>
+                                    <div className="flex items-center space-x-2.5">
+                                        <img 
+                                            src="/logo.jpeg" 
+                                            alt="Retcash Logo" 
+                                            className="w-8 h-8 rounded-xl object-cover shadow-xs border border-orange-200"
+                                        />
                                         <span className="font-black text-lg tracking-wider text-[#0F172A]">RET<span className="text-[#EE8838]">CASH</span></span>
                                     </div>
                                     <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider pt-2">WELCOME BACK</p>
