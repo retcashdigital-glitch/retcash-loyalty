@@ -3,52 +3,69 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Wallet, Compass, User, Search, QrCode, ChevronRight, X, LogOut, Store as StoreIcon } from 'lucide-react'
+import { Wallet, Compass, User, Search, QrCode, ChevronRight, X, LogOut } from 'lucide-react'
 
 export default function CustomerWalletPage() {
     const params = useParams()
     const router = useRouter()
     const phone = params.phone as string
 
-    // Active Tab: 'wallet' | 'discover' | 'profile'
     const [activeTab, setActiveTab] = useState<'wallet' | 'discover' | 'profile'>('wallet')
-
     const [loading, setLoading] = useState(true)
     const [stores, setStores] = useState<any[]>([])
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('All Stores')
 
-    // Modals
     const [showQrModal, setShowQrModal] = useState(false)
-    const [selectedStore, setSelectedStore] = useState<any>(null) // ஸ்டோர் கார்டை அழுத்தும்போது விவரம் காட்ட
+    const [selectedStore, setSelectedStore] = useState<any>(null)
 
     useEffect(() => {
         if (phone) {
-            fetchStoresFromSupabase()
+            fetchCustomerBalancesFromDatabase()
         }
     }, [phone])
 
-    // Supabase-ல் உள்ள 'stores' டேபிளிலிருந்து உண்மையான கடைகளை எடுத்தல்
-    const fetchStoresFromSupabase = async () => {
+    // சரியான முறையில் customer_store_balances மற்றும் stores டேபிள்களிலிருந்து டேட்டா எடுத்தல்
+    const fetchCustomerBalancesFromDatabase = async () => {
         try {
             setLoading(true)
-            const { data, error } = await supabase
+
+            // 1. முதலில் எல்லா கடைகளையும் எடுப்போம்
+            const { data: allStores, error: storeError } = await supabase
                 .from('stores')
                 .select('*')
 
-            if (error) throw error
+            if (storeError) throw storeError
 
-            if (data && data.length > 0) {
-                // டெஸ்டிற்காக ஒவ்வொரு ஸ்டோருக்கும் பேலன்ஸ் மற்றும் விசிட்ஸ் சேர்த்துக்கொள்ளுதல்
-                const formattedStores = data.map((store: any) => ({
-                    ...store,
-                    balance: 45.00, // தேவைப்பட்டால் டேட்டாபேஸ் பேலன்ஸ் வைத்துக்கொள்ளலாம்
-                    visits: 2
-                }))
-                setStores(formattedStores)
+            // 2. குறிப்பிட்ட கஸ்டமரின் ஃபோன் எண்ணுக்கான பேலன்ஸ் விவரங்களை customer_store_balances டேபிளிலிருந்து எடுப்போம்
+            const { data: balancesData, error: balanceError } = await supabase
+                .from('customer_store_balances')
+                .select('*')
+                .eq('phone_number', phone) // உமது டேபிளில் காலம் பெயர் 'phone_number' அல்லது 'customer_phone' என இருக்கலாம்
+
+            if (balanceError) {
+                console.error('Balance fetch error:', balanceError)
             }
+
+            // 3. கடைகளையும் கஸ்டமர் பேலன்ஸையும் இணைத்து சரியான அரே உருவாக்குதல்
+            const formattedList = allStores?.map((store: any) => {
+                // customer_store_balances டேபிளில் இந்த ஸ்டோர் ஐடிக்குரிய டேட்டா உள்ளதா எனப் பார்த்தல்
+                const userBalance = balancesData?.find(
+                    (b: any) => b.store_id === store.id || b.store_id === store.store_id
+                )
+
+                return {
+                    ...store,
+                    // டேபிளில் உள்ள உண்மையான பேலன்ஸ் மற்றும் விசிட்களை எடுத்தல். டேட்டா இல்லையெனில் 0.
+                    balance: userBalance?.balance ?? userBalance?.store_credit_balance ?? 0.00,
+                    visits: userBalance?.visits ?? userBalance?.completed_visits ?? 0
+                }
+            }) || []
+
+            setStores(formattedList)
+
         } catch (err) {
-            console.error('Error fetching stores:', err)
+            console.error('Error fetching data from Supabase:', err)
         } finally {
             setLoading(false)
         }
@@ -56,7 +73,6 @@ export default function CustomerWalletPage() {
 
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${phone}`;
 
-    // தேடல் மற்றும் கேட்டகிரி வடிகட்டுதல்
     const filteredStores = stores.filter(store => {
         const matchesSearch = store.store_name?.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesSearch
@@ -121,7 +137,7 @@ export default function CustomerWalletPage() {
                             ))}
                         </div>
 
-                        {/* Stores & Loyalty Cards Header */}
+                        {/* Stores Header */}
                         <div className="flex items-center justify-between pt-2">
                             <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">YOUR STORES & LOYALTY CARDS</h2>
                             <span className="text-xs font-bold bg-[#161B26] text-[#FF6B00] px-2.5 py-1 rounded-full border border-gray-800">
@@ -129,9 +145,9 @@ export default function CustomerWalletPage() {
                             </span>
                         </div>
 
-                        {/* Dynamic Stores List from Supabase */}
+                        {/* Dynamic Stores List */}
                         {loading ? (
-                            <div className="text-center py-10 text-gray-500 text-xs">Loading stores from database...</div>
+                            <div className="text-center py-10 text-gray-500 text-xs">Loading correct data from database...</div>
                         ) : filteredStores.length === 0 ? (
                             <div className="bg-[#161B26] border border-gray-800 rounded-3xl p-6 text-center space-y-2">
                                 <p className="text-xs text-gray-400">No stores found.</p>
@@ -161,7 +177,7 @@ export default function CustomerWalletPage() {
                                     <div className="pt-2 border-t border-gray-800/80 flex items-end justify-between">
                                         <div>
                                             <p className="text-[10px] font-bold text-gray-400 uppercase">CASHBACK BALANCE</p>
-                                            <p className="text-lg font-black text-white">Rs. {store.balance || '0.00'}</p>
+                                            <p className="text-lg font-black text-white">Rs. {Number(store.balance).toFixed(2)}</p>
                                         </div>
                                         <div className="text-right space-y-1">
                                             <p className="text-[10px] font-bold text-gray-400">{store.visits || 0}/6 VISITS</p>
@@ -256,11 +272,11 @@ export default function CustomerWalletPage() {
                         <div className="bg-[#0B0E14] border border-gray-800 p-4 rounded-2xl space-y-3">
                             <div className="flex justify-between items-center">
                                 <span className="text-xs text-gray-400">Available Balance</span>
-                                <span className="text-sm font-black text-[#FF6B00]">Rs. {selectedStore.balance}</span>
+                                <span className="text-sm font-black text-[#FF6B00]">Rs. {Number(selectedStore.balance).toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-xs text-gray-400">Visits Completed</span>
-                                <span className="text-xs font-bold text-white">{selectedStore.visits} / 6 Visits</span>
+                                <span className="text-xs font-bold text-white">{selectedStore.visits || 0} / 6 Visits</span>
                             </div>
                         </div>
 
@@ -298,7 +314,7 @@ export default function CustomerWalletPage() {
                 </div>
             )}
 
-            {/* Bottom Navigation Bar (Tabs) */}
+            {/* Bottom Navigation Bar */}
             <nav className="fixed bottom-0 left-0 right-0 bg-[#161B26] border-t border-gray-800 py-2.5 px-6 flex justify-around items-center z-50 max-w-md mx-auto rounded-t-3xl shadow-2xl">
                 <button
                     onClick={() => setActiveTab('wallet')}
