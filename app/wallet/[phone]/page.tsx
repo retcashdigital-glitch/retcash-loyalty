@@ -24,7 +24,7 @@ export default function CustomerWalletPage() {
         }
     }, [phone])
 
-    // cashback_claims மற்றும் stores டேபிள்களிலிருந்து துல்லியமாக டேட்டா எடுத்தல்
+    // cashback_claims மற்றும் stores டேபிள்களிலிருந்து துல்லியமான விசிட் மற்றும் பேலன்ஸ் எடுத்தல்
     const fetchWalletAndClaimsData = async () => {
         try {
             setLoading(true)
@@ -36,8 +36,7 @@ export default function CustomerWalletPage() {
 
             if (storeError) throw storeError
 
-            // 2. இந்த கஸ்டமர் ஃபோன் எண்ணுக்கான அனைத்து கிளைம்களையும் (Claims/Transactions) எடுத்தல்
-            // கவனிக்க: உமது டேபிளில் காலம் பெயர் 'customer_phone' அல்லது 'phone_number' என இருக்கலாம்
+            // 2. இந்த கஸ்டமர் ஃபோன் எண்ணுக்கான அனைத்து கிளைம்களையும் எடுத்தல்
             const { data: claimsData, error: claimsError } = await supabase
                 .from('cashback_claims')
                 .select('*')
@@ -47,25 +46,31 @@ export default function CustomerWalletPage() {
                 console.error('Error fetching claims:', claimsError)
             }
 
-            // 3. ஒவ்வொரு கடை வாரியாக பேலன்ஸ் மற்றும் விசிட்களை கணக்கிடுதல்
+            // 3. ஒவ்வொரு கடை வாரியாக பேலன்ஸ், விசிட் மற்றும் சரியான claim ID-ஐ கணக்கிடுதல்
             const mergedStores = allStores?.map((store: any) => {
-                // இந்தக் கடைக்குரிய கிளைம்களை மட்டும் ફિલ્ட்டர் செய்தல்
+                // இந்தக் கடைக்குரிய கிளைம்களை மட்டும் பில்டர் செய்தல்
                 const storeClaims = claimsData?.filter(
                     (claim: any) => claim.store_id === store.id || claim.store_id === store.store_id
                 ) || []
 
                 // மொத்த கேஷ்பேக் தொகையைக் கூட்டுதல்
                 const totalBalance = storeClaims.reduce((sum: number, claim: any) => {
-                    return sum + (Number(claim.cashback_amount) || 0)
+                    return sum + (Number(claim.claimable_amount) || Number(claim.cashback_amount) || 0)
                 }, 0)
 
-                // விசிட் எண்ணிக்கை (எத்தனை முறை கிளைம் செய்துள்ளார் அல்லது பில் செய்துள்ளார்)
-                const visitCount = storeClaims.length
+                // துல்லியமான விசிட் எண்ணிக்கை (visit_count அல்லது மொத்த கிளைம்களின் எண்ணிக்கை)
+                const visitCount = storeClaims.reduce((max: number, claim: any) => {
+                    return Math.max(max, Number(claim.visit_count) || 1)
+                }, storeClaims.length > 0 ? storeClaims.length : 0)
+
+                // கார்டு பக்கத்திற்கு ரூட் செய்ய லேட்டஸ்ட் கிளைம் ஐடியை எடுத்தல்
+                const latestClaim = storeClaims[0] || {}
 
                 return {
                     ...store,
                     balance: totalBalance,
-                    visits: visitCount
+                    visits: visitCount,
+                    latestClaimId: latestClaim.id
                 }
             }) || []
 
@@ -135,8 +140,8 @@ export default function CustomerWalletPage() {
                                     key={category}
                                     onClick={() => setSelectedCategory(category)}
                                     className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition ${selectedCategory === category
-                                            ? 'bg-[#FF6B00] text-white shadow-lg shadow-orange-500/20'
-                                            : 'bg-[#161B26] text-gray-400 border border-gray-800 hover:text-white'
+                                        ? 'bg-[#FF6B00] text-white shadow-lg shadow-orange-500/20'
+                                        : 'bg-[#161B26] text-gray-400 border border-gray-800 hover:text-white'
                                         }`}
                                 >
                                     {category}
@@ -164,9 +169,12 @@ export default function CustomerWalletPage() {
                                 <div
                                     key={index}
                                     onClick={() => {
-                                        // ஸ்டோரைக் கிளிக் செய்தவுடன் அந்த கடைக்கான கார்டு பக்கத்திற்கு செல்ல வழிசெய்தல் 
-                                        // (உதாரணத்திற்கு /card/[store_id] அல்லது /card/[phone]?store=... )
-                                        router.push(`/card/${store.id}?phone=${phone}`)
+                                        // துல்லியமான cashback_claim ID-ஐ வைத்து குறிப்பிட்ட store-ன் card பக்கத்திற்கு ரூட் செய்தல்
+                                        if (store.latestClaimId) {
+                                            router.push(`/card/${store.latestClaimId}`)
+                                        } else {
+                                            console.warn("No active card/claim found for this store:", store.store_name)
+                                        }
                                     }}
                                     className="bg-[#161B26] border border-gray-800 rounded-3xl p-4 space-y-4 hover:border-[#FF6B00] transition cursor-pointer shadow-xl"
                                 >
