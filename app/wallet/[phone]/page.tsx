@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Wallet, Compass, User, Search, QrCode, ChevronRight, X, LogOut, ShieldCheck } from 'lucide-react'
+import { Wallet, Compass, User, Search, QrCode, ChevronRight, X, LogOut } from 'lucide-react'
 
 export default function CustomerWalletPage() {
     const params = useParams()
@@ -94,41 +94,26 @@ export default function CustomerWalletPage() {
     })
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col pb-28 font-sans selection:bg-[#EE8838]">
+        <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col pb-24 font-sans selection:bg-[#EE8838]">
 
-            {/* Clean Static Single Header to Avoid Glitches */}
-            <header className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-white/95 relative z-10 shadow-xs">
-                <div className="flex items-center space-x-2.5">
-                    <div className="bg-[#EE8838] p-1.5 rounded-xl text-white shadow-xs">
-                        <Wallet className="w-4 h-4" />
-                    </div>
-                    <span className="font-black text-lg tracking-wider text-[#0F172A]">RET<span className="text-[#EE8838]">CASH</span></span>
-                </div>
-                <div className="flex items-center space-x-1 bg-orange-50 text-[#EE8838] px-2.5 py-1 rounded-full text-[11px] font-bold border border-orange-100/60">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Verified</span>
-                </div>
-            </header>
-
-            {/* Main Content Container */}
+            {/* Main Content Container (No unnecessary top headers) */}
             <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5">
 
                 {/* ================= 1. WALLET TAB ================= */}
                 {activeTab === 'wallet' && (
                     <>
-                        <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs space-y-4">
+                        <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs space-y-4 mt-2">
                             <div className="flex justify-between items-start">
                                 <div className="space-y-1">
-                                    <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">WELCOME BACK</p>
+                                    <div className="flex items-center space-x-2">
+                                        <div className="bg-[#EE8838] p-1.5 rounded-xl text-white shadow-xs">
+                                            <Wallet className="w-4 h-4" />
+                                        </div>
+                                        <span className="font-black text-lg tracking-wider text-[#0F172A]">RET<span className="text-[#EE8838]">CASH</span></span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider pt-2">WELCOME BACK</p>
                                     <h1 className="text-xl font-black text-[#0F172A]">{formatPhoneNumber(phone)}</h1>
                                 </div>
-                                <button
-                                    onClick={() => setShowQrModal(true)}
-                                    className="bg-orange-50 hover:bg-orange-100 text-[#EE8838] p-2.5 rounded-2xl border border-orange-100 transition flex items-center justify-center cursor-pointer shadow-xs"
-                                    title="Show My QR"
-                                >
-                                    <QrCode className="w-5 h-5" />
-                                </button>
                             </div>
 
                             {/* Search Bar */}
@@ -230,7 +215,7 @@ export default function CustomerWalletPage() {
 
                 {/* ================= 2. DISCOVER TAB ================= */}
                 {activeTab === 'discover' && (
-                    <div className="space-y-4 animate-in fade-in duration-200">
+                    <div className="space-y-4 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
                             <h1 className="text-xl font-black text-[#0F172A]">Discover Offers</h1>
                             <p className="text-xs text-slate-500">Explore partner stores offering special cashback and rewards.</p>
@@ -252,7 +237,7 @@ export default function CustomerWalletPage() {
 
                 {/* ================= 3. PROFILE TAB ================= */}
                 {activeTab === 'profile' && (
-                    <div className="space-y-5 animate-in fade-in duration-200">
+                    <div className="space-y-5 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
                             <h1 className="text-xl font-black text-[#0F172A]">My Profile</h1>
                             <p className="text-xs text-slate-500">Manage your account details and session.</p>
@@ -311,7 +296,7 @@ export default function CustomerWalletPage() {
                 </div>
             )}
 
-            {/* Balanced Subtle Bottom Navigation Bar */}
+            {/* Clean Bottom Navigation Bar with Uniform QR Tab */}
             <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2 px-6 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-lg">
                 <button
                     onClick={() => setActiveTab('wallet')}
@@ -321,21 +306,21 @@ export default function CustomerWalletPage() {
                     <span className="text-[10px] font-bold">Wallet</span>
                 </button>
 
-                {/* Harmonized Subtle Center QR Button */}
-                <button
-                    onClick={() => setShowQrModal(true)}
-                    className="flex flex-col items-center justify-center -mt-5 bg-[#EE8838] hover:bg-[#e07b2f] text-white w-11 h-11 rounded-full shadow-md shadow-orange-500/20 transition outline-none cursor-pointer border-3 border-[#F8FAFC]"
-                    title="My QR"
-                >
-                    <QrCode className="w-4 h-4" />
-                </button>
-
                 <button
                     onClick={() => setActiveTab('discover')}
                     className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'discover' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
                 >
                     <Compass className="w-5 h-5" />
                     <span className="text-[10px] font-bold">Discover</span>
+                </button>
+
+                {/* Uniform My QR Tab inside Bottom Navigation */}
+                <button
+                    onClick={() => setShowQrModal(true)}
+                    className="flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 text-slate-400 hover:text-[#0F172A]"
+                >
+                    <QrCode className="w-5 h-5" />
+                    <span className="text-[10px] font-bold">My QR</span>
                 </button>
 
                 <button
