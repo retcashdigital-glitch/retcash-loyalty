@@ -38,17 +38,17 @@ export default function CustomerRegisterPage() {
         }
 
         if (!fullNameInput.trim()) {
-            setErrorMsg('பெயர் கட்டாயமானது (Full name is mandatory)')
+            setErrorMsg('Full name is mandatory')
             return
         }
 
         if (!emailInput.trim()) {
-            setErrorMsg('ஈமெயில் முகவரி கட்டாயமானது (Email address is mandatory)')
+            setErrorMsg('Email address is mandatory')
             return
         }
 
         if (!passwordInput.trim() || passwordInput.length < 6) {
-            setErrorMsg('பாஸ்வேர்ட் குறைந்தது 6 எழுத்துக்களாவது இருக்க வேண்டும் (Password must be at least 6 characters)')
+            setErrorMsg('Password must be at least 6 characters')
             return
         }
 
@@ -92,7 +92,7 @@ export default function CustomerRegisterPage() {
                 if (insertError) throw insertError
             }
 
-            // லோக்கல் ஸ்டோரேஜில் லாகின் செஷனைச் சேமித்து பாப்-அப் இல்லாமல் உடனடியாக வாலட்டுக்கு அனுப்புதல்
+            // லோக்கல் ஸ்டோரேஜில் லாகின் செஷனைச் சேமித்து உடனடியாக வாலட்டுக்கு அனுப்புதல்
             localStorage.setItem(`retcash_wallet_auth_${cleanPhone}`, 'true')
             router.push(`/wallet/${cleanPhone}`)
 
@@ -124,7 +124,7 @@ export default function CustomerRegisterPage() {
                             type="text"
                             value={fullNameInput}
                             onChange={(e) => setFullNameInput(e.target.value)}
-                            placeholder="உங்கள் பெயர்"
+                            placeholder="e.g. John Doe"
                             className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition"
                             required
                         />
