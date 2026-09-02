@@ -72,12 +72,15 @@ function RegisterForm() {
                 }
             }
 
-            // 3. Store Slug உருவாக்குதல்
-            const storeSlug = formData.store_name
+            // 3. Store Slug உருவாக்குதல் (ஒரே பெயரில் பல கிளைகள் வந்தாலும் டூப்ளிகேட் வராமல் இருக்க போன் எண்ணின் கடைசி 4 இலக்கங்கள் இணைக்கப்பட்டுள்ளது)
+            const baseSlug = formData.store_name
                 .trim()
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, '-')
                 .replace(/(^-|-$)+/g, '')
+
+            const phoneSuffix = cleanPhone.length >= 4 ? cleanPhone.slice(-4) : Math.floor(1000 + Math.random() * 9000)
+            const storeSlug = `${baseSlug}-${phoneSuffix}`
 
             // 4. Password Hash செய்தல்
             const hashedPassword = await bcrypt.hash(formData.password, 10)
