@@ -198,11 +198,13 @@ export default function GlobalEntryPoint() {
                 return;
             }
 
+            // ஏற்கனவே ரீடீம் ஆகாத (Active) கார்டை மட்டும் துல்லியமாகத் தேடும்
             const { data: existingClaims } = await supabase
                 .from('cashback_claims')
                 .select('id, visit_count, claimable_amount, status')
                 .eq('store_id', storeId)
                 .eq('customer_phone', cleanCustPhone)
+                .neq('status', 'REDEEMED')
                 .maybeSingle();
 
             let newVisitCount = 1;
@@ -210,20 +212,18 @@ export default function GlobalEntryPoint() {
             let targetId = undefined;
 
             if (existingClaims) {
-                if (existingClaims.status === 'REDEEMED') {
-                    newVisitCount = 1;
-                    totalClaimable = cashbackAmount;
-                    targetId = undefined; // ரீடீம் ஆனதால் புதிய ரோ (New Card) உருவாக்கப்படும்
+                const currentVisits = existingClaims.visit_count || 1;
+                if (currentVisits >= 6) {
+                    newVisitCount = 6;
                 } else {
-                    const currentVisits = existingClaims.visit_count || 1;
-                    if (currentVisits >= 6) {
-                        newVisitCount = 6;
-                    } else {
-                        newVisitCount = currentVisits + 1;
-                    }
-                    totalClaimable = Number(existingClaims.claimable_amount || 0) + cashbackAmount;
-                    targetId = existingClaims.id;
+                    newVisitCount = currentVisits + 1;
                 }
+                totalClaimable = Number(existingClaims.claimable_amount || 0) + cashbackAmount;
+                targetId = existingClaims.id;
+            } else {
+                newVisitCount = 1;
+                totalClaimable = cashbackAmount;
+                targetId = undefined;
             }
 
             const { data: insertedClaim, error: insertError } = await supabase
