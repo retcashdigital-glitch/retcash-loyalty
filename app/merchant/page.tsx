@@ -19,6 +19,7 @@ export default function GlobalEntryPoint() {
     // Target Visits setting state for merchant
     const [targetVisitsInput, setTargetVisitsInput] = useState('6')
     const [settingLoading, setSettingLoading] = useState(false)
+    const [successMsg, setSuccessMsg] = useState(false)
 
     const [scannedClaimData, setScannedClaimData] = useState<any>(null)
     const [isScanning, setIsScanning] = useState(false)
@@ -112,7 +113,6 @@ export default function GlobalEntryPoint() {
             return
         }
 
-        // ஒருவேளை 10-க்கு மேல் சென்றால் அதனை 10 என உறுதி செய்தல்
         if (newTarget > 10) {
             newTarget = 10;
             setTargetVisitsInput('10');
@@ -131,7 +131,8 @@ export default function GlobalEntryPoint() {
             setMerchantSession(updatedSession)
             localStorage.setItem('retcash_merchant', JSON.stringify(updatedSession))
 
-            alert("🎉 Target visits updated successfully!")
+            setSuccessMsg(true)
+            setTimeout(() => setSuccessMsg(false), 3000)
         } catch (err: any) {
             console.error(err)
             alert("Failed to update target visits: " + (err.message || JSON.stringify(err)))
@@ -379,6 +380,11 @@ export default function GlobalEntryPoint() {
                                 {settingLoading ? 'Saving...' : 'Update Target'}
                             </button>
                         </form>
+                        {successMsg && (
+                            <p className="text-[11px] text-emerald-400 font-semibold animate-pulse mt-1">
+                                ✓ Target visits updated successfully!
+                            </p>
+                        )}
                     </div>
 
                     <div className="bg-[#0B0E14] p-4 rounded-2xl border border-gray-800 space-y-3 text-center">
