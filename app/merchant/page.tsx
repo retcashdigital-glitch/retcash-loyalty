@@ -77,7 +77,7 @@ export default function GlobalEntryPoint() {
         return cleaned;
     }
 
-    // ─── வாடிக்கையாளருக்கு கேஷ்பேக் சேர்த்து பாப்-அப் இன்றி நேரடியாக வாட்ஸ்அப் திறக்கும் லாஜிக் ───
+    // ─── வாடிக்கையாளருக்கு கேஷ்பேக் சேர்த்து டேட்டாபேஸில் பதிவு செய்து வாட்ஸ்அப் திறக்கும் லாஜிக் ───
     const handleGenerateCashback = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!customerPhone || !billAmount) {
@@ -92,21 +92,71 @@ export default function GlobalEntryPoint() {
 
             // எந்த வடிவத்தில் அடித்தாலும் 94 உடன் சரியாக மாற்றும் முறை
             const cleanCustPhone = formatPhoneNumber(customerPhone);
+            const storeId = merchantSession?.id;
 
-            // வாட்ஸ்அப் மெசேஜ் உருவாக்கம் (நீங்கள் அனுப்பிய ஸ்கிரீன்ஷாட் வடிவமைப்பு)
+            if (!storeId) {
+                alert("மெர்சண்ட் தகவல் கிடைக்கவில்லை. மீண்டும் லாகின் செய்யவும்.");
+                setActionLoading(false);
+                return;
+            }
+
+            // 1. இந்த வாடிக்கையாளருக்கு ஏற்கனவே இந்த கடையில் ரெக்கார்ட் உள்ளதா எனச் சோதித்தல்
+            const { data: existingClaims } = await supabase
+                .from('cashback_claims')
+                .select('id, visit_count, claimable_amount')
+                .eq('store_id', storeId)
+                .eq('customer_phone', cleanCustPhone)
+                .maybeSingle();
+
+            let newVisitCount = 1;
+            let totalClaimable = cashbackAmount;
+
+            if (existingClaims) {
+                newVisitCount = (existingClaims.visit_count || 0) + 1;
+                totalClaimable = Number(existingClaims.claimable_amount || 0) + cashbackAmount;
+            }
+
+            // 2. Supabase டேட்டாபேஸில் புதிய விசிட்/கேஷ்பேக் விவரங்களை சேமித்தல் (Insert or Update)
+            const { data: insertedClaim, error: insertError } = await supabase
+                .from('cashback_claims')
+                .upsert({
+                    id: existingClaims?.id, // ஏற்கனவே இருந்தால் அப்டேட் செய்யும், இல்லையெனில் புதிய ஐடி உருவாகும்
+                    store_id: storeId,
+                    customer_phone: cleanCustPhone,
+                    bill_amount: billNum,
+                    cashback_amount: cashbackAmount,
+                    claimable_amount: totalClaimable,
+                    visit_count: newVisitCount,
+                    status: newVisitCount >= 6 ? 'READY' : 'PENDING'
+                }, { onConflict: 'id' })
+                .select('id')
+                .single();
+
+            if (insertError || !insertedClaim) {
+                console.error(insertError);
+                throw new Error("ഡேட்டாபேஸில் சேமிப்பதில் பிழை");
+            }
+
+            const claimId = insertedClaim.id;
+
+            // 3. பிரத்யேக டிஜிட்டல் கார்டு லிங்க் உருவாக்கம் (தற்போதைய டொமைனை அடிப்படையாகக் கொண்டு)
+            const baseUrl = window.location.origin;
+            const cardLink = `${baseUrl}/card/${claimId}`;
+
+            // 4. வாட்ஸ்அப் மெசேஜ் உருவாக்கம் (நீங்கள் கேட்ட வடிவமைப்பு)
             const storeName = merchantSession?.store_name || 'RETCASH Partner';
-            const cardLink = merchantSession?.card_url || `https://www.retcashapp.com/card/sample-card-id`;
 
             const message = `🎉 *Retcash Rewards!*\n\nYour visit has been recorded successfully. 📍\n\n` +
                 `Store: *${storeName}*\n` +
                 `Bill Amount: Rs. ${billNum}\n` +
-                `Cashback Earned (${cashbackPercentage}%): Rs. ${cashbackAmount}\n\n` +
+                `Cashback Earned (${cashbackPercentage}%): Rs. ${cashbackAmount}\n` +
+                `Visit Count: ${newVisitCount} / 6\n\n` +
                 `✨ Keep visiting to unlock your exclusive cashback rewards.\n\n` +
                 `👉 Tap below to view your digital card, live balance & cashback details:\n${cardLink}`;
 
             const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${encodeURIComponent(message)}`;
 
-            // பாப்-அப் அலர்ட் இல்ல a டேக் மூலம் உடனடியாக வாட்ஸ்அப்பைத் திறத்தல்
+            // 5. பாப்-அப் அலர்ட் இல்லாது உடனடியாக a டேக் மூலம் வாட்ஸ்அப்பைத் திறத்தல்
             const anchor = document.createElement('a');
             anchor.href = whatsappUrl;
             anchor.target = '_blank';
