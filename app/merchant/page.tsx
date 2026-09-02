@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { Html5Qrcode } from 'html5-qrcode'
 
 export default function GlobalEntryPoint() {
     const router = useRouter()
@@ -16,9 +17,10 @@ export default function GlobalEntryPoint() {
     const [billAmount, setBillAmount] = useState('')
     const [actionLoading, setActionLoading] = useState(false)
 
-    // ─── QR ஸ்கேன் / ரிடீம் செய்வதற்கான ஸ்டேட்கள் ───
+    // ─── QR ஸ்கேன் மற்றும் ரிடீம் செய்வதற்கான ஸ்டேட்கள் ───
     const [scannedClaimData, setScannedClaimData] = useState<any>(null)
-    const [scanInputUrl, setScanInputUrl] = useState('')
+    const [isScanning, setIsScanning] = useState(false)
+    const scannerRef = useRef<Html5Qrcode | null>(null)
 
     useEffect(() => {
         const savedMerchant = localStorage.getItem('retcash_merchant')
@@ -27,6 +29,13 @@ export default function GlobalEntryPoint() {
                 setMerchantSession(JSON.parse(savedMerchant))
             } catch (e) {
                 console.error(e)
+            }
+        }
+
+        // Cleanup scanner on unmount
+        return () => {
+            if (scannerRef.current && scannerRef.current.isScanning) {
+                scannerRef.current.stop().catch(err => console.error(err))
             }
         }
     }, [])
@@ -77,13 +86,46 @@ export default function GlobalEntryPoint() {
         }
     }
 
-    // ─── வாடிக்கையாளரின் QR கோடு லிங்க்கை (သို့) அதன் ID-ஐ வைத்து விவரங்களைப் பெறுதல் ───
-    const handleProcessScannedData = async (inputVal: string) => {
+    // ─── லைவ் QR கேமரா ஸ்கேனரைத் தொடங்குதல் ───
+    const startScanner = async () => {
+        setIsScanning(true)
+        setScannedClaimData(null)
+
+        setTimeout(async () => {
+            try {
+                const scanner = new Html5Qrcode("reader")
+                scannerRef.current = scanner
+
+                await scanner.start(
+                    { facingMode: "environment" },
+                    {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 },
+                    },
+                    async (decodedText) => {
+                        // QR ஸ்கேன் வெற்றிகரமாக ஆனவுடன் கேமராவை நிறுத்துதல்
+                        await scanner.stop()
+                        setIsScanning(false)
+                        processScannedResult(decodedText)
+                    },
+                    (errorMessage) => {
+                        // ஸ்கேன் செய்யும் போது வரும் சாதாரண பிழைகளைப் புறக்கணிக்கலாம்
+                    }
+                )
+            } catch (err) {
+                console.error("Camera start error:", err)
+                alert("கேமராவைத் தொடங்குவதில் பிழை அல்லது அனுமதி மறுக்கப்பட்டுள்ளது.")
+                setIsScanning(false)
+            }
+        }, 100)
+    }
+
+    // ─── ஸ்கேன் செய்யப்பட்ட லிங்க் அல்லது ஐடியைச் சரிபார்த்து டேட்டா எடுப்பது ───
+    const processScannedResult = async (inputVal: string) => {
         if (!inputVal) return
 
         try {
             setActionLoading(true)
-            // URL-ஆக இருந்தால் அதிலிருந்து ID-ஐ எடுப்பது (எ.கா: https://retcashapp.com/card/xyz-123 -> xyz-123)
             let claimId = inputVal.trim()
             if (claimId.includes('/card/')) {
                 const parts = claimId.split('/card/')
@@ -106,13 +148,13 @@ export default function GlobalEntryPoint() {
             setScannedClaimData(data)
         } catch (err) {
             console.error(err)
-            alert("QR கோடை சரி பார்ப்பதில் பிழை.")
+            alert("QR கோடைச் சரிபார்ப்பதில் பிழை.")
         } finally {
             setActionLoading(false)
         }
     }
 
-    // ─── பரிசை உறுதி செய்து கேஷ்பேக்கை பூஜ்ஜியம் ஆக்குதல் (Redeem) ───
+    // ─── பரிசை உறுதி செய்து கேஷ்பேக்கை பூஜ்ஜியம் ஆக்குதல் (Redeem & Clear) ───
     const handleRedeemScannedReward = async () => {
         if (!scannedClaimData) return
 
@@ -132,9 +174,8 @@ export default function GlobalEntryPoint() {
 
             if (error) throw error
 
-            alert("🎉 பரிசு வெற்றிகரமாக வழங்கப்பட்டுவிட்டது! QR கோடு வாடிக்கையாளர் கார்டிலிருந்து மறைந்துவிடும்.")
+            alert("🎉 பரிசு வெற்றிகரமாக வழங்கப்பட்டுவிட்டது! கேஷ்பேக் பூஜ்ஜியமானது மற்றும் கார்டில் உள்ள QR கோடு மறைந்துவிடும்.")
             setScannedClaimData(null)
-            setScanInputUrl('')
         } catch (err) {
             console.error(err)
             alert("ரிடீம் செய்வதில் பிழை ஏற்பட்டது.")
@@ -252,28 +293,39 @@ export default function GlobalEntryPoint() {
                         </button>
                     </div>
 
-                    {/* ─── QR ஸ்கேன் மற்றும் ரிடீம் பகுதி (Scan QR Code to Redeem) ─── */}
-                    <div className="bg-[#0B0E14] p-4 rounded-2xl border border-gray-800 space-y-3">
-                        <h2 className="text-xs font-bold text-[#FF6B00] uppercase">📷 Scan / Enter Customer QR</h2>
-                        <p className="text-[10px] text-gray-400">வாடிக்கையாளரின் 6வது விசிட் QR கோடை ஸ்கேன் செய்ய அல்லது அதன் லிங்க்கை இங்கே உள்ளிடவும்:</p>
+                    {/* ─── உண்மையான லைவ் QR கேமரா ஸ்கேனர் பகுதி ─── */}
+                    <div className="bg-[#0B0E14] p-4 rounded-2xl border border-gray-800 space-y-3 text-center">
+                        <h2 className="text-xs font-bold text-[#FF6B00] uppercase text-left">📷 Live QR Scanner</h2>
+                        <p className="text-[10px] text-gray-400 text-left">வாடிக்கையாளரின் 6வது விசிட் QR கோடை ஸ்கேன் செய்யக் கீழே உள்ள பட்டனை அழுத்தவும்:</p>
 
-                        <div className="space-y-2">
-                            <input
-                                type="text"
-                                value={scanInputUrl}
-                                onChange={(e) => {
-                                    setScanInputUrl(e.target.value);
-                                    handleProcessScannedData(e.target.value);
-                                }}
-                                placeholder="Paste QR link or ID here..."
-                                className="w-full bg-[#161B26] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-xs text-white outline-none font-mono"
-                            />
-                        </div>
+                        {!isScanning ? (
+                            <button
+                                onClick={startScanner}
+                                className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider transition shadow-lg active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                <span>📷 Start Camera Scanner</span>
+                            </button>
+                        ) : (
+                            <div className="space-y-2">
+                                <div id="reader" className="w-full overflow-hidden rounded-xl border border-gray-700"></div>
+                                <button
+                                    onClick={async () => {
+                                        if (scannerRef.current && scannerRef.current.isScanning) {
+                                            await scannerRef.current.stop()
+                                        }
+                                        setIsScanning(false)
+                                    }}
+                                    className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded-xl text-xs transition cursor-pointer"
+                                >
+                                    Stop Camera
+                                </button>
+                            </div>
+                        )}
 
                         {scannedClaimData && (
-                            <div className="mt-3 p-3 bg-gray-900 rounded-xl border border-green-500/30 text-xs space-y-2">
+                            <div className="mt-3 p-3 bg-gray-900 rounded-xl border border-green-500/30 text-xs space-y-2 text-left">
                                 <div className="flex justify-between text-[11px] text-green-400 font-bold">
-                                    <span>Valid QR Found!</span>
+                                    <span>Valid QR Scanned!</span>
                                     <span>{scannedClaimData.visit_count} / 6 Visits</span>
                                 </div>
                                 <p className="text-gray-300">Customer: <span className="font-mono text-white">{scannedClaimData.customer_phone}</span></p>
@@ -285,7 +337,7 @@ export default function GlobalEntryPoint() {
                                         disabled={actionLoading}
                                         className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 rounded-xl text-xs mt-2 transition cursor-pointer"
                                     >
-                                        {actionLoading ? 'ப்ராசஸ்...' : '🎁 Redeem & Clear QR'}
+                                        {actionLoading ? 'ப்ராசஸ்...' : '🎁 Redeem Reward & Clear Cashback'}
                                     </button>
                                 ) : (
                                     <p className="text-gray-400 text-[11px] italic">இந்த வாடிக்கையாளரின் பரிசு ஏற்கனவே வழங்கப்பட்டுவிட்டது (Balance Rs. 0).</p>
