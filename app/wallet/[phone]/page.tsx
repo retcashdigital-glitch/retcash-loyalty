@@ -19,13 +19,28 @@ export default function CustomerWalletPage() {
 
     useEffect(() => {
         if (phone) {
+            // லோடிங் நேரத்தைக் குறைக்க முந்தைய கேஷ்டு டேட்டாவை உடனடியாக লোட் செய்தல்
+            const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
+            if (cachedData) {
+                try {
+                    setStores(JSON.parse(cachedData))
+                    setLoading(false) // உடனடியாக லோடிங்கை மறைத்துவிடும்
+                } catch (e) {
+                    console.error('Error parsing cache:', e)
+                }
+            }
+
             fetchWalletAndClaimsData()
         }
     }, [phone])
 
     const fetchWalletAndClaimsData = async () => {
         try {
-            setLoading(true)
+            // கேஷ் டேட்டா இல்லாவிட்டால் மட்டும் முழுமையான லோடிங் காட்டலாம்
+            const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
+            if (!cachedData) {
+                setLoading(true)
+            }
 
             const { data: allStores, error: storeError } = await supabase
                 .from('stores')
@@ -57,7 +72,6 @@ export default function CustomerWalletPage() {
 
                 const latestClaim = storeClaims[0] || {}
 
-                // ஒவ்வொரு ஸ்டோருக்கென செட் செய்யப்பட்ட target_visits-ஐப் பயன்படுத்துதல் (இல்லையெனில் இயல்புநிலை 6)
                 let storeTarget = Number(store.target_visits) || 6;
                 if (storeTarget > 10) storeTarget = 10;
 
@@ -71,6 +85,8 @@ export default function CustomerWalletPage() {
             }) || []
 
             setStores(mergedStores)
+            // புதிய டேட்டாவை localStorage-ல் சேமித்தல்
+            localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(mergedStores))
 
         } catch (err) {
             console.error('Error in fetching wallet data:', err)
@@ -161,7 +177,7 @@ export default function CustomerWalletPage() {
                         </div>
 
                         {/* Dynamic Stores List */}
-                        {loading ? (
+                        {loading && stores.length === 0 ? (
                             <div className="text-center py-12 text-slate-400 text-xs font-medium">Loading wallet data...</div>
                         ) : filteredStores.length === 0 ? (
                             <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-xs">
