@@ -66,9 +66,9 @@ function LoginForm() {
                 return
             }
 
-            // 3. வெற்றி -> Admin / Dashboard-க்கு அனுப்புதல்
+            // 3. வெற்றி -> Merchant Dashboard (/merchant) பக்கத்திற்கு அனுப்புதல்
             localStorage.setItem('retcash_merchant', JSON.stringify(store))
-            router.push('/admin')
+            router.push('/merchant')
         } catch (err: any) {
             setErrorMsg('Login failed. Please try again.')
         } finally {
