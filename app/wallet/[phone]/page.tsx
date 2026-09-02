@@ -19,12 +19,12 @@ export default function CustomerWalletPage() {
 
     useEffect(() => {
         if (phone) {
-            // லோடிங் நேரத்தைக் குறைக்க முந்தைய கேஷ்டு டேட்டாவை உடனடியாக লোட் செய்தல்
+            // முந்தைய கேஷ்டு டேட்டாவை உடனடியாக காட்டிவிட்டு, பின்னணியில் லேட்டஸ்ட் டேட்டாவை ஃபெட்ச் செய்தல்
             const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
             if (cachedData) {
                 try {
                     setStores(JSON.parse(cachedData))
-                    setLoading(false) // உடனடியாக லோடிங்கை மறைத்துவிடும்
+                    setLoading(false)
                 } catch (e) {
                     console.error('Error parsing cache:', e)
                 }
@@ -36,7 +36,6 @@ export default function CustomerWalletPage() {
 
     const fetchWalletAndClaimsData = async () => {
         try {
-            // கேஷ் டேட்டா இல்லாவிட்டால் மட்டும் முழுமையான லோடிங் காட்டலாம்
             const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
             if (!cachedData) {
                 setLoading(true)
@@ -52,6 +51,7 @@ export default function CustomerWalletPage() {
                 .from('cashback_claims')
                 .select('*')
                 .eq('customer_phone', phone)
+                .order('updated_at', { ascending: false }) // மிகச் சமீபத்திய கிளைமை முதലாக எடுக்க
 
             if (claimsError) {
                 console.error('Error fetching claims:', claimsError)
@@ -70,6 +70,7 @@ export default function CustomerWalletPage() {
                     return Math.max(max, Number(claim.visit_count) || 1)
                 }, storeClaims.length > 0 ? storeClaims.length : 0)
 
+                // மிகச் சரியான லேட்டஸ்ட் கிளைம் ஐடியை உறுதி செய்தல்
                 const latestClaim = storeClaims[0] || {}
 
                 let storeTarget = Number(store.target_visits) || 6;
@@ -80,12 +81,12 @@ export default function CustomerWalletPage() {
                     balance: totalBalance,
                     visits: visitCount,
                     targetVisits: storeTarget,
-                    latestClaimId: latestClaim.id
+                    latestClaimId: latestClaim.id || null
                 }
             }) || []
 
             setStores(mergedStores)
-            // புதிய டேட்டாவை localStorage-ல் சேமித்தல்
+            // புதிய லேட்டஸ்ட் டேட்டாவை localStorage-ல் அப்டேட் செய்தல்
             localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(mergedStores))
 
         } catch (err) {
@@ -117,10 +118,8 @@ export default function CustomerWalletPage() {
     return (
         <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col pb-24 font-sans selection:bg-[#EE8838]">
 
-            {/* Main Content Container (No unnecessary top headers) */}
             <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5">
 
-                {/* ================= 1. WALLET TAB ================= */}
                 {activeTab === 'wallet' && (
                     <>
                         <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs space-y-4 mt-2">
@@ -139,7 +138,6 @@ export default function CustomerWalletPage() {
                                 </div>
                             </div>
 
-                            {/* Search Bar */}
                             <div className="relative pt-1">
                                 <Search className="absolute left-3.5 top-4.5 w-4 h-4 text-slate-400" />
                                 <input
@@ -152,7 +150,6 @@ export default function CustomerWalletPage() {
                             </div>
                         </div>
 
-                        {/* Category Filters */}
                         <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none">
                             {['All Stores', 'Food', 'Retail', 'Others'].map((category) => (
                                 <button
@@ -168,7 +165,6 @@ export default function CustomerWalletPage() {
                             ))}
                         </div>
 
-                        {/* Stores Header */}
                         <div className="flex items-center justify-between pt-1">
                             <h2 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">YOUR STORES & LOYALTY CARDS</h2>
                             <span className="text-xs font-bold bg-white text-[#EE8838] px-2.5 py-1 rounded-full border border-slate-200 shadow-xs">
@@ -176,7 +172,6 @@ export default function CustomerWalletPage() {
                             </span>
                         </div>
 
-                        {/* Dynamic Stores List */}
                         {loading && stores.length === 0 ? (
                             <div className="text-center py-12 text-slate-400 text-xs font-medium">Loading wallet data...</div>
                         ) : filteredStores.length === 0 ? (
@@ -191,11 +186,27 @@ export default function CustomerWalletPage() {
                                 return (
                                     <div
                                         key={index}
-                                        onClick={() => {
+                                        onClick={async () => {
                                             if (store.latestClaimId) {
                                                 router.push(`/card/${store.latestClaimId}`)
                                             } else {
-                                                console.warn("No active card/claim found for this store:", store.store_name)
+                                                // ஒருவேளை அந்தக் கடைக்கு ஏற்கனவே கிளைம் இல்லையென்றால் புதியதைக் கிரியேட் செய்து அல்லது ஸ்டோர் பக்கத்திற்குத் திருப்புதல்
+                                                const { data: newClaim } = await supabase
+                                                    .from('cashback_claims')
+                                                    .insert({
+                                                        customer_phone: phone,
+                                                        store_id: store.id,
+                                                        cashback_amount: 0,
+                                                        claimable_amount: 0,
+                                                        visit_count: 1,
+                                                        status: 'ACTIVE'
+                                                    })
+                                                    .select()
+                                                    .single()
+
+                                                if (newClaim) {
+                                                    router.push(`/card/${newClaim.id}`)
+                                                }
                                             }
                                         }}
                                         className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 hover:border-[#EE8838] transition cursor-pointer shadow-xs hover:shadow-sm group"
@@ -241,7 +252,6 @@ export default function CustomerWalletPage() {
                     </>
                 )}
 
-                {/* ================= 2. DISCOVER TAB ================= */}
                 {activeTab === 'discover' && (
                     <div className="space-y-4 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
@@ -263,7 +273,6 @@ export default function CustomerWalletPage() {
                     </div>
                 )}
 
-                {/* ================= 3. PROFILE TAB ================= */}
                 {activeTab === 'profile' && (
                     <div className="space-y-5 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
@@ -284,7 +293,10 @@ export default function CustomerWalletPage() {
 
                             <div className="space-y-2">
                                 <button
-                                    onClick={() => router.push('/customer/login')}
+                                    onClick={() => {
+                                        localStorage.removeItem(`wallet_cache_${phone}`)
+                                        router.push('/customer/login')
+                                    }}
                                     className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3.5 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition outline-none cursor-pointer shadow-xs"
                                 >
                                     <LogOut className="w-4 h-4" />
@@ -297,7 +309,6 @@ export default function CustomerWalletPage() {
 
             </main>
 
-            {/* QR Code Modal Popup */}
             {showQrModal && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
                     <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-xl relative animate-in fade-in zoom-in duration-200">
@@ -324,7 +335,6 @@ export default function CustomerWalletPage() {
                 </div>
             )}
 
-            {/* Clean Bottom Navigation Bar with Uniform QR Tab */}
             <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2 px-6 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-lg">
                 <button
                     onClick={() => setActiveTab('wallet')}
@@ -342,7 +352,6 @@ export default function CustomerWalletPage() {
                     <span className="text-[10px] font-bold">Discover</span>
                 </button>
 
-                {/* Uniform My QR Tab inside Bottom Navigation */}
                 <button
                     onClick={() => setShowQrModal(true)}
                     className="flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 text-slate-400 hover:text-[#0F172A]"
