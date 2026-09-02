@@ -19,17 +19,17 @@ export default async function SingleCardPage({ params }: PageProps) {
     const { data: claim, error } = await supabase
         .from('cashback_claims')
         .select(`
-            *,
-            stores (
-                id,
-                store_name,
-                store_slug,
-                logo_url,
-                location_url,
-                review_url,
-                target_visits
-            )
-        `)
+        *,
+        stores:store_id (
+            id,
+            store_name,
+            store_slug,
+            logo_url,
+            location_url,
+            review_url,
+            target_visits
+        )
+    `)
         .eq('id', id)
         .maybeSingle()
 
