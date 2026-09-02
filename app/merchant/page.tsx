@@ -207,22 +207,29 @@ export default function GlobalEntryPoint() {
 
             let newVisitCount = 1;
             let totalClaimable = cashbackAmount;
+            let targetId = undefined;
 
             if (existingClaims) {
-                // 6 விசிட்கள் முடிந்து ரீடீம் செய்யப்பட்டிருந்தால், அடுத்த சைக்கிள் 1-லிருந்து ஆரம்பிக்கப்படும்
-                if (existingClaims.visit_count >= 6 && existingClaims.status === 'REDEEMED') {
+                if (existingClaims.status === 'REDEEMED') {
                     newVisitCount = 1;
                     totalClaimable = cashbackAmount;
+                    targetId = undefined; // ரீடீம் ஆனதால் புதிய ரோ (New Card) உருவாக்கப்படும்
                 } else {
-                    newVisitCount = (existingClaims.visit_count || 0) + 1;
+                    const currentVisits = existingClaims.visit_count || 1;
+                    if (currentVisits >= 6) {
+                        newVisitCount = 6;
+                    } else {
+                        newVisitCount = currentVisits + 1;
+                    }
                     totalClaimable = Number(existingClaims.claimable_amount || 0) + cashbackAmount;
+                    targetId = existingClaims.id;
                 }
             }
 
             const { data: insertedClaim, error: insertError } = await supabase
                 .from('cashback_claims')
                 .upsert({
-                    id: existingClaims?.id,
+                    id: targetId,
                     store_id: storeId,
                     customer_phone: cleanCustPhone,
                     bill_amount: billNum,
