@@ -140,9 +140,8 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
         }
     }
 
-    // டேட்டா முழுமையாக லோட் ஆகும் வரை அல்லது டேட்டா இல்லாத வரை லோடிங் ஸ்பின்னர் காட்டுவது 
-    // தவறான பழைய விசிட் கவுண்ட் கண்முன்னே தெரிவதைத் தவிர்க்கும்.
-    if (loading && !claimData) {
+    // டேட்டா முழுமையாக லோட் ஆகும் வரை ஸ்பின்னர் காட்டுவதை உறுதி செய்தல்
+    if (loading) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex items-center justify-center font-sans">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#EE8838]"></div>
@@ -165,8 +164,8 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
     const customerPhone = claimData.customer_phone || ''
     const currentVisits = Number(claimData.visit_count) || 1
 
-    // கடையின் target_visits மதிப்பை டேட்டாபேஸிலிருந்து உறுதியாகப் பெறுதல் (இல்லாவிட்டால் மட்டும் 6)
-    const totalVisits = Number(store?.target_visits) || 6
+    // டேட்டாபேஸ்லிருந்து ஸ்டோர் டேட்டா வந்த பிறகு target_visits-ஐ சரியாக எடுத்தல் (Default 6)
+    const totalVisits = store?.target_visits ? Number(store.target_visits) : 6
 
     const isRedeemed = claimData.status === 'REDEEMED' || Number(claimData.claimable_amount || 0) <= 0;
     const isRewardReady = (currentVisits >= totalVisits) && !isRedeemed;
@@ -325,7 +324,7 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
 
                     </div>
 
-                    {/* Quick Action Buttons */}
+                    {/* Quick ActionButtons */}
                     <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100 mt-4">
                         {store?.location_url ? (
                             <a
