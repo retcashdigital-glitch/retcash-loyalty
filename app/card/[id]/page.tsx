@@ -110,17 +110,7 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
 
     const fetchClaimDetails = async () => {
         try {
-            // லோடிங் நேரத்தைக் குறைக்க ஏற்கனவே உள்ள கேஷ்டு டேட்டாவை உடனடியாகப் பயன்படுத்தலாம்
-            const cachedData = localStorage.getItem(`card_cache_${id}`)
-            if (cachedData) {
-                try {
-                    setClaimData(JSON.parse(cachedData))
-                    setLoading(false)
-                } catch (e) {
-                    console.error('Error parsing card cache:', e)
-                }
-            }
-
+            setLoading(true)
             const { data: claim, error: claimError } = await supabase
                 .from('cashback_claims')
                 .select(`
@@ -139,20 +129,19 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                 .maybeSingle()
 
             if (claimError || !claim) {
-                if (!cachedData) setClaimData(null)
+                setClaimData(null)
             } else {
                 setClaimData(claim)
-                // புதிய டேட்டாவை localStorage-ல் சேமித்தல்
-                localStorage.setItem(`card_cache_${id}`, JSON.stringify(claim))
             }
         } catch (err) {
-            const cachedData = localStorage.getItem(`card_cache_${id}`)
-            if (!cachedData) setClaimData(null)
+            setClaimData(null)
         } finally {
             setLoading(false)
         }
     }
 
+    // டேட்டா முழுமையாக லோட் ஆகும் வரை அல்லது டேட்டா இல்லாத வரை லோடிங் ஸ்பின்னர் காட்டுவது 
+    // தவறான பழைய விசிட் கவுண்ட் கண்முன்னே தெரிவதைத் தவிர்க்கும்.
     if (loading && !claimData) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex items-center justify-center font-sans">
@@ -174,13 +163,11 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
 
     const store = claimData.stores
     const customerPhone = claimData.customer_phone || ''
-    const currentVisits = claimData.visit_count || 1
+    const currentVisits = Number(claimData.visit_count) || 1
 
-    // Dynamic Target Visits from store settings (Default to 6 if not set, or fall back to store target safely)
-    const storeTargetFromDb = store?.target_visits ? Number(store.target_visits) : null;
-    const totalVisits = storeTargetFromDb !== null && !isNaN(storeTargetFromDb) ? storeTargetFromDb : 6;
+    // கடையின் target_visits மதிப்பை டேட்டாபேஸிலிருந்து உறுதியாகப் பெறுதல் (இல்லாவிட்டால் மட்டும் 6)
+    const totalVisits = Number(store?.target_visits) || 6
 
-    // இங்கு கேஷ்பேக் ரீடீம் ஆகிவிட்டதா என்பதைத் துல்லியமாகச் சரிபார்க்கும் லாஜிக்
     const isRedeemed = claimData.status === 'REDEEMED' || Number(claimData.claimable_amount || 0) <= 0;
     const isRewardReady = (currentVisits >= totalVisits) && !isRedeemed;
 
@@ -292,7 +279,7 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                     {/* Interactive QR / Reward Area */}
                     <div className="relative min-h-[210px] flex items-center justify-center">
 
-                        {/* Success Screen (ரீடீம் ஆனவுடடன் QR மறைந்து இந்த ஸ்கிரீன் மட்டுமே தெரியும்) */}
+                        {/* Success Screen */}
                         <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-out transform ${isRedeemed ? 'opacity-100 scale-100 translate-y-0 blur-0' : 'opacity-0 scale-90 translate-y-6 blur-md pointer-events-none'
                             }`}>
                             <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl mb-3 animate-bounce shadow-sm">
