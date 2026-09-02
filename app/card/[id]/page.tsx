@@ -162,8 +162,10 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
     const customerPhone = claimData.customer_phone || ''
     const currentVisits = claimData.visit_count || 1
     const totalVisits = 6
-    const isRewardReady = currentVisits >= totalVisits
-    const isCompleted = claimData.status === 'COMPLETED'
+
+    // இங்கு கேஷ்பேக் ரீடீம் ஆகிவிட்டதா என்பதைத் துல்லியமாகச் சரிபார்க்கும் லாஜிக்
+    const isRedeemed = claimData.status === 'REDEEMED' || Number(claimData.claimable_amount || 0) <= 0;
+    const isRewardReady = (currentVisits >= totalVisits) && !isRedeemed;
 
     const storeInitials = store?.store_name
         ? store.store_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
@@ -268,20 +270,20 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                     {/* Interactive QR / Reward Area */}
                     <div className="relative min-h-[210px] flex items-center justify-center">
 
-                        {/* Success Screen */}
-                        <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-out transform ${isCompleted ? 'opacity-100 scale-100 translate-y-0 blur-0' : 'opacity-0 scale-90 translate-y-6 blur-md pointer-events-none'
+                        {/* Success Screen (ரீடீம் ஆனவுடடன் QR மறைந்து இந்த ஸ்கிரீன் மட்டுமே தெரியும்) */}
+                        <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-out transform ${isRedeemed ? 'opacity-100 scale-100 translate-y-0 blur-0' : 'opacity-0 scale-90 translate-y-6 blur-md pointer-events-none'
                             }`}>
                             <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl mb-3 animate-bounce shadow-sm">
                                 🎉
                             </div>
                             <h3 className="text-xs font-black text-emerald-600 uppercase tracking-wider mb-1">REWARD SUCCESSFULLY REDEEMED!</h3>
                             <p className="text-[11px] text-slate-500 px-2 font-medium">
-                                Your 6th visit reward has been claimed successfully. Thank you for visiting!
+                                Your reward has been claimed successfully. Thank you for visiting!
                             </p>
                         </div>
 
                         {/* Active QR Code / Pending Screen */}
-                        <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-in transform ${isCompleted ? 'opacity-0 scale-125 -translate-y-8 blur-lg pointer-events-none' : 'opacity-100 scale-100 translate-y-0 blur-0'
+                        <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-in transform ${isRedeemed ? 'opacity-0 scale-125 -translate-y-8 blur-lg pointer-events-none' : 'opacity-100 scale-100 translate-y-0 blur-0'
                             }`}>
                             {isRewardReady ? (
                                 <div className="w-full">
