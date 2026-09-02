@@ -11,13 +11,11 @@ export default function GlobalEntryPoint() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
-    // ─── லாகின் செய்த மெர்சண்ட் விவரங்கள் மற்றும் கேஷ்பேக் ஃபார்ம் ஸ்டேட்கள் ───
     const [merchantSession, setMerchantSession] = useState<any>(null)
     const [customerPhone, setCustomerPhone] = useState('')
     const [billAmount, setBillAmount] = useState('')
     const [actionLoading, setActionLoading] = useState(false)
 
-    // ─── QR ஸ்கேன் மற்றும் ரிடீம் செய்வதற்கான ஸ்டேட்கள் ───
     const [scannedClaimData, setScannedClaimData] = useState<any>(null)
     const [isScanning, setIsScanning] = useState(false)
     const scannerRef = useRef<Html5Qrcode | null>(null)
@@ -32,7 +30,6 @@ export default function GlobalEntryPoint() {
             }
         }
 
-        // Cleanup scanner on unmount
         return () => {
             if (scannerRef.current && scannerRef.current.isScanning) {
                 scannerRef.current.stop().catch(err => console.error(err))
@@ -55,7 +52,7 @@ export default function GlobalEntryPoint() {
         e.preventDefault()
 
         if (!phone || phone.replace(/\D/g, '').length < 8) {
-            setError('தயவுசெய்து சரியான மொபைல் எண்ணை உள்ளிடவும்')
+            setError('Please enter a valid mobile number')
             return
         }
 
@@ -80,13 +77,12 @@ export default function GlobalEntryPoint() {
 
         } catch (err: any) {
             console.error(err)
-            setError('ஏதோ தவறு நடந்துவிட்டது. மீண்டும் முயற்சிக்கவும்.')
+            setError('An unexpected error occurred. Please try again.')
         } finally {
             setLoading(false)
         }
     }
 
-    // ─── லைவ் QR கேமரா ஸ்கேனரைத் தொடங்குதல் ───
     const startScanner = async () => {
         setIsScanning(true)
         setScannedClaimData(null)
@@ -103,24 +99,22 @@ export default function GlobalEntryPoint() {
                         qrbox: { width: 250, height: 250 },
                     },
                     async (decodedText) => {
-                        // QR ஸ்கேன் வெற்றிகரமாக ஆனவுடன் கேமராவை நிறுத்துதல்
                         await scanner.stop()
                         setIsScanning(false)
                         processScannedResult(decodedText)
                     },
                     (errorMessage) => {
-                        // ஸ்கேன் செய்யும் போது வரும் சாதாரண பிழைகளைப் புறக்கணிக்கலாம்
+                        // Ignore scanning frame errors
                     }
                 )
             } catch (err) {
                 console.error("Camera start error:", err)
-                alert("கேமராவைத் தொடங்குவதில் பிழை அல்லது அனுமதி மறுக்கப்பட்டுள்ளது.")
+                alert("Failed to start camera or permission denied.")
                 setIsScanning(false)
             }
         }, 100)
     }
 
-    // ─── ஸ்கேன் செய்யப்பட்ட லிங்க் அல்லது ஐடியைச் சரிபார்த்து டேட்டா எடுப்பது ───
     const processScannedResult = async (inputVal: string) => {
         if (!inputVal) return
 
@@ -140,7 +134,7 @@ export default function GlobalEntryPoint() {
                 .maybeSingle()
 
             if (error || !data) {
-                alert("தவறான QR கோடு அல்லது இந்த கடைக்குரியது அல்ல.")
+                alert("Invalid QR Code or does not belong to this store.")
                 setScannedClaimData(null)
                 return
             }
@@ -148,17 +142,16 @@ export default function GlobalEntryPoint() {
             setScannedClaimData(data)
         } catch (err) {
             console.error(err)
-            alert("QR கோடைச் சரிபார்ப்பதில் பிழை.")
+            alert("Error verifying QR code.")
         } finally {
             setActionLoading(false)
         }
     }
 
-    // ─── பரிசை உறுதி செய்து கேஷ்பேக்கை பூஜ்ஜியம் ஆக்குதல் (Redeem & Clear) ───
     const handleRedeemScannedReward = async () => {
         if (!scannedClaimData) return
 
-        if (!confirm(`இந்த வாடிக்கையாளரின் (Phone: ${scannedClaimData.customer_phone}) பரிசை வழங்கிவிட்டீர்களா? கேஷ்பேக் தொகை ரூ. ${scannedClaimData.claimable_amount} பூஜ்ஜியம் ஆகும்.`)) {
+        if (!confirm(`Have you handed over the reward to customer (Phone: ${scannedClaimData.customer_phone})? The reward balance of Rs. ${scannedClaimData.claimable_amount} will be reset to zero.`)) {
             return
         }
 
@@ -174,17 +167,16 @@ export default function GlobalEntryPoint() {
 
             if (error) throw error
 
-            alert("🎉 பரிசு வெற்றிகரமாக வழங்கப்பட்டுவிட்டது! கேஷ்பேக் பூஜ்ஜியமானது மற்றும் கார்டில் உள்ள QR கோடு மறைந்துவிடும்.")
+            alert("🎉 Reward successfully redeemed! Balance cleared and QR code will now disappear from the customer card.")
             setScannedClaimData(null)
         } catch (err) {
             console.error(err)
-            alert("ரிடீம் செய்வதில் பிழை ஏற்பட்டது.")
+            alert("Failed to process redemption.")
         } finally {
             setActionLoading(false)
         }
     }
 
-    // ─── வாடிக்கையாளருக்கு கேஷ்பேக் சேர்த்து டேட்டாபேஸில் பதிவு செய்து வாட்ஸ்அப் திறக்கும் லாஜிக் ───
     const handleGenerateCashback = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!customerPhone || !billAmount) {
@@ -201,7 +193,7 @@ export default function GlobalEntryPoint() {
             const storeId = merchantSession?.id;
 
             if (!storeId) {
-                alert("மெர்சண்ட் தகவல் கிடைக்கவில்லை. மீண்டும் லாகின் செய்யவும்.");
+                alert("Merchant session not found. Please log in again.");
                 setActionLoading(false);
                 return;
             }
@@ -238,7 +230,7 @@ export default function GlobalEntryPoint() {
 
             if (insertError || !insertedClaim) {
                 console.error(insertError);
-                throw new Error("ഡேட்டாபேஸில் சேமிப்பதில் பிழை");
+                throw new Error("Database error during save");
             }
 
             const claimId = insertedClaim.id;
@@ -293,10 +285,9 @@ export default function GlobalEntryPoint() {
                         </button>
                     </div>
 
-                    {/* ─── உண்மையான லைவ் QR கேமரா ஸ்கேனர் பகுதி ─── */}
                     <div className="bg-[#0B0E14] p-4 rounded-2xl border border-gray-800 space-y-3 text-center">
                         <h2 className="text-xs font-bold text-[#FF6B00] uppercase text-left">📷 Live QR Scanner</h2>
-                        <p className="text-[10px] text-gray-400 text-left">வாடிக்கையாளரின் 6வது விசிட் QR கோடை ஸ்கேன் செய்யக் கீழே உள்ள பட்டனை அழுத்தவும்:</p>
+                        <p className="text-[10px] text-gray-400 text-left">Scan the customer's 6th visit QR code using the camera below:</p>
 
                         {!isScanning ? (
                             <button
@@ -337,10 +328,10 @@ export default function GlobalEntryPoint() {
                                         disabled={actionLoading}
                                         className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 rounded-xl text-xs mt-2 transition cursor-pointer"
                                     >
-                                        {actionLoading ? 'ப்ராசஸ்...' : '🎁 Redeem Reward & Clear Cashback'}
+                                        {actionLoading ? 'Processing...' : '🎁 Redeem Reward & Clear Cashback'}
                                     </button>
                                 ) : (
-                                    <p className="text-gray-400 text-[11px] italic">இந்த வாடிக்கையாளரின் பரிசு ஏற்கனவே வழங்கப்பட்டுவிட்டது (Balance Rs. 0).</p>
+                                    <p className="text-gray-400 text-[11px] italic">Reward already redeemed for this customer (Balance Rs. 0).</p>
                                 )}
                             </div>
                         )}
@@ -348,7 +339,6 @@ export default function GlobalEntryPoint() {
 
                     <hr className="border-gray-800" />
 
-                    {/* சாதாரண கேஷ்பேக் விசிட் பதிவு செய்யும் பகுதி */}
                     <form onSubmit={handleGenerateCashback} className="space-y-4">
                         <div>
                             <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">
@@ -383,7 +373,7 @@ export default function GlobalEntryPoint() {
                             disabled={actionLoading}
                             className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider transition shadow-lg active:scale-95 flex items-center justify-center cursor-pointer"
                         >
-                            {actionLoading ? 'பிராசஸ் செய்யப்படுகிறது...' : 'கேஷ்பேக் சேர்த்து வாட்ஸ்அப் அனுப்புக'}
+                            {actionLoading ? 'Processing...' : 'Add Cashback & Send WhatsApp'}
                         </button>
                     </form>
                 </div>
