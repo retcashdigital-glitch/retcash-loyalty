@@ -10,7 +10,7 @@ export default function GlobalEntryPoint() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
-    // ─── புதிய பகுதி: லாகின் செய்த மெர்சண்ட் விவரங்கள் மற்றும் கேஷ்பேக் ஃபார்ம் ஸ்டேட்கள் ───
+    // ─── லாகின் செய்த மெர்சண்ட் விவரங்கள் மற்றும் கேஷ்பேக் ஃபார்ம் ஸ்டேட்கள் ───
     const [merchantSession, setMerchantSession] = useState<any>(null)
     const [customerPhone, setCustomerPhone] = useState('')
     const [billAmount, setBillAmount] = useState('')
@@ -65,11 +65,10 @@ export default function GlobalEntryPoint() {
         }
     }
 
-    // ─── வாடிக்கையாளருக்கு கேஷ்பேக் சேர்த்து வாட்ஸ்அப் மெசேஜ் அனுப்பும் லாஜிக் ───
+    // ─── வாடிக்கையாளருக்கு கேஷ்பேக் சேர்த்து பாப்-அப் இன்றி நேரடியாக வாட்ஸ்அப் திறக்கும் லாஜிக் ───
     const handleGenerateCashback = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!customerPhone || !billAmount) {
-            alert("தயவுசெய்து கஸ்டமர் ஃபோன் எண் மற்றும் பில் தொகையை உள்ளிடவும்.")
             return
         }
 
@@ -87,17 +86,20 @@ export default function GlobalEntryPoint() {
 
             const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${encodeURIComponent(message)}`;
 
-            // வாட்ஸ்அப் தளத்தை புதிய டேப்பில் திறத்தல்
-            window.open(whatsappUrl, '_blank');
+            // பாப்-அப் அலர்ட் இல்ல a டேக் மூலம் உடனடியாக வாட்ஸ்அப்பைத் திறத்தல்
+            const anchor = document.createElement('a');
+            anchor.href = whatsappUrl;
+            anchor.target = '_blank';
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
 
-            alert("கேஷ்பேக் விவரங்கள் கணக்கிடப்பட்டு வாட்ஸ்அப் மெசேஜ் தயாராகிவிட்டது!");
-
+            // ஃபார்மை மட்டும் உடனடியாக கிளியர் செய்தல்
             setCustomerPhone('');
             setBillAmount('');
 
         } catch (err) {
             console.error(err);
-            alert("பிழை ஏற்பட்டுள்ளது. மீண்டும் முயற்சிக்கவும்.");
         } finally {
             setActionLoading(false)
         }
