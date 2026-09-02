@@ -9,13 +9,12 @@ function LoginForm() {
     const router = useRouter()
     const searchParams = useSearchParams()
 
-    // Register பக்கத்திலிருந்து Redirect ஆகி வரும்போது URL-இல் இருந்து தரவுகளை எடுத்தல்
     const phoneFromUrl = searchParams.get('phone') || ''
     const isRegistered = searchParams.get('registered') === 'true'
 
     const [phone, setPhone] = useState(phoneFromUrl)
     const [password, setPassword] = useState('')
-    const [showPassword, setShowPassword] = useState(false) // 👁️ பாஸ்வேர்ட் பார்க்க/மறைக்க State
+    const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [errorMsg, setErrorMsg] = useState('')
     const [successMsg, setSuccessMsg] = useState('')
@@ -29,6 +28,22 @@ function LoginForm() {
         }
     }, [phoneFromUrl, isRegistered])
 
+    // 📱 ஸ்ரீலங்கா போன் நம்பரைச் சீர்படுத்தும் செயல்பாடு (Format Phone Number)
+    const formatPhoneNumber = (input: string) => {
+        const cleaned = input.replace(/\D/g, '')
+        if (!cleaned) return ''
+
+        // 0-ல் தொடங்கினால் (எ.கா: 0771234567) முன்னால் 94 சேர்த்துக்கொள்ளும்
+        if (cleaned.startsWith('0') && cleaned.length === 10) {
+            return '94' + cleaned.slice(1)
+        }
+        // ஏற்கனவே 94 உடன் இருந்தால் அப்படியே தரும்
+        if (cleaned.startsWith('94') && cleaned.length === 11) {
+            return cleaned
+        }
+        return cleaned
+    }
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
@@ -36,28 +51,28 @@ function LoginForm() {
         setSuccessMsg('')
 
         try {
-            const cleanPhone = phone.replace(/\D/g, '')
+            const cleanPhone = formatPhoneNumber(phone)
 
-            if (!cleanPhone || cleanPhone.length < 8) {
+            if (!cleanPhone || cleanPhone.length < 9) {
                 setErrorMsg('Please enter a valid phone number.')
                 setLoading(false)
                 return
             }
 
-            // 1. முதலில் போன் நம்பர் டேட்டாபேஸில் உள்ளதா எனச் சோதித்தல்
+            // 1. போன் நம்பர் டேட்டாபேஸில் உள்ளதா எனச் சோதித்தல்
             const { data: store, error } = await supabase
                 .from('stores')
                 .select('*')
                 .eq('phone_number', cleanPhone)
                 .single()
 
-            // போன் நம்பர் இல்லை என்றால் -> உடனே Register பக்கத்திற்கு போன் நம்பருடன் திருப்பிவிடுதல்!
+            // போன் நம்பர் இல்லை என்றால் -> Register பக்கத்திற்கு சீரான போன் நம்பருடன் அனுப்புதல்
             if (error || !store) {
                 router.push(`/merchant/register?phone=${cleanPhone}`)
                 return
             }
 
-            // 2. போன் நம்பர் இருந்தால் -> பாஸ்வேர்டை சரிபார்த்தல்
+            // 2. பாஸ்வேர்டை சரிபார்த்தல்
             const isPasswordValid = await bcrypt.compare(password, store.password_hash)
 
             if (!isPasswordValid) {
@@ -66,7 +81,7 @@ function LoginForm() {
                 return
             }
 
-            // 3. வெற்றி -> Merchant Dashboard (/merchant) பக்கத்திற்கு அனுப்புதல்
+            // 3. வெற்றி -> Dashboard-க்கு அனுப்புதல்
             localStorage.setItem('retcash_merchant', JSON.stringify(store))
             router.push('/merchant')
         } catch (err: any) {
@@ -83,7 +98,6 @@ function LoginForm() {
             </h1>
             <p className="text-[11px] text-center text-gray-400 mb-6">Enter your phone number & password to access console.</p>
 
-            {/* பதிவு வெற்றிபெற்று வந்தால் தோன்றும் பச்சை நிற செய்தி */}
             {successMsg && (
                 <div className="bg-green-500/10 border border-green-500/30 text-green-400 text-xs p-3 rounded-2xl mb-4 text-center break-words flex items-center justify-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
@@ -93,7 +107,6 @@ function LoginForm() {
                 </div>
             )}
 
-            {/* பிழை செய்தி */}
             {errorMsg && (
                 <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-2xl mb-4 text-center">
                     <p>{errorMsg}</p>
@@ -106,7 +119,7 @@ function LoginForm() {
                     <input
                         type="tel"
                         required
-                        placeholder="e.g. 0771234567"
+                        placeholder="e.g. 0771234567 or 94771234567"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white focus:outline-none focus:border-[#FF6B00] transition font-mono"
@@ -116,7 +129,6 @@ function LoginForm() {
                 <div>
                     <label className="text-gray-300 font-semibold block mb-1">Password</label>
 
-                    {/* 👁️ பாஸ்வேர்ட் கண் ஐகானுடன் கூடிய Input Box */}
                     <div className="relative w-full">
                         <input
                             type={showPassword ? "text" : "password"}
@@ -145,7 +157,6 @@ function LoginForm() {
                     </div>
                 </div>
 
-                {/* Forgot Password Link */}
                 <div className="flex justify-end -mt-2 mb-1">
                     <span
                         onClick={() => router.push('/merchant/forgot-password')}
@@ -181,12 +192,9 @@ export default function MerchantLoginPage() {
     return (
         <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center justify-between p-4 font-sans selection:bg-[#FF6B00] selection:text-white">
             <div className="pt-2"></div>
-
             <Suspense fallback={<div className="text-white text-xs">Loading login form...</div>}>
                 <LoginForm />
             </Suspense>
-
-            {/* Footer Branding & Copyright */}
             <div className="py-6 text-center text-[10px] text-gray-500 tracking-wider">
                 <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
                 <p className="mt-1 text-gray-600">Encrypted End-to-End & Supabase Secured Connection</p>
