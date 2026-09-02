@@ -65,6 +65,18 @@ export default function GlobalEntryPoint() {
         }
     }
 
+    // ─── ஃபோன் நம்பரை எந்த வடிவத்திலும் அடித்தாலும் 94 சேர்த்து பார்மட் செய்யும் பங்க்ஷன் ───
+    const formatPhoneNumber = (inputPhone: string) => {
+        let cleaned = inputPhone.replace(/\D/g, '');
+        if (cleaned.startsWith('0')) {
+            cleaned = cleaned.substring(1);
+        }
+        if (!cleaned.startsWith('94')) {
+            cleaned = '94' + cleaned;
+        }
+        return cleaned;
+    }
+
     // ─── வாடிக்கையாளருக்கு கேஷ்பேக் சேர்த்து பாப்-அப் இன்றி நேரடியாக வாட்ஸ்அப் திறக்கும் லாஜிக் ───
     const handleGenerateCashback = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -78,11 +90,19 @@ export default function GlobalEntryPoint() {
             const billNum = parseFloat(billAmount);
             const cashbackAmount = (billNum * cashbackPercentage) / 100;
 
-            const cleanCustPhone = customerPhone.replace(/[^0-9]/g, '');
+            // எந்த வடிவத்தில் அடித்தாலும் 94 உடன் சரியாக மாற்றும் முறை
+            const cleanCustPhone = formatPhoneNumber(customerPhone);
 
-            // வாட்ஸ்அப் Click to Chat மெசேஜ் உருவாக்கம்
+            // வாட்ஸ்அப் மெசேஜ் உருவாக்கம் (நீங்கள் அனுப்பிய ஸ்கிரீன்ஷாட் வடிவமைப்பு)
             const storeName = merchantSession?.store_name || 'RETCASH Partner';
-            const message = `வணக்கம்! உங்களது ${storeName} வாடிக்கையாளர் பாஸ் மூலமாக ரூ. ${billNum} பில் தொகைக்கு ரூ. ${cashbackAmount} கேஷ்பேக் சேர்க்கப்பட்டுள்ளது.`;
+            const cardLink = merchantSession?.card_url || `https://www.retcashapp.com/card/sample-card-id`;
+
+            const message = `🎉 *Retcash Rewards!*\n\nYour visit has been recorded successfully. 📍\n\n` +
+                `Store: *${storeName}*\n` +
+                `Bill Amount: Rs. ${billNum}\n` +
+                `Cashback Earned (${cashbackPercentage}%): Rs. ${cashbackAmount}\n\n` +
+                `✨ Keep visiting to unlock your exclusive cashback rewards.\n\n` +
+                `👉 Tap below to view your digital card, live balance & cashback details:\n${cardLink}`;
 
             const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${encodeURIComponent(message)}`;
 
@@ -136,7 +156,7 @@ export default function GlobalEntryPoint() {
                                 type="tel"
                                 value={customerPhone}
                                 onChange={(e) => setCustomerPhone(e.target.value)}
-                                placeholder="e.g. 94771234567"
+                                placeholder="e.g. 0771234567"
                                 className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-3 text-sm text-white outline-none transition font-mono"
                                 required
                             />
