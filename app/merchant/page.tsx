@@ -200,7 +200,7 @@ export default function GlobalEntryPoint() {
 
             const { data: existingClaims } = await supabase
                 .from('cashback_claims')
-                .select('id, visit_count, claimable_amount')
+                .select('id, visit_count, claimable_amount, status')
                 .eq('store_id', storeId)
                 .eq('customer_phone', cleanCustPhone)
                 .maybeSingle();
@@ -209,8 +209,14 @@ export default function GlobalEntryPoint() {
             let totalClaimable = cashbackAmount;
 
             if (existingClaims) {
-                newVisitCount = (existingClaims.visit_count || 0) + 1;
-                totalClaimable = Number(existingClaims.claimable_amount || 0) + cashbackAmount;
+                // 6 விசிட்கள் முடிந்து ரீடீம் செய்யப்பட்டிருந்தால், அடுத்த சைக்கிள் 1-லிருந்து ஆரம்பிக்கப்படும்
+                if (existingClaims.visit_count >= 6 && existingClaims.status === 'REDEEMED') {
+                    newVisitCount = 1;
+                    totalClaimable = cashbackAmount;
+                } else {
+                    newVisitCount = (existingClaims.visit_count || 0) + 1;
+                    totalClaimable = Number(existingClaims.claimable_amount || 0) + cashbackAmount;
+                }
             }
 
             const { data: insertedClaim, error: insertError } = await supabase
