@@ -17,7 +17,6 @@ export default function GlobalEntryPoint() {
     const [actionLoading, setActionLoading] = useState(false)
 
     useEffect(() => {
-        // லோக்கல் ஸ்டோரேஜில் மெர்சண்ட் லாகின் செய்துள்ளாரா எனச் சோதித்தல்
         const savedMerchant = localStorage.getItem('retcash_merchant')
         if (savedMerchant) {
             try {
@@ -27,43 +26,6 @@ export default function GlobalEntryPoint() {
             }
         }
     }, [])
-
-    const handleCheckUser = async (e: React.FormEvent) => {
-        e.preventDefault()
-        const cleanPhone = phone.replace(/\D/g, '')
-
-        if (!cleanPhone || cleanPhone.length < 8) {
-            setError('தயவுசெய்து சரியான மொபைல் எண்ணை உள்ளிடவும்')
-            return
-        }
-
-        try {
-            setLoading(true)
-            setError('')
-
-            // 1. Check if store exists with this phone number
-            const { data: storeData } = await supabase
-                .from('stores')
-                .select('id, phone_number')
-                .eq('phone_number', cleanPhone)
-                .maybeSingle()
-
-            if (storeData) {
-                // Registered merchant -> Go to login
-                router.push(`/merchant/login?phone=${cleanPhone}`)
-                return
-            }
-
-            // 2. New merchant -> Go to register
-            router.push(`/merchant/register?phone=${cleanPhone}`)
-
-        } catch (err: any) {
-            console.error(err)
-            setError('ஏதோ தவறு நடந்துவிட்டது. மீண்டும் முயற்சிக்கவும்.')
-        } finally {
-            setLoading(false)
-        }
-    }
 
     // ─── ஃபோன் நம்பரை எந்த வடிவத்திலும் அடித்தாலும் 94 சேர்த்து பார்மட் செய்யும் பங்க்ஷன் ───
     const formatPhoneNumber = (inputPhone: string) => {
@@ -77,6 +39,45 @@ export default function GlobalEntryPoint() {
         return cleaned;
     }
 
+    const handleCheckUser = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        if (!phone || phone.replace(/\D/g, '').length < 8) {
+            setError('தயவுசெய்து சரியான மொபைல் எண்ணை உள்ளிடவும்')
+            return
+        }
+
+        try {
+            setLoading(true)
+            setError('')
+
+            // எந்த வடிவத்தில் அடித்தாலும் 94 உடன் கூடிய சரியான எண்ணாக மாற்றுதல்
+            const cleanPhone = formatPhoneNumber(phone)
+
+            // 1. Check if store exists with this formatted phone number
+            const { data: storeData } = await supabase
+                .from('stores')
+                .select('id, phone_number')
+                .eq('phone_number', cleanPhone)
+                .maybeSingle()
+
+            if (storeData) {
+                // Registered merchant -> Go to login with formatted phone
+                router.push(`/merchant/login?phone=${cleanPhone}`)
+                return
+            }
+
+            // 2. New merchant -> Go to register with formatted phone
+            router.push(`/merchant/register?phone=${cleanPhone}`)
+
+        } catch (err: any) {
+            console.error(err)
+            setError('ஏதோ தவறு நடந்துவிட்டது. மீண்டும் முயற்சிக்கவும்.')
+        } finally {
+            setLoading(false)
+        }
+    }
+
     // ─── வாடிக்கையாளருக்கு கேஷ்பேக் சேர்த்து டேட்டாபேஸில் பதிவு செய்து வாட்ஸ்அப் திறக்கும் லாஜிக் ───
     const handleGenerateCashback = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -86,11 +87,10 @@ export default function GlobalEntryPoint() {
 
         setActionLoading(true)
         try {
-            const cashbackPercentage = merchantSession?.cashback_percentage || 5; // இயல்புநிலை 5%
+            const cashbackPercentage = merchantSession?.cashback_percentage || 5;
             const billNum = parseFloat(billAmount);
             const cashbackAmount = (billNum * cashbackPercentage) / 100;
 
-            // எந்த வடிவத்தில் அடித்தாலும் 94 உடன் சரியாக மாற்றும் முறை
             const cleanCustPhone = formatPhoneNumber(customerPhone);
             const storeId = merchantSession?.id;
 
@@ -100,7 +100,6 @@ export default function GlobalEntryPoint() {
                 return;
             }
 
-            // 1. இந்த வாடிக்கையாளருக்கு ஏற்கனவே இந்த கடையில் ரெக்கார்ட் உள்ளதா எனச் சோதித்தல்
             const { data: existingClaims } = await supabase
                 .from('cashback_claims')
                 .select('id, visit_count, claimable_amount')
@@ -116,11 +115,10 @@ export default function GlobalEntryPoint() {
                 totalClaimable = Number(existingClaims.claimable_amount || 0) + cashbackAmount;
             }
 
-            // 2. Supabase டேட்டாபேஸில் புதிய விசிட்/கேஷ்பேக் விவரங்களை சேமித்தல் (Insert or Update)
             const { data: insertedClaim, error: insertError } = await supabase
                 .from('cashback_claims')
                 .upsert({
-                    id: existingClaims?.id, // ஏற்கனவே இருந்தால் அப்டேட் செய்யும், இல்லையெனில் புதிய ஐடி உருவாகும்
+                    id: existingClaims?.id,
                     store_id: storeId,
                     customer_phone: cleanCustPhone,
                     bill_amount: billNum,
@@ -138,12 +136,8 @@ export default function GlobalEntryPoint() {
             }
 
             const claimId = insertedClaim.id;
-
-            // 3. பிரத்யேக டிஜிட்டல் கார்டு லிங்க் உருவாக்கம் (தற்போதைய டொமைனை அடிப்படையாகக் கொண்டு)
             const baseUrl = window.location.origin;
             const cardLink = `${baseUrl}/card/${claimId}`;
-
-            // 4. வாட்ஸ்அப் மெசேஜ் உருவாக்கம் (நீங்கள் கேட்ட வடிவமைப்பு)
             const storeName = merchantSession?.store_name || 'RETCASH Partner';
 
             const message = `🎉 *Retcash Rewards!*\n\nYour visit has been recorded successfully. 📍\n\n` +
@@ -156,7 +150,6 @@ export default function GlobalEntryPoint() {
 
             const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${encodeURIComponent(message)}`;
 
-            // 5. பாப்-அப் அலர்ட் இல்லாது உடனடியாக a டேக் மூலம் வாட்ஸ்அப்பைத் திறத்தல்
             const anchor = document.createElement('a');
             anchor.href = whatsappUrl;
             anchor.target = '_blank';
@@ -164,7 +157,6 @@ export default function GlobalEntryPoint() {
             anchor.click();
             document.body.removeChild(anchor);
 
-            // ஃபார்மை மட்டும் உடனடியாக கிளியர் செய்தல்
             setCustomerPhone('');
             setBillAmount('');
 
@@ -175,7 +167,6 @@ export default function GlobalEntryPoint() {
         }
     }
 
-    // ஒருவேளை மெர்சண்ட் ஏற்கனவே லாகின் செய்திருந்தால், இந்த டேஷ்போர்ட் திரையைக் காண்பித்தல்
     if (merchantSession) {
         return (
             <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center p-4 font-sans selection:bg-[#FF6B00]">
@@ -196,7 +187,6 @@ export default function GlobalEntryPoint() {
                         </button>
                     </div>
 
-                    {/* கேஷ்பேக் மற்றும் வாட்ஸ்அப் ஃபார்ம் */}
                     <form onSubmit={handleGenerateCashback} className="space-y-4">
                         <div>
                             <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">
