@@ -57,10 +57,15 @@ export default function CustomerWalletPage() {
 
                 const latestClaim = storeClaims[0] || {}
 
+                // ஒவ்வொரு ஸ்டோருக்கென செட் செய்யப்பட்ட target_visits-ஐப் பயன்படுத்துதல் (இல்லையெனில் இயல்புநிலை 6)
+                let storeTarget = Number(store.target_visits) || 6;
+                if (storeTarget > 10) storeTarget = 10;
+
                 return {
                     ...store,
                     balance: totalBalance,
                     visits: visitCount,
+                    targetVisits: storeTarget,
                     latestClaimId: latestClaim.id
                 }
             }) || []
@@ -106,9 +111,9 @@ export default function CustomerWalletPage() {
                             <div className="flex justify-between items-start">
                                 <div className="space-y-1">
                                     <div className="flex items-center space-x-2.5">
-                                        <img 
-                                            src="/logo.jpeg" 
-                                            alt="Retcash Logo" 
+                                        <img
+                                            src="/logo.jpeg"
+                                            alt="Retcash Logo"
                                             className="w-8 h-8 rounded-xl object-cover shadow-xs border border-orange-200"
                                         />
                                         <span className="font-black text-lg tracking-wider text-[#0F172A]">RET<span className="text-[#EE8838]">CASH</span></span>
@@ -163,54 +168,59 @@ export default function CustomerWalletPage() {
                                 <p className="text-xs text-slate-500">No stores found in your wallet yet.</p>
                             </div>
                         ) : (
-                            filteredStores.map((store, index) => (
-                                <div
-                                    key={index}
-                                    onClick={() => {
-                                        if (store.latestClaimId) {
-                                            router.push(`/card/${store.latestClaimId}`)
-                                        } else {
-                                            console.warn("No active card/claim found for this store:", store.store_name)
-                                        }
-                                    }}
-                                    className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 hover:border-[#EE8838] transition cursor-pointer shadow-xs hover:shadow-sm group"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-3.5">
-                                            <div className="w-11 h-11 rounded-2xl bg-orange-50 overflow-hidden flex items-center justify-center border border-orange-100 group-hover:scale-105 transition">
-                                                <span className="text-sm font-black text-[#EE8838]">
-                                                    {store.store_name?.[0] || 'S'}
-                                                </span>
-                                            </div>
-                                            <div>
-                                                <h3 className="text-sm font-bold text-[#0F172A] group-hover:text-[#EE8838] transition">{store.store_name}</h3>
-                                                <p className="text-[11px] text-slate-400 font-medium">Partner Store</p>
-                                            </div>
-                                        </div>
-                                        <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 group-hover:bg-orange-50 transition">
-                                            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#EE8838]" />
-                                        </div>
-                                    </div>
+                            filteredStores.map((store, index) => {
+                                const target = store.targetVisits || 6;
+                                const visits = store.visits || 0;
 
-                                    <div className="pt-3 border-t border-slate-100 flex items-end justify-between">
-                                        <div>
-                                            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">CASHBACK BALANCE</p>
-                                            <p className="text-lg font-black text-[#0F172A] mt-0.5">Rs. {Number(store.balance).toFixed(2)}</p>
+                                return (
+                                    <div
+                                        key={index}
+                                        onClick={() => {
+                                            if (store.latestClaimId) {
+                                                router.push(`/card/${store.latestClaimId}`)
+                                            } else {
+                                                console.warn("No active card/claim found for this store:", store.store_name)
+                                            }
+                                        }}
+                                        className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 hover:border-[#EE8838] transition cursor-pointer shadow-xs hover:shadow-sm group"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center space-x-3.5">
+                                                <div className="w-11 h-11 rounded-2xl bg-orange-50 overflow-hidden flex items-center justify-center border border-orange-100 group-hover:scale-105 transition">
+                                                    <span className="text-sm font-black text-[#EE8838]">
+                                                        {store.store_name?.[0] || 'S'}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-sm font-bold text-[#0F172A] group-hover:text-[#EE8838] transition">{store.store_name}</h3>
+                                                    <p className="text-[11px] text-slate-400 font-medium">Partner Store</p>
+                                                </div>
+                                            </div>
+                                            <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 group-hover:bg-orange-50 transition">
+                                                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#EE8838]" />
+                                            </div>
                                         </div>
-                                        <div className="text-right space-y-1.5">
-                                            <p className="text-[10px] font-extrabold text-slate-400">{store.visits || 0}/6 VISITS</p>
-                                            <div className="flex space-x-1">
-                                                {[1, 2, 3, 4, 5, 6].map((v) => (
-                                                    <div
-                                                        key={v}
-                                                        className={`w-2.5 h-2.5 rounded-full transition ${v <= (store.visits || 0) ? 'bg-[#EE8838]' : 'bg-slate-200'}`}
-                                                    ></div>
-                                                ))}
+
+                                        <div className="pt-3 border-t border-slate-100 flex items-end justify-between">
+                                            <div>
+                                                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">CASHBACK BALANCE</p>
+                                                <p className="text-lg font-black text-[#0F172A] mt-0.5">Rs. {Number(store.balance).toFixed(2)}</p>
+                                            </div>
+                                            <div className="text-right space-y-1.5">
+                                                <p className="text-[10px] font-extrabold text-slate-400">{visits}/{target} VISITS</p>
+                                                <div className="flex space-x-1">
+                                                    {Array.from({ length: target }, (_, i) => i + 1).map((v) => (
+                                                        <div
+                                                            key={v}
+                                                            className={`w-2.5 h-2.5 rounded-full transition ${v <= visits ? 'bg-[#EE8838]' : 'bg-slate-200'}`}
+                                                        ></div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))
+                                )
+                            })
                         )}
                     </>
                 )}
