@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
+
 'use client'
 
 import { useState, useEffect, use } from 'react'
@@ -140,8 +143,7 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
         }
     }
 
-    // டேட்டா முழுமையாக லோட் ஆகும் வரை ஸ்பின்னர் காட்டுவதை உறுதி செய்தல்
-    if (loading) {
+    if (loading || !claimData) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex items-center justify-center font-sans">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#EE8838]"></div>
@@ -149,23 +151,10 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
         )
     }
 
-    if (!claimData) {
-        return (
-            <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col items-center justify-center p-6 text-center font-sans">
-                <div className="bg-white border border-slate-200 p-6 rounded-3xl max-w-sm w-full shadow-md">
-                    <p className="text-sm font-semibold text-[#0F172A] mb-2">Card details not found or expired.</p>
-                    <p className="text-xs text-slate-500">Please check the link sent to your WhatsApp or try refreshing.</p>
-                </div>
-            </div>
-        )
-    }
-
     const store = claimData.stores
     const customerPhone = claimData.customer_phone || ''
     const currentVisits = Number(claimData.visit_count) || 1
-
-    // டேட்டாபேஸ்லிருந்து ஸ்டோர் டேட்டா வந்த பிறகு target_visits-ஐ சரியாக எடுத்தல் (Default 6)
-    const totalVisits = store?.target_visits ? Number(store.target_visits) : 6
+    const totalVisits = Number(store?.target_visits) || 6
 
     const isRedeemed = claimData.status === 'REDEEMED' || Number(claimData.claimable_amount || 0) <= 0;
     const isRewardReady = (currentVisits >= totalVisits) && !isRedeemed;
@@ -324,7 +313,7 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
 
                     </div>
 
-                    {/* Quick ActionButtons */}
+                    {/* Quick Action Buttons */}
                     <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100 mt-4">
                         {store?.location_url ? (
                             <a
