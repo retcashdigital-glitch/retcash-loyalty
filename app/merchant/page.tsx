@@ -16,6 +16,10 @@ export default function GlobalEntryPoint() {
     const [billAmount, setBillAmount] = useState('')
     const [actionLoading, setActionLoading] = useState(false)
 
+    // ─── ரிடீம் செய்வதற்கான ஸ்டேட் விவரங்கள் ───
+    const [customerStatus, setCustomerStatus] = useState<any>(null)
+    const [checkCustLoading, setCheckCustLoading] = useState(false)
+
     useEffect(() => {
         const savedMerchant = localStorage.getItem('retcash_merchant')
         if (savedMerchant) {
@@ -51,10 +55,8 @@ export default function GlobalEntryPoint() {
             setLoading(true)
             setError('')
 
-            // எந்த வடிவத்தில் அடித்தாலும் 94 உடன் கூடிய சரியான எண்ணாக மாற்றுதல்
             const cleanPhone = formatPhoneNumber(phone)
 
-            // 1. Check if store exists with this formatted phone number
             const { data: storeData } = await supabase
                 .from('stores')
                 .select('id, phone_number')
@@ -62,12 +64,10 @@ export default function GlobalEntryPoint() {
                 .maybeSingle()
 
             if (storeData) {
-                // Registered merchant -> Go to login with formatted phone
                 router.push(`/merchant/login?phone=${cleanPhone}`)
                 return
             }
 
-            // 2. New merchant -> Go to register with formatted phone
             router.push(`/merchant/register?phone=${cleanPhone}`)
 
         } catch (err: any) {
@@ -75,6 +75,63 @@ export default function GlobalEntryPoint() {
             setError('ஏதோ தவறு நடந்துவிட்டது. மீண்டும் முயற்சிக்கவும்.')
         } finally {
             setLoading(false)
+        }
+    }
+
+    // ─── வாடிக்கையாளரின் தற்போதைய நிலையைச் சோதித்தல் (பரிசு பெற தகுதியானவரா என அறிய) ───
+    const handleCheckCustomerStatus = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!customerPhone) return
+
+        setCheckCustLoading(true)
+        setCustomerStatus(null)
+
+        try {
+            const cleanCustPhone = formatPhoneNumber(customerPhone)
+            const storeId = merchantSession?.id
+
+            const { data, error } = await supabase
+                .from('cashback_claims')
+                .select('*')
+                .eq('store_id', storeId)
+                .eq('customer_phone', cleanCustPhone)
+                .maybeSingle()
+
+            if (error) throw error
+            setCustomerStatus(data)
+        } catch (err) {
+            console.error(err)
+            alert("வாடிக்கையாளர் விவரங்களைத் தேடுவதில் பிழை.")
+        } finally {
+            setCheckCustLoading(false)
+        }
+    }
+
+    // ─── கேஷ்பேக் தொகையை மட்டும் பூஜ்ஜியம் ஆக்குதல் (Redeem Reward) ───
+    const handleRedeemReward = async () => {
+        if (!customerStatus) return
+
+        if (!confirm("நிச்சயம் இந்த வாடிக்கையாளரின் பரிசை வழங்கிவிட்டீர்களா? (கேஷ்பேக் தொகை பூஜ்ஜியம் ஆகும்)")) {
+            return
+        }
+
+        setActionLoading(true)
+        try {
+            const { error } = await supabase
+                .from('cashback_claims')
+                .update({ claimable_amount: 0, status: 'REDEEMED' })
+                .eq('id', customerStatus.id)
+
+            if (error) throw error
+
+            alert("🎉 பரிசு வெற்றிகரமாக வழங்கப்பட்டு, கேஷ்பேக் தொகை பூஜ்ஜியமாக்கப்பட்டது!")
+            setCustomerStatus(null)
+            setCustomerPhone('')
+        } catch (err) {
+            console.error(err)
+            alert("பரிசை ரிடீம் செய்வதில் பிழை ஏற்பட்டது.")
+        } finally {
+            setActionLoading(false)
         }
     }
 
@@ -87,7 +144,6 @@ export default function GlobalEntryPoint() {
 
         setActionLoading(true)
         try {
-            // இங்கு cashback_percentage என்பதற்குப் பதிலாக டேட்டாபேஸ் காலமான default_cashback_percent பயன்படுத்தப்பட்டுள்ளது
             const cashbackPercentage = merchantSession?.default_cashback_percent || 5;
             const billNum = parseFloat(billAmount);
             const cashbackAmount = (billNum * cashbackPercentage) / 100;
@@ -160,6 +216,7 @@ export default function GlobalEntryPoint() {
 
             setCustomerPhone('');
             setBillAmount('');
+            setCustomerStatus(null);
 
         } catch (err) {
             console.error(err);
@@ -188,6 +245,51 @@ export default function GlobalEntryPoint() {
                         </button>
                     </div>
 
+                    {/* வாடிக்கையாளரின் நம்பரைச் சரிபார்த்து ரிடீம் செய்யும் பகுதி */}
+                    <div className="bg-[#0B0E14] p-4 rounded-2xl border border-gray-800 space-y-3">
+                        <h2 className="text-xs font-bold text-[#FF6B00] uppercase">Customer Reward Check & Redeem</h2>
+                        <form onSubmit={handleCheckCustomerStatus} className="space-y-2">
+                            <input
+                                type="tel"
+                                value={customerPhone}
+                                onChange={(e) => setCustomerPhone(e.target.value)}
+                                placeholder="Customer Phone e.g. 0771234567"
+                                className="w-full bg-[#161B26] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-xs text-white outline-none font-mono"
+                                required
+                            />
+                            <button
+                                type="submit"
+                                disabled={checkCustLoading}
+                                className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 rounded-xl text-xs transition"
+                            >
+                                {checkCustLoading ? 'தேடுகிறது...' : 'வாடிக்கையாளர் நிலையைச் சோதி'}
+                            </button>
+                        </form>
+
+                        {customerStatus && (
+                            <div className="mt-3 p-3 bg-gray-900 rounded-xl border border-gray-800 text-xs space-y-2">
+                                <p>Visits: <span className="font-bold text-white">{customerStatus.visit_count} / 6</span></p>
+                                <p>Balance Cashback: <span className="font-bold text-[#FF6B00]">Rs. {customerStatus.claimable_amount}</span></p>
+                                <p>Status: <span className="font-bold text-yellow-400">{customerStatus.status}</span></p>
+
+                                {Number(customerStatus.claimable_amount) > 0 ? (
+                                    <button
+                                        onClick={handleRedeemReward}
+                                        disabled={actionLoading}
+                                        className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 rounded-xl text-xs mt-2 transition"
+                                    >
+                                        {actionLoading ? 'ப்ராசஸ்...' : '🎁 Redeem Reward (Clear Cashback)'}
+                                    </button>
+                                ) : (
+                                    <p className="text-gray-400 text-[11px] italic">இந்த வாடிக்கையாளருக்குப் பரிசுகள் எதுவும் பெறப்பட வேண்டியதில்லை (Balance Rs. 0).</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <hr className="border-gray-800" />
+
+                    {/* சாதாரண கேஷ்பேக் விசிட் பதிவு செய்யும் பகுதி */}
                     <form onSubmit={handleGenerateCashback} className="space-y-4">
                         <div>
                             <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">
