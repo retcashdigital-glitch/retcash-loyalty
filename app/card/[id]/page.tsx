@@ -110,7 +110,17 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
 
     const fetchClaimDetails = async () => {
         try {
-            setLoading(true)
+            // லோடிங் நேரத்தைக் குறைக்க ஏற்கனவே உள்ள கேஷ்டு டேட்டாவை உடனடியாகப் பயன்படுத்தலாம்
+            const cachedData = localStorage.getItem(`card_cache_${id}`)
+            if (cachedData) {
+                try {
+                    setClaimData(JSON.parse(cachedData))
+                    setLoading(false)
+                } catch (e) {
+                    console.error('Error parsing card cache:', e)
+                }
+            }
+
             const { data: claim, error: claimError } = await supabase
                 .from('cashback_claims')
                 .select(`
@@ -129,18 +139,21 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                 .maybeSingle()
 
             if (claimError || !claim) {
-                setClaimData(null)
+                if (!cachedData) setClaimData(null)
             } else {
                 setClaimData(claim)
+                // புதிய டேட்டாவை localStorage-ல் சேமித்தல்
+                localStorage.setItem(`card_cache_${id}`, JSON.stringify(claim))
             }
         } catch (err) {
-            setClaimData(null)
+            const cachedData = localStorage.getItem(`card_cache_${id}`)
+            if (!cachedData) setClaimData(null)
         } finally {
             setLoading(false)
         }
     }
 
-    if (loading) {
+    if (loading && !claimData) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex items-center justify-center font-sans">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#EE8838]"></div>
@@ -163,8 +176,9 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
     const customerPhone = claimData.customer_phone || ''
     const currentVisits = claimData.visit_count || 1
 
-    // Dynamic Target Visits from store settings (Default to 6 if not set)
-    const totalVisits = Number(store?.target_visits) || 6
+    // Dynamic Target Visits from store settings (Default to 6 if not set, or fall back to store target safely)
+    const storeTargetFromDb = store?.target_visits ? Number(store.target_visits) : null;
+    const totalVisits = storeTargetFromDb !== null && !isNaN(storeTargetFromDb) ? storeTargetFromDb : 6;
 
     // இங்கு கேஷ்பேக் ரீடீம் ஆகிவிட்டதா என்பதைத் துல்லியமாகச் சரிபார்க்கும் லாஜிக்
     const isRedeemed = claimData.status === 'REDEEMED' || Number(claimData.claimable_amount || 0) <= 0;
