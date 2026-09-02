@@ -16,6 +16,10 @@ export default function GlobalEntryPoint() {
     const [billAmount, setBillAmount] = useState('')
     const [actionLoading, setActionLoading] = useState(false)
 
+    // Target Visits setting state for merchant
+    const [targetVisitsInput, setTargetVisitsInput] = useState('6')
+    const [settingLoading, setSettingLoading] = useState(false)
+
     const [scannedClaimData, setScannedClaimData] = useState<any>(null)
     const [isScanning, setIsScanning] = useState(false)
     const scannerRef = useRef<Html5Qrcode | null>(null)
@@ -24,7 +28,9 @@ export default function GlobalEntryPoint() {
         const savedMerchant = localStorage.getItem('retcash_merchant')
         if (savedMerchant) {
             try {
-                setMerchantSession(JSON.parse(savedMerchant))
+                const parsed = JSON.parse(savedMerchant)
+                setMerchantSession(parsed)
+                setTargetVisitsInput(String(parsed.target_visits || 6))
             } catch (e) {
                 console.error(e)
             }
@@ -80,6 +86,37 @@ export default function GlobalEntryPoint() {
             setError('An unexpected error occurred. Please try again.')
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleUpdateTargetVisits = async (e: React.FormEvent) => {
+        e.preventDefault()
+        const newTarget = parseInt(targetVisitsInput)
+
+        if (isNaN(newTarget) || newTarget < 3 || newTarget > 10) {
+            alert("Target visits must be between 3 and 10.")
+            return
+        }
+
+        setSettingLoading(true)
+        try {
+            const { error } = await supabase
+                .from('stores')
+                .update({ target_visits: newTarget })
+                .eq('id', merchantSession.id)
+
+            if (error) throw error
+
+            const updatedSession = { ...merchantSession, target_visits: newTarget }
+            setMerchantSession(updatedSession)
+            localStorage.setItem('retcash_merchant', JSON.stringify(updatedSession))
+
+            alert("🎉 Target visits updated successfully!")
+        } catch (err: any) {
+            console.error(err)
+            alert("Failed to update target visits: " + (err.message || JSON.stringify(err)))
+        } finally {
+            setSettingLoading(false)
         }
     }
 
@@ -151,6 +188,8 @@ export default function GlobalEntryPoint() {
     const handleRedeemScannedReward = async () => {
         if (!scannedClaimData) return
 
+        const targetVisits = merchantSession?.target_visits || 6;
+
         if (!confirm(`Have you handed over the reward to customer (Phone: ${scannedClaimData.customer_phone})? The reward balance of Rs. ${scannedClaimData.claimable_amount} will be reset to zero.`)) {
             return
         }
@@ -186,6 +225,7 @@ export default function GlobalEntryPoint() {
         setActionLoading(true)
         try {
             const cashbackPercentage = merchantSession?.default_cashback_percent || 5;
+            const targetVisits = merchantSession?.target_visits || 6;
             const billNum = parseFloat(billAmount);
             const cashbackAmount = (billNum * cashbackPercentage) / 100;
 
@@ -213,7 +253,7 @@ export default function GlobalEntryPoint() {
 
             if (existingClaims) {
                 const currentVisits = existingClaims.visit_count || 1;
-                newVisitCount = currentVisits >= 6 ? 6 : currentVisits + 1;
+                newVisitCount = currentVisits >= targetVisits ? targetVisits : currentVisits + 1;
                 totalClaimable = Number(existingClaims.claimable_amount || 0) + cashbackAmount;
                 claimId = existingClaims.id;
             }
@@ -226,7 +266,7 @@ export default function GlobalEntryPoint() {
                 cashback_amount: cashbackAmount,
                 claimable_amount: totalClaimable,
                 visit_count: newVisitCount,
-                status: newVisitCount >= 6 ? 'READY' : 'PENDING'
+                status: newVisitCount >= targetVisits ? 'READY' : 'PENDING'
             };
 
             if (claimId) {
@@ -252,7 +292,7 @@ export default function GlobalEntryPoint() {
                 `Store: *${storeName}*\n` +
                 `Bill Amount: Rs. ${billNum}\n` +
                 `Cashback Earned (${cashbackPercentage}%): Rs. ${cashbackAmount}\n` +
-                `Visit Count: ${newVisitCount} / 6\n\n` +
+                `Visit Count: ${newVisitCount} / ${targetVisits}\n\n` +
                 `✨ Keep visiting to unlock your exclusive cashback rewards.\n\n` +
                 `👉 Tap below to view your digital card, live balance & cashback details:\n${cardLink}`;
 
@@ -275,6 +315,8 @@ export default function GlobalEntryPoint() {
     }
 
     if (merchantSession) {
+        const targetVisits = merchantSession?.target_visits || 6;
+
         return (
             <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center p-4 font-sans selection:bg-[#FF6B00]">
                 <div className="w-full max-w-sm bg-[#161B26] border border-gray-800 rounded-3xl p-6 shadow-xl space-y-6 mt-6">
@@ -294,9 +336,33 @@ export default function GlobalEntryPoint() {
                         </button>
                     </div>
 
+                    {/* Target Visits Settings Section */}
+                    <div className="bg-[#0B0E14] p-4 rounded-2xl border border-gray-800 space-y-3">
+                        <h2 className="text-xs font-bold text-[#FF6B00] uppercase">⚙️ Target Visits Settings</h2>
+                        <p className="text-[10px] text-gray-400">Set how many visits a customer needs to unlock rewards (Max: 10):</p>
+                        <form onSubmit={handleUpdateTargetVisits} className="flex gap-2 items-center">
+                            <input
+                                type="number"
+                                min="3"
+                                max="10"
+                                value={targetVisitsInput}
+                                onChange={(e) => setTargetVisitsInput(e.target.value)}
+                                className="w-20 bg-[#161B26] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition font-mono text-center"
+                                required
+                            />
+                            <button
+                                type="submit"
+                                disabled={settingLoading}
+                                className="flex-1 bg-gray-800 hover:bg-[#FF6B00] text-white font-bold py-2 rounded-xl text-xs uppercase tracking-wider transition cursor-pointer"
+                            >
+                                {settingLoading ? 'Saving...' : 'Update Target'}
+                            </button>
+                        </form>
+                    </div>
+
                     <div className="bg-[#0B0E14] p-4 rounded-2xl border border-gray-800 space-y-3 text-center">
                         <h2 className="text-xs font-bold text-[#FF6B00] uppercase text-left">📷 Live QR Scanner</h2>
-                        <p className="text-[10px] text-gray-400 text-left">Scan the customer's 6th visit QR code using the camera below:</p>
+                        <p className="text-[10px] text-gray-400 text-left">Scan the customer's {targetVisits}th visit QR code using the camera below:</p>
 
                         {!isScanning ? (
                             <button
@@ -326,7 +392,7 @@ export default function GlobalEntryPoint() {
                             <div className="mt-3 p-3 bg-gray-900 rounded-xl border border-green-500/30 text-xs space-y-2 text-left">
                                 <div className="flex justify-between text-[11px] text-green-400 font-bold">
                                     <span>Valid QR Scanned!</span>
-                                    <span>{scannedClaimData.visit_count} / 6 Visits</span>
+                                    <span>{scannedClaimData.visit_count} / {targetVisits} Visits</span>
                                 </div>
                                 <p className="text-gray-300">Customer: <span className="font-mono text-white">{scannedClaimData.customer_phone}</span></p>
                                 <p className="text-gray-300">Reward Balance: <span className="font-bold text-[#FF6B00]">Rs. {scannedClaimData.claimable_amount}</span></p>

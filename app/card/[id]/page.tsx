@@ -121,7 +121,8 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
             store_slug,
             logo_url,
             location_url,
-            review_url
+            review_url,
+            target_visits
           )
         `)
                 .eq('id', id)
@@ -161,7 +162,9 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
     const store = claimData.stores
     const customerPhone = claimData.customer_phone || ''
     const currentVisits = claimData.visit_count || 1
-    const totalVisits = 6
+
+    // Dynamic Target Visits from store settings (Default to 6 if not set)
+    const totalVisits = Number(store?.target_visits) || 6
 
     // இங்கு கேஷ்பேக் ரீடீம் ஆகிவிட்டதா என்பதைத் துல்லியமாகச் சரிபார்க்கும் லாஜிக்
     const isRedeemed = claimData.status === 'REDEEMED' || Number(claimData.claimable_amount || 0) <= 0;
@@ -241,14 +244,19 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                         <span className="text-[#EE8838] font-black">+ Rs. {Number(claimData.cashback_amount || 0).toFixed(2)}</span>
                     </div>
 
-                    {/* 6 Visit Challenge Tracker */}
+                    {/* Dynamic Visit Challenge Tracker */}
                     <div className="mb-6">
                         <div className="flex justify-between text-[11px] font-bold tracking-wider uppercase mb-3">
-                            <span className="text-slate-500">6 Visit Challenge</span>
+                            <span className="text-slate-500">{totalVisits} Visit Challenge</span>
                             <span className="text-[#EE8838]">{currentVisits} / {totalVisits} Visits</span>
                         </div>
 
-                        <div className="grid grid-cols-6 gap-2">
+                        <div
+                            className="grid gap-2"
+                            style={{
+                                gridTemplateColumns: `repeat(${totalVisits > 5 ? 5 : totalVisits}, minmax(0, 1fr))`
+                            }}
+                        >
                             {Array.from({ length: totalVisits }).map((_, i) => {
                                 const step = i + 1;
                                 const done = step <= currentVisits;
@@ -288,7 +296,7 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                             {isRewardReady ? (
                                 <div className="w-full">
                                     <div className="bg-[#EE8838]/10 border border-[#EE8838]/30 text-[#EE8838] text-xs font-bold py-2 px-3 rounded-xl mb-3">
-                                        🎉 Congratulations! Your 6th Visit Reward is ready!
+                                        🎉 Congratulations! Your {totalVisits}th Visit Reward is ready!
                                     </div>
                                     <p className="text-[11px] text-slate-500 mb-2 font-semibold">Show QR code at billing counter:</p>
                                     <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-200">
@@ -308,7 +316,7 @@ export default function SingleCardPage({ params }: { params: Promise<{ id: strin
                                         {totalVisits - currentVisits} More {totalVisits - currentVisits === 1 ? 'Visit' : 'Visits'} Needed!
                                     </h3>
                                     <p className="text-[11px] text-slate-500">
-                                        Redemption QR code will appear automatically on your 6th visit.
+                                        Redemption QR code will appear automatically on your {totalVisits}th visit.
                                     </p>
                                 </div>
                             )}
