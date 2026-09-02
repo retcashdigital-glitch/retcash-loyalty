@@ -87,7 +87,8 @@ export default function GlobalEntryPoint() {
 
         setActionLoading(true)
         try {
-            const cashbackPercentage = merchantSession?.cashback_percentage || 5;
+            // இங்கு cashback_percentage என்பதற்குப் பதிலாக டேட்டாபேஸ் காலமான default_cashback_percent பயன்படுத்தப்பட்டுள்ளது
+            const cashbackPercentage = merchantSession?.default_cashback_percent || 5;
             const billNum = parseFloat(billAmount);
             const cashbackAmount = (billNum * cashbackPercentage) / 100;
 
