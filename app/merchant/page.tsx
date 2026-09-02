@@ -198,7 +198,7 @@ export default function GlobalEntryPoint() {
                 return;
             }
 
-            // ஏற்கனவே ரீடீம் ஆகாத (Active) கார்டை மட்டும் துல்லியமாகத் தேடும்
+            // 1. ஏற்கனவே ரீடீம் ஆகாத (Active) கார்டைத் தேடுதல்
             const { data: existingClaims } = await supabase
                 .from('cashback_claims')
                 .select('id, visit_count, claimable_amount, status')
@@ -213,40 +213,46 @@ export default function GlobalEntryPoint() {
 
             if (existingClaims) {
                 const currentVisits = existingClaims.visit_count || 1;
-                if (currentVisits >= 6) {
-                    newVisitCount = 6;
-                } else {
-                    newVisitCount = currentVisits + 1;
-                }
+                newVisitCount = currentVisits >= 6 ? 6 : currentVisits + 1;
                 totalClaimable = Number(existingClaims.claimable_amount || 0) + cashbackAmount;
                 targetId = existingClaims.id;
+            }
+
+            // 2. Upsert-க்குப் பதிலாக நேரடியாக insert அல்லது update பயன்படுத்துதல்
+            let claimId = targetId;
+
+            if (targetId) {
+                const { error: updateError } = await supabase
+                    .from('cashback_claims')
+                    .update({
+                        bill_amount: billNum,
+                        cashback_amount: cashbackAmount,
+                        claimable_amount: totalClaimable,
+                        visit_count: newVisitCount,
+                        status: newVisitCount >= 6 ? 'READY' : 'PENDING'
+                    })
+                    .eq('id', targetId);
+
+                if (updateError) throw updateError;
             } else {
-                newVisitCount = 1;
-                totalClaimable = cashbackAmount;
-                targetId = undefined;
+                const { data: insertedData, error: insertError } = await supabase
+                    .from('cashback_claims')
+                    .insert({
+                        store_id: storeId,
+                        customer_phone: cleanCustPhone,
+                        bill_amount: billNum,
+                        cashback_amount: cashbackAmount,
+                        claimable_amount: totalClaimable,
+                        visit_count: newVisitCount,
+                        status: newVisitCount >= 6 ? 'READY' : 'PENDING'
+                    })
+                    .select('id')
+                    .single();
+
+                if (insertError) throw insertError;
+                if (insertedData) claimId = insertedData.id;
             }
 
-            const { data: insertedClaim, error: insertError } = await supabase
-                .from('cashback_claims')
-                .upsert({
-                    id: targetId,
-                    store_id: storeId,
-                    customer_phone: cleanCustPhone,
-                    bill_amount: billNum,
-                    cashback_amount: cashbackAmount,
-                    claimable_amount: totalClaimable,
-                    visit_count: newVisitCount,
-                    status: newVisitCount >= 6 ? 'READY' : 'PENDING'
-                }, { onConflict: 'id' })
-                .select('id')
-                .single();
-
-            if (insertError || !insertedClaim) {
-                console.error(insertError);
-                throw new Error("Database error during save");
-            }
-
-            const claimId = insertedClaim.id;
             const baseUrl = window.location.origin;
             const cardLink = `${baseUrl}/card/${claimId}`;
             const storeName = merchantSession?.store_name || 'RETCASH Partner';
@@ -261,20 +267,21 @@ export default function GlobalEntryPoint() {
 
             const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${encodeURIComponent(message)}`;
 
-            const anchor = document.createElement('a');
-            anchor.href = whatsappUrl;
-            anchor.target = '_blank';
-            document.body.appendChild(anchor);
-            anchor.click();
-            document.body.removeChild(anchor);
-
+            // Inputs-ஐ கிளியர் செய்துவிட்டு loading-ஐ உடனே false ஆக்குதல்
             setCustomerPhone('');
             setBillAmount('');
+            setActionLoading(false);
 
-        } catch (err) {
+            // வாட்ஸ்அப் பக்கத்தை உறுதியாக ஓபன் செய்தல்
+            const opened = window.open(whatsappUrl, '_blank');
+            if (!opened) {
+                window.location.href = whatsappUrl;
+            }
+
+        } catch (err: any) {
             console.error(err);
-        } finally {
-            setActionLoading(false)
+            alert("Error processing cashback: " + (err.message || JSON.stringify(err)));
+            setActionLoading(false);
         }
     }
 
