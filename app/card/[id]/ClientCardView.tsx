@@ -87,8 +87,28 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                     table: 'cashback_claims',
                     filter: `id=eq.${id}`,
                 },
-                (payload) => {
-                    setClaimData(payload.new)
+                async () => {
+                    // மாற்றங்கள் நிகழும் போது டேட்டாபேஸிலிருந்து உண்மையான லேட்டஸ்ட் டேட்டாவை மட்டும் ஃபெட்ச் செய்யவும்
+                    const { data: updatedClaim } = await supabase
+                        .from('cashback_claims')
+                        .select(`
+                            *,
+                            stores:store_id (
+                                id,
+                                store_name,
+                                store_slug,
+                                logo_url,
+                                location_url,
+                                review_url,
+                                target_visits
+                            )
+                        `)
+                        .eq('id', id)
+                        .maybeSingle()
+
+                    if (updatedClaim) {
+                        setClaimData(updatedClaim)
+                    }
                 }
             )
             .subscribe()
