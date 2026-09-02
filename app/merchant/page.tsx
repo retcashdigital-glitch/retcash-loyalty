@@ -198,7 +198,7 @@ export default function GlobalEntryPoint() {
                 return;
             }
 
-            // 1. ஏற்கனவே ரீடீம் ஆகாத (Active) கார்டைத் தேடுதல்
+            // 1. ஏற்கனவே உள்ள டேட்டாவைச் சரிபார்த்தல் (REDEEMED ஆகாதது)
             const { data: existingClaims } = await supabase
                 .from('cashback_claims')
                 .select('id, visit_count, claimable_amount, status')
@@ -209,48 +209,39 @@ export default function GlobalEntryPoint() {
 
             let newVisitCount = 1;
             let totalClaimable = cashbackAmount;
-            let targetId = undefined;
+            let claimId = undefined;
 
             if (existingClaims) {
                 const currentVisits = existingClaims.visit_count || 1;
                 newVisitCount = currentVisits >= 6 ? 6 : currentVisits + 1;
                 totalClaimable = Number(existingClaims.claimable_amount || 0) + cashbackAmount;
-                targetId = existingClaims.id;
+                claimId = existingClaims.id;
             }
 
-            // 2. Upsert-க்குப் பதிலாக நேரடியாக insert அல்லது update பயன்படுத்துதல்
-            let claimId = targetId;
+            // 2. Supabase Upsert மூலம் Duplicate Error வராமல் தடுத்தல்
+            const payload: any = {
+                store_id: storeId,
+                customer_phone: cleanCustPhone,
+                bill_amount: billNum,
+                cashback_amount: cashbackAmount,
+                claimable_amount: totalClaimable,
+                visit_count: newVisitCount,
+                status: newVisitCount >= 6 ? 'READY' : 'PENDING'
+            };
 
-            if (targetId) {
-                const { error: updateError } = await supabase
-                    .from('cashback_claims')
-                    .update({
-                        bill_amount: billNum,
-                        cashback_amount: cashbackAmount,
-                        claimable_amount: totalClaimable,
-                        visit_count: newVisitCount,
-                        status: newVisitCount >= 6 ? 'READY' : 'PENDING'
-                    })
-                    .eq('id', targetId);
+            if (claimId) {
+                payload.id = claimId;
+            }
 
-                if (updateError) throw updateError;
-            } else {
-                const { data: insertedData, error: insertError } = await supabase
-                    .from('cashback_claims')
-                    .insert({
-                        store_id: storeId,
-                        customer_phone: cleanCustPhone,
-                        bill_amount: billNum,
-                        cashback_amount: cashbackAmount,
-                        claimable_amount: totalClaimable,
-                        visit_count: newVisitCount,
-                        status: newVisitCount >= 6 ? 'READY' : 'PENDING'
-                    })
-                    .select('id')
-                    .single();
+            const { data: upsertedData, error: upsertError } = await supabase
+                .from('cashback_claims')
+                .upsert(payload, { onConflict: 'store_id, customer_phone' })
+                .select('id')
+                .single();
 
-                if (insertError) throw insertError;
-                if (insertedData) claimId = insertedData.id;
+            if (upsertError) throw upsertError;
+            if (upsertedData && upsertedData.id) {
+                claimId = upsertedData.id;
             }
 
             const baseUrl = window.location.origin;
@@ -267,12 +258,10 @@ export default function GlobalEntryPoint() {
 
             const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${encodeURIComponent(message)}`;
 
-            // Inputs-ஐ கிளியர் செய்துவிட்டு loading-ஐ உடனே false ஆக்குதல்
             setCustomerPhone('');
             setBillAmount('');
             setActionLoading(false);
 
-            // வாட்ஸ்அப் பக்கத்தை உறுதியாக ஓபன் செய்தல்
             const opened = window.open(whatsappUrl, '_blank');
             if (!opened) {
                 window.location.href = whatsappUrl;
