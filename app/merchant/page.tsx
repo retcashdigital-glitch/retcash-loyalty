@@ -89,13 +89,33 @@ export default function GlobalEntryPoint() {
         }
     }
 
+    // 10-க்கு மேல் டைப் செய்தால் 10 ஆக மாற்றும் லாஜிக்
+    const handleTargetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        if (val === '') {
+            setTargetVisitsInput('');
+            return;
+        }
+        let num = parseInt(val);
+        if (!isNaN(num)) {
+            if (num > 10) num = 10;
+            setTargetVisitsInput(String(num));
+        }
+    }
+
     const handleUpdateTargetVisits = async (e: React.FormEvent) => {
         e.preventDefault()
-        const newTarget = parseInt(targetVisitsInput)
+        let newTarget = parseInt(targetVisitsInput)
 
-        if (isNaN(newTarget) || newTarget < 3 || newTarget > 10) {
-            alert("Target visits must be between 3 and 10.")
+        if (isNaN(newTarget) || newTarget < 3) {
+            alert("Target visits must be at least 3.")
             return
+        }
+
+        // ஒருவேளை 10-க்கு மேல் சென்றால் அதனை 10 என உறுதி செய்தல்
+        if (newTarget > 10) {
+            newTarget = 10;
+            setTargetVisitsInput('10');
         }
 
         setSettingLoading(true)
@@ -188,8 +208,6 @@ export default function GlobalEntryPoint() {
     const handleRedeemScannedReward = async () => {
         if (!scannedClaimData) return
 
-        const targetVisits = merchantSession?.target_visits || 6;
-
         if (!confirm(`Have you handed over the reward to customer (Phone: ${scannedClaimData.customer_phone})? The reward balance of Rs. ${scannedClaimData.claimable_amount} will be reset to zero.`)) {
             return
         }
@@ -225,7 +243,9 @@ export default function GlobalEntryPoint() {
         setActionLoading(true)
         try {
             const cashbackPercentage = merchantSession?.default_cashback_percent || 5;
-            const targetVisits = merchantSession?.target_visits || 6;
+            let targetVisits = merchantSession?.target_visits || 6;
+            if (targetVisits > 10) targetVisits = 10;
+
             const billNum = parseFloat(billAmount);
             const cashbackAmount = (billNum * cashbackPercentage) / 100;
 
@@ -315,7 +335,8 @@ export default function GlobalEntryPoint() {
     }
 
     if (merchantSession) {
-        const targetVisits = merchantSession?.target_visits || 6;
+        let targetVisits = merchantSession?.target_visits || 6;
+        if (targetVisits > 10) targetVisits = 10;
 
         return (
             <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center p-4 font-sans selection:bg-[#FF6B00]">
@@ -346,7 +367,7 @@ export default function GlobalEntryPoint() {
                                 min="3"
                                 max="10"
                                 value={targetVisitsInput}
-                                onChange={(e) => setTargetVisitsInput(e.target.value)}
+                                onChange={handleTargetInputChange}
                                 className="w-20 bg-[#161B26] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition font-mono text-center"
                                 required
                             />
