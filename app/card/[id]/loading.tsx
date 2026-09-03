@@ -1,3 +1,17 @@
 export default function CardLoading() {
-    return (<div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4" > <div className="max-w-md w-full bg-white border border-slate-200 rounded-3xl p-6 space-y-6 shadow-sm animate-pulse" > <div className="flex items-center space-x-4" > <div className="w-14 h-14 bg-slate-200 rounded-2xl" ></div> <div className="space-y-2 flex-1" > <div className="h-4 bg-slate-200 rounded w-3/4" ></div> <div className="h-3 bg-slate-200 rounded w-1/2" ></div> </div> </div> <div className="h-28 bg-slate-100 rounded-2xl" ></div> <div className="h-12 bg-orange-100 rounded-2xl" ></div> </div> </div>)
+    return (
+        <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
+            <div className="max-w-md w-full bg-white border border-slate-200 rounded-3xl p-6 space-y-6 shadow-sm animate-pulse">
+                <div className="flex items-center space-x-4">
+                    <div className="w-14 h-14 bg-slate-200 rounded-2xl"></div>
+                    <div className="space-y-2 flex-1">
+                        <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                        <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                    </div>
+                </div>
+                <div className="h-28 bg-slate-100 rounded-2xl"></div>
+                <div className="h-12 bg-orange-100 rounded-2xl"></div>
+            </div>
+        </div>
+    )
 }
