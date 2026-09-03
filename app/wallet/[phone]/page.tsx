@@ -24,8 +24,14 @@ export default function CustomerWalletPage() {
             const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
             if (cachedData) {
                 try {
-                    setStores(JSON.parse(cachedData))
+                    const parsed = JSON.parse(cachedData)
+                    setStores(parsed)
                     setLoading(false)
+                    
+                    // லோக்கல் கேஷில் உள்ள அனைத்து கார்டு பக்கங்களையும் உடனே Prefetch செய்தல்
+                    parsed.forEach((s: any) => {
+                        router.prefetch(`/card/${s.id}?phone=${phone}`)
+                    })
                 } catch (e) {
                     console.error('Error parsing cache:', e)
                 }
@@ -74,7 +80,7 @@ export default function CustomerWalletPage() {
                 let storeTarget = Number(store.target_visits) || 6;
                 if (storeTarget > 10) storeTarget = 10;
 
-                // Prefetch route for instant navigation
+                // Background router prefetching
                 router.prefetch(`/card/${store.id}?phone=${phone}`)
 
                 return {
@@ -101,6 +107,7 @@ export default function CustomerWalletPage() {
         
         setNavigatingStoreId(storeId);
         
+        // Instant Router transition without blocking UI
         startTransition(() => {
             router.push(`/card/${storeId}?phone=${phone}`);
         })
@@ -166,7 +173,7 @@ export default function CustomerWalletPage() {
                                     key={category}
                                     onClick={() => setSelectedCategory(category)}
                                     className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer ${selectedCategory === category
-                                        ? 'bg-[#EE8838] text-white shadow-md shadow-orange-500/20'
+                                        ? 'bg-[#EE8838] text-[#0F172A] font-extrabold shadow-md shadow-orange-500/20'
                                         : 'bg-white text-slate-500 border border-slate-200 hover:text-[#0F172A]'
                                         }`}
                                 >
@@ -198,8 +205,9 @@ export default function CustomerWalletPage() {
                                     <div
                                         key={index}
                                         onClick={() => handleStoreClick(store)}
+                                        onMouseEnter={() => router.prefetch(`/card/${store.id}?phone=${phone}`)}
                                         className={`bg-white border rounded-3xl p-5 space-y-4 transition cursor-pointer shadow-xs group ${isThisNavigating
-                                            ? 'border-[#EE8838] bg-orange-50/20 opacity-75 pointer-events-none'
+                                            ? 'border-[#EE8838] bg-orange-50/20 opacity-80'
                                             : 'border-slate-200/80 hover:border-[#EE8838] hover:shadow-sm'
                                             }`}
                                     >
