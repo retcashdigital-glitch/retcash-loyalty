@@ -16,6 +16,7 @@ export default function CustomerWalletPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('All Stores')
     const [showQrModal, setShowQrModal] = useState(false)
+    const [navigatingStoreId, setNavigatingStoreId] = useState<string | null>(null)
 
     useEffect(() => {
         if (phone) {
@@ -56,65 +57,35 @@ export default function CustomerWalletPage() {
                 console.error('Error fetching claims:', claimsError)
             }
 
-            // ஒவ்வொரு ஸ்டோருக்கும் கிளைம் ஐடி உள்ளதா எனச் சரிபார்த்து, இல்லாதவற்றுக்கு உடனடியாகப் பின்னணியில் உருவாக்குதல் (Pre-creation for lightning fast click)
-            const processedStores = await Promise.all(
-                allStores?.map(async (store: any) => {
-                    const storeClaims = claimsData?.filter(
-                        (claim: any) => String(claim.store_id) === String(store.id)
-                    ) || []
+            const mergedStores = allStores?.map((store: any) => {
+                const storeClaims = claimsData?.filter(
+                    (claim: any) => String(claim.store_id) === String(store.id)
+                ) || []
 
-                    let latestClaim = storeClaims[0] || null
+                const totalBalance = storeClaims.reduce((sum: number, claim: any) => {
+                    return sum + (Number(claim.claimable_amount) || Number(claim.cashback_amount) || 0)
+                }, 0)
 
-                    // இந்த ஸ்டோருக்கு கிளைம் இல்லையெனில், வாலட் லோட் ஆகும்போதே பின்னணியில் உடனே உருவாக்கிக் கொள்ளுதல்
-                    if (!latestClaim) {
-                        try {
-                            const { data: newClaim } = await supabase
-                                .from('cashback_claims')
-                                .insert({
-                                    customer_phone: phone,
-                                    store_id: store.id,
-                                    cashback_amount: 0,
-                                    claimable_amount: 0,
-                                    visit_count: 1,
-                                    status: 'ACTIVE'
-                                })
-                                .select('*')
-                                .single()
+                const visitCount = storeClaims.reduce((max: number, claim: any) => {
+                    return Math.max(max, Number(claim.visit_count) || 1)
+                }, storeClaims.length > 0 ? storeClaims.length : 0)
 
-                            if (newClaim) {
-                                latestClaim = newClaim
-                            }
-                        } catch (insErr) {
-                            console.error('Background claim creation error:', insErr)
-                        }
-                    }
+                const latestClaim = storeClaims[0] || null
 
-                    // மொத்த பேலன்ஸ் மற்றும் விசிட் கணக்கீடு
-                    const allStoreClaims = latestClaim ? [latestClaim, ...storeClaims.filter(c => c.id !== latestClaim.id)] : storeClaims;
+                let storeTarget = Number(store.target_visits) || 6;
+                if (storeTarget > 10) storeTarget = 10;
 
-                    const totalBalance = allStoreClaims.reduce((sum: number, claim: any) => {
-                        return sum + (Number(claim.claimable_amount) || Number(claim.cashback_amount) || 0)
-                    }, 0)
+                return {
+                    ...store,
+                    balance: totalBalance,
+                    visits: visitCount,
+                    targetVisits: storeTarget,
+                    latestClaimId: latestClaim ? latestClaim.id : null
+                }
+            }) || []
 
-                    const visitCount = allStoreClaims.reduce((max: number, claim: any) => {
-                        return Math.max(max, Number(claim.visit_count) || 1)
-                    }, allStoreClaims.length > 0 ? allStoreClaims.length : 0)
-
-                    let storeTarget = Number(store.target_visits) || 6;
-                    if (storeTarget > 10) storeTarget = 10;
-
-                    return {
-                        ...store,
-                        balance: totalBalance,
-                        visits: visitCount,
-                        targetVisits: storeTarget,
-                        latestClaimId: latestClaim ? latestClaim.id : null
-                    }
-                }) || []
-            );
-
-            setStores(processedStores)
-            localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(processedStores))
+            setStores(mergedStores)
+            localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(mergedStores))
 
         } catch (err) {
             console.error('Error in fetching wallet data:', err)
@@ -123,17 +94,61 @@ export default function CustomerWalletPage() {
         }
     }
 
-    // மின்னல் வேகக் கிளிக் ஹேண்ட்லர் (எந்தவித தாமதமும் இருக்காது)
-    const handleStoreClick = (store: any) => {
-        if (store.latestClaimId) {
-            router.push(`/card/${store.latestClaimId}`)
-        } else {
-            // ஒருவேளை ஐடி இல்லாவிட்டால் மட்டும் அவசரமாய் உருவாக்கிக் கூட்டுவது
-            fetchWalletAndClaimsData().then(() => {
-                if (store.latestClaimId) {
-                    router.push(`/card/${store.latestClaimId}`)
+    // ஸ்டோரை கிளிக் செய்யும் போது மட்டும் துரிதமாகச் செயல்படும் லாஜிக்
+    const handleStoreClick = async (store: any) => {
+        if (navigatingStoreId) return;
+        setNavigatingStoreId(store.id);
+
+        try {
+            let targetClaimId = store.latestClaimId;
+
+            // 1. ஒருவேளை cache-ல் ID இல்லையென்றால் உடனடியாக டேட்டாபேஸில் தேடுதல்
+            if (!targetClaimId) {
+                let { data: existingClaim } = await supabase
+                    .from('cashback_claims')
+                    .select('id')
+                    .eq('customer_phone', phone)
+                    .eq('store_id', store.id)
+                    .order('updated_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                targetClaimId = existingClaim?.id;
+            }
+
+            // 2. டேட்டாபேஸிலும் இல்லையெனில் மட்டும் புதிய கிளைமை உருவாக்குதல்
+            if (!targetClaimId) {
+                const { data: newClaim, error: insertError } = await supabase
+                    .from('cashback_claims')
+                    .insert({
+                        customer_phone: phone,
+                        store_id: store.id,
+                        cashback_amount: 0,
+                        claimable_amount: 0,
+                        visit_count: 1,
+                        status: 'ACTIVE'
+                    })
+                    .select('id')
+                    .single();
+
+                if (newClaim && newClaim.id) {
+                    targetClaimId = newClaim.id;
+                } else {
+                    console.error('Error creating claim:', insertError);
+                    setNavigatingStoreId(null);
+                    return;
                 }
-            })
+            }
+
+            // 3. கார்டு பக்கத்திற்கு உடனடியாக நகர்தல்
+            if (targetClaimId) {
+                router.push(`/card/${targetClaimId}`);
+            } else {
+                setNavigatingStoreId(null);
+            }
+        } catch (err) {
+            console.error('Navigation error:', err);
+            setNavigatingStoreId(null);
         }
     }
 
@@ -223,12 +238,16 @@ export default function CustomerWalletPage() {
                             filteredStores.map((store, index) => {
                                 const target = store.targetVisits || 6;
                                 const visits = store.visits || 0;
+                                const isThisNavigating = navigatingStoreId === store.id;
 
                                 return (
                                     <div
                                         key={index}
                                         onClick={() => handleStoreClick(store)}
-                                        className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 transition cursor-pointer shadow-xs group hover:border-[#EE8838] hover:shadow-sm"
+                                        className={`bg-white border rounded-3xl p-5 space-y-4 transition cursor-pointer shadow-xs group ${isThisNavigating
+                                            ? 'border-[#EE8838] bg-orange-50/20 opacity-75 pointer-events-none'
+                                            : 'border-slate-200/80 hover:border-[#EE8838] hover:shadow-sm'
+                                            }`}
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center space-x-3.5">
@@ -239,7 +258,7 @@ export default function CustomerWalletPage() {
                                                 </div>
                                                 <div>
                                                     <h3 className="text-sm font-bold text-[#0F172A] group-hover:text-[#EE8838] transition">
-                                                        {store.store_name}
+                                                        {store.store_name} {isThisNavigating && '(Opening...)'}
                                                     </h3>
                                                     <p className="text-[11px] text-slate-400 font-medium">Partner Store</p>
                                                 </div>
@@ -366,7 +385,7 @@ export default function CustomerWalletPage() {
                 </button>
 
                 <button
-                    onClick={() => setActiveTest => setActiveTab('discover')}
+                    onClick={() => setActiveTab('discover')}
                     className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'discover' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
                 >
                     <Compass className="w-5 h-5" />
