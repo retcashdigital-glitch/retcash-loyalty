@@ -88,7 +88,6 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                     filter: `id=eq.${id}`,
                 },
                 async () => {
-                    // மாற்றங்கள் நிகழும் போது டேட்டாபேஸிலிருந்து உண்மையான லேட்டஸ்ட் டேட்டாவை மட்டும் ஃபெட்ச் செய்யவும்
                     const { data: updatedClaim } = await supabase
                         .from('cashback_claims')
                         .select(`
@@ -182,7 +181,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                         </div>
                         <div className="text-right">
                             <span className="text-[9px] text-slate-400 block font-semibold uppercase tracking-wider">PASS ID</span>
-                            <span className="text-slate-300 font-mono">•••• {customerPhone.slice(-4) || '0000'}</span>
+                            <span className="text-slate-300 font-mono">•••• {customerPhone ? customerPhone.slice(-4) : '0000'}</span>
                         </div>
                     </div>
                 </div>

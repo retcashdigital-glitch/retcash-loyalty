@@ -16,6 +16,7 @@ export default function CustomerWalletPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('All Stores')
     const [showQrModal, setShowQrModal] = useState(false)
+    const [navigatingStoreId, setNavigatingStoreId] = useState<string | null>(null)
 
     useEffect(() => {
         if (phone) {
@@ -90,6 +91,59 @@ export default function CustomerWalletPage() {
             console.error('Error in fetching wallet data:', err)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleStoreClick = async (store: any) => {
+        if (navigatingStoreId) return; // இரட்டை க்ளிக் ஆவதைத் தடுத்தல்
+        setNavigatingStoreId(store.id);
+
+        try {
+            // 1. டேட்டாபேஸில் இந்த ஸ்டோருக்குரிய கிளைம் ஏற்கனவே உள்ளதா எனத் தேடுதல்
+            let { data: existingClaim } = await supabase
+                .from('cashback_claims')
+                .select('id')
+                .eq('customer_phone', phone)
+                .eq('store_id', store.id)
+                .order('updated_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            let targetClaimId = existingClaim?.id || store.latestClaimId;
+
+            // 2. இல்லையெனில் உடனடியாக புதிய கிளைமை உருவாக்குதல்
+            if (!targetClaimId) {
+                const { data: newClaim, error: insertError } = await supabase
+                    .from('cashback_claims')
+                    .insert({
+                        customer_phone: phone,
+                        store_id: store.id,
+                        cashback_amount: 0,
+                        claimable_amount: 0,
+                        visit_count: 1,
+                        status: 'ACTIVE'
+                    })
+                    .select('id')
+                    .single();
+
+                if (newClaim && newClaim.id) {
+                    targetClaimId = newClaim.id;
+                } else {
+                    console.error('Error creating claim:', insertError);
+                    setNavigatingStoreId(null);
+                    return;
+                }
+            }
+
+            // 3. கார்டு பக்கத்திற்கு உடனடியாக நகர்தல்
+            if (targetClaimId) {
+                router.push(`/card/${targetClaimId}`);
+            } else {
+                setNavigatingStoreId(null);
+            }
+        } catch (err) {
+            console.error('Navigation error:', err);
+            setNavigatingStoreId(null);
         }
     }
 
@@ -179,56 +233,16 @@ export default function CustomerWalletPage() {
                             filteredStores.map((store, index) => {
                                 const target = store.targetVisits || 6;
                                 const visits = store.visits || 0;
+                                const isThisNavigating = navigatingStoreId === store.id;
 
                                 return (
                                     <div
                                         key={index}
-                                        onClick={async () => {
-                                            try {
-                                                // 1. முதலில் டேட்டாபேஸில் இந்த ஸ்டோருக்குரிய கிளைம் உள்ளதா எனச் சரிபார்த்தல்
-                                                let { data: existingClaim } = await supabase
-                                                    .from('cashback_claims')
-                                                    .select('id')
-                                                    .eq('customer_phone', phone)
-                                                    .eq('store_id', store.id)
-                                                    .order('updated_at', { ascending: false })
-                                                    .limit(1)
-                                                    .maybeSingle();
-
-                                                let targetClaimId = existingClaim?.id || store.latestClaimId;
-
-                                                // 2. இல்லையென்றால் புதிய கிளைமை உருவாக்குதல்
-                                                if (!targetClaimId) {
-                                                    const { data: newClaim, error: insertError } = await supabase
-                                                        .from('cashback_claims')
-                                                        .insert({
-                                                            customer_phone: phone,
-                                                            store_id: store.id,
-                                                            cashback_amount: 0,
-                                                            claimable_amount: 0,
-                                                            visit_count: 1,
-                                                            status: 'ACTIVE'
-                                                        })
-                                                        .select('id')
-                                                        .single();
-
-                                                    if (newClaim && newClaim.id) {
-                                                        targetClaimId = newClaim.id;
-                                                    } else {
-                                                        console.error('Error creating claim:', insertError);
-                                                        return;
-                                                    }
-                                                }
-
-                                                // 3. உறுதியான ஐடியுடன் கார்டு பக்கத்திற்குச் செல்லுதல்
-                                                if (targetClaimId) {
-                                                    router.push(`/card/${targetClaimId}`);
-                                                }
-                                            } catch (err) {
-                                                console.error('Navigation error:', err);
-                                            }
-                                        }}
-                                        className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 hover:border-[#EE8838] transition cursor-pointer shadow-xs hover:shadow-sm group"
+                                        onClick={() => handleStoreClick(store)}
+                                        className={`bg-white border rounded-3xl p-5 space-y-4 transition cursor-pointer shadow-xs group ${isThisNavigating
+                                                ? 'border-[#EE8838] bg-orange-50/20 opacity-75 pointer-events-none'
+                                                : 'border-slate-200/80 hover:border-[#EE8838] hover:shadow-sm'
+                                            }`}
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center space-x-3.5">
@@ -238,7 +252,9 @@ export default function CustomerWalletPage() {
                                                     </span>
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-sm font-bold text-[#0F172A] group-hover:text-[#EE8838] transition">{store.store_name}</h3>
+                                                    <h3 className="text-sm font-bold text-[#0F172A] group-hover:text-[#EE8838] transition">
+                                                        {store.store_name} {isThisNavigating && '(Opening...)'}
+                                                    </h3>
                                                     <p className="text-[11px] text-slate-400 font-medium">Partner Store</p>
                                                 </div>
                                             </div>
