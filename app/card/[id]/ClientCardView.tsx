@@ -187,9 +187,24 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                 </div>
 
                 <div className="bg-white border border-slate-200/80 rounded-3xl p-6 text-center relative overflow-hidden shadow-sm">
+                    
+                    {/* மாற்றப்பட்ட பகுதி: TODAY'S CASHBACK -> LATEST CASHBACK & REDEEMED STATUS */}
                     <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl mb-5 flex justify-between items-center text-xs">
-                        <span className="text-slate-500 font-medium">TODAY'S CASHBACK</span>
-                        <span className="text-[#EE8838] font-black">+ Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}</span>
+                        <span className="text-slate-500 font-medium">LATEST CASHBACK</span>
+                        {isRedeemed ? (
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-slate-400 line-through text-[11px]">
+                                    Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
+                                </span>
+                                <span className="bg-slate-200 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                    REDEEMED
+                                </span>
+                            </div>
+                        ) : (
+                            <span className="text-[#EE8838] font-black">
+                                + Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
+                            </span>
+                        )}
                     </div>
 
                     <div className="mb-6">
