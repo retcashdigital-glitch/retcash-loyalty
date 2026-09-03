@@ -91,13 +91,14 @@ export default function CustomerWalletPage() {
         }
     }
 
-    // நேரடி மற்றும் அதிவேக ரவுட்டிங் (Instant Direct Navigation)
+    // நேரடி மற்றும் அதிவேக ரவுட்டிங் (Direct Route)
     const handleStoreClick = (store: any) => {
-        if (!store?.id || navigatingStoreId) return;
-        setNavigatingStoreId(store.id);
+        const storeId = store?.id;
+        if (!storeId || navigatingStoreId) return;
 
-        // எவ்வித குழப்பமும் இல்லாமல் நேரடியாக Store ID-யை மட்டும் அனுப்பி கார்டு பக்கத்திற்கு நகர்கிறது
-        router.push(`/card/${store.id}?phone=${phone}`);
+        setNavigatingStoreId(storeId);
+        // நேரடியாக Store ID மற்றும் Phone-ஐ மட்டும் அனுப்பி வைக்கிறது
+        router.push(`/card/${storeId}?phone=${phone}`);
     }
 
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${phone}`;
