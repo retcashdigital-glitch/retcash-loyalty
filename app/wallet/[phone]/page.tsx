@@ -19,7 +19,6 @@ export default function CustomerWalletPage() {
 
     useEffect(() => {
         if (phone) {
-            // முந்தைய கேஷ்டு டேட்டாவை உடனடியாக காட்டிவிட்டு, பின்னணியில் லேட்டஸ்ட் டேட்டாவை ஃபெட்ச் செய்தல்
             const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
             if (cachedData) {
                 try {
@@ -51,7 +50,7 @@ export default function CustomerWalletPage() {
                 .from('cashback_claims')
                 .select('*')
                 .eq('customer_phone', phone)
-                .order('updated_at', { ascending: false }) // மிகச் சமீபத்திய கிளைமை முதലாக எடுக்க
+                .order('updated_at', { ascending: false })
 
             if (claimsError) {
                 console.error('Error fetching claims:', claimsError)
@@ -70,7 +69,6 @@ export default function CustomerWalletPage() {
                     return Math.max(max, Number(claim.visit_count) || 1)
                 }, storeClaims.length > 0 ? storeClaims.length : 0)
 
-                // மிகச் சரியான லேட்டஸ்ட் கிளைம் ஐடியை உறுதி செய்தல்
                 const latestClaim = storeClaims[0] || {}
 
                 let storeTarget = Number(store.target_visits) || 6;
@@ -86,7 +84,6 @@ export default function CustomerWalletPage() {
             }) || []
 
             setStores(mergedStores)
-            // புதிய லேட்டஸ்ட் டேட்டாவை localStorage-ல் அப்டேட் செய்தல்
             localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(mergedStores))
 
         } catch (err) {
@@ -190,7 +187,6 @@ export default function CustomerWalletPage() {
                                             if (store.latestClaimId) {
                                                 router.push(`/card/${store.latestClaimId}`)
                                             } else {
-                                                // ஒருவேளை அந்தக் கடைக்கு ஏற்கனவே கிளைம் இல்லையென்றால் புதியதைக் கிரியேட் செய்து அல்லது ஸ்டோர் பக்கத்திற்குத் திருப்புதல்
                                                 const { data: newClaim } = await supabase
                                                     .from('cashback_claims')
                                                     .insert({
