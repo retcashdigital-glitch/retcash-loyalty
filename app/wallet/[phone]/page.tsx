@@ -70,8 +70,6 @@ export default function CustomerWalletPage() {
                     return Math.max(max, Number(claim.visit_count) || 1)
                 }, storeClaims.length > 0 ? storeClaims.length : 0)
 
-                const latestClaim = storeClaims[0] || null
-
                 let storeTarget = Number(store.target_visits) || 6;
                 if (storeTarget > 10) storeTarget = 10;
 
@@ -79,8 +77,7 @@ export default function CustomerWalletPage() {
                     ...store,
                     balance: totalBalance,
                     visits: visitCount,
-                    targetVisits: storeTarget,
-                    latestClaimId: latestClaim ? latestClaim.id : null
+                    targetVisits: storeTarget
                 }
             }) || []
 
@@ -94,14 +91,13 @@ export default function CustomerWalletPage() {
         }
     }
 
-    // 0 விநாடியில் உடனடி ரவுட்டிங் (Instant Routing)
+    // நேரடி மற்றும் அதிவேக ரவுட்டிங் (Instant Direct Navigation)
     const handleStoreClick = (store: any) => {
         if (!store?.id || navigatingStoreId) return;
         setNavigatingStoreId(store.id);
 
-        // Claim ID இருந்தால் அதை அனுப்பும், இல்லையெனில் Store ID-ஐ நேரடியாக அனுப்பி URL வழியாக phone-ஐயும் அனுப்பும்
-        const targetId = store.latestClaimId || store.id;
-        router.push(`/card/${targetId}?phone=${phone}`);
+        // எவ்வித குழப்பமும் இல்லாமல் நேரடியாக Store ID-யை மட்டும் அனுப்பி கார்டு பக்கத்திற்கு நகர்கிறது
+        router.push(`/card/${store.id}?phone=${phone}`);
     }
 
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${phone}`;

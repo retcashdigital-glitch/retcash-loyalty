@@ -18,8 +18,10 @@ export default async function SingleCardPage({ params, searchParams }: PageProps
         notFound()
     }
 
-    // 1. முதலில் இந்த id-ஐ cashback_claims டேபிளின் id-ஆக வைத்துத் தேடுதல்
-    let { data: claim } = await supabase
+    let claim: any = null;
+
+    // 1. மின்னல் வேகத் தேடல்: வரப்பெற்ற ID என்பது Claim ID ஆக இருந்தாலும் அல்லது Store ID ஆக இருந்தாலும் ஒரே Query-யில் எடுக்கிறது
+    let query = supabase
         .from('cashback_claims')
         .select(`
             *,
@@ -33,11 +35,23 @@ export default async function SingleCardPage({ params, searchParams }: PageProps
                 target_visits
             )
         `)
-        .eq('id', id)
+
+    if (phone) {
+        // ID என்பது Claim ID அல்லது Store ID ஆக இருந்து, போன் நம்பரும் பொருந்தி வருகிறதா என ஒரே அடியில் சரிபார்க்கிறது
+        query = query.or(`id.eq.${id},and(store_id.eq.${id},customer_phone.eq.${phone})`)
+    } else {
+        query = query.or(`id.eq.${id},store_id.eq.${id}`)
+    }
+
+    const { data: existingClaim } = await query
+        .order('updated_at', { ascending: false })
+        .limit(1)
         .maybeSingle()
 
-    // 2. ஒருவேளை cashback_claims-ல் கிடைக்கவில்லை என்றால் (id என்பது Store ID ஆக இருந்தால்)
-    if (!claim) {
+    if (existingClaim) {
+        claim = existingClaim;
+    } else {
+        // 2. ஒருவேளை இந்த கஸ்டமருக்கு இன்னும் இந்த கடையில் Claim உருவாக்கப்படவில்லை என்றால் மட்டும் புதியதாக உருவாக்குதல்
         const { data: storeData } = await supabase
             .from('stores')
             .select('*')
@@ -45,9 +59,16 @@ export default async function SingleCardPage({ params, searchParams }: PageProps
             .maybeSingle()
 
         if (storeData) {
-            // இந்த ஸ்டோருக்கும் போன் நம்பருக்கும் ஏற்கனவே கிளைம் இருக்கிறதா எனப் பார்த்தல்
-            let query = supabase
+            const { data: newClaim } = await supabase
                 .from('cashback_claims')
+                .insert({
+                    store_id: storeData.id,
+                    customer_phone: phone || null,
+                    cashback_amount: 0,
+                    claimable_amount: 0,
+                    visit_count: 1,
+                    status: 'ACTIVE'
+                })
                 .select(`
                     *,
                     stores:store_id (
@@ -60,47 +81,9 @@ export default async function SingleCardPage({ params, searchParams }: PageProps
                         target_visits
                     )
                 `)
-                .eq('store_id', id)
+                .single()
 
-            if (phone) {
-                query = query.eq('customer_phone', phone)
-            }
-
-            const { data: existingClaim } = await query
-                .order('updated_at', { ascending: false })
-                .limit(1)
-                .maybeSingle()
-
-            if (existingClaim) {
-                claim = existingClaim;
-            } else {
-                // முற்றிலும் புதியதாக ஒரு கிளைம் உருவாக்குதல்
-                const { data: newClaim } = await supabase
-                    .from('cashback_claims')
-                    .insert({
-                        store_id: storeData.id,
-                        customer_phone: phone || null,
-                        cashback_amount: 0,
-                        claimable_amount: 0,
-                        visit_count: 1,
-                        status: 'ACTIVE'
-                    })
-                    .select(`
-                        *,
-                        stores:store_id (
-                            id,
-                            store_name,
-                            store_slug,
-                            logo_url,
-                            location_url,
-                            review_url,
-                            target_visits
-                        )
-                    `)
-                    .single()
-
-                claim = newClaim;
-            }
+            claim = newClaim;
         }
     }
 
