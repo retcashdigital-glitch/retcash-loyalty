@@ -57,7 +57,6 @@ export default function CustomerWalletPage() {
             }
 
             const mergedStores = allStores?.map((store: any) => {
-                // ஒவ்வொரு ஸ்டோருக்குமான கிளைம்களை மட்டும் சரியாக வடிகட்டுதல்
                 const storeClaims = claimsData?.filter(
                     (claim: any) => String(claim.store_id) === String(store.id)
                 ) || []
@@ -70,7 +69,6 @@ export default function CustomerWalletPage() {
                     return Math.max(max, Number(claim.visit_count) || 1)
                 }, storeClaims.length > 0 ? storeClaims.length : 0)
 
-                // இந்த குறிப்பிட்ட ஸ்டோருக்குரிய சரியான லேட்டஸ்ட் கிளைம் ஐடியை எடுப்பது
                 const latestClaim = storeClaims[0] || null
 
                 let storeTarget = Number(store.target_visits) || 6;
@@ -186,9 +184,9 @@ export default function CustomerWalletPage() {
                                     <div
                                         key={index}
                                         onClick={async () => {
-                                            if (store.latestClaimId) {
-                                                router.push(`/card/${store.latestClaimId}`)
-                                            } else {
+                                            let targetClaimId = store.latestClaimId;
+
+                                            if (!targetClaimId) {
                                                 const { data: newClaim, error: insertError } = await supabase
                                                     .from('cashback_claims')
                                                     .insert({
@@ -203,10 +201,15 @@ export default function CustomerWalletPage() {
                                                     .single()
 
                                                 if (newClaim && newClaim.id) {
-                                                    router.push(`/card/${newClaim.id}`)
+                                                    targetClaimId = newClaim.id;
                                                 } else {
-                                                    console.error('Error creating claim:', insertError)
+                                                    console.error('Error creating claim:', insertError);
+                                                    return;
                                                 }
+                                            }
+
+                                            if (targetClaimId) {
+                                                router.push(`/card/${targetClaimId}`);
                                             }
                                         }}
                                         className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 hover:border-[#EE8838] transition cursor-pointer shadow-xs hover:shadow-sm group"
