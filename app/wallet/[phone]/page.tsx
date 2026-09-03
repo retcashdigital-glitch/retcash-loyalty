@@ -184,32 +184,48 @@ export default function CustomerWalletPage() {
                                     <div
                                         key={index}
                                         onClick={async () => {
-                                            let targetClaimId = store.latestClaimId;
-
-                                            if (!targetClaimId) {
-                                                const { data: newClaim, error: insertError } = await supabase
+                                            try {
+                                                // 1. முதலில் டேட்டாபேஸில் இந்த ஸ்டோருக்குரிய கிளைம் உள்ளதா எனச் சரிபார்த்தல்
+                                                let { data: existingClaim } = await supabase
                                                     .from('cashback_claims')
-                                                    .insert({
-                                                        customer_phone: phone,
-                                                        store_id: store.id,
-                                                        cashback_amount: 0,
-                                                        claimable_amount: 0,
-                                                        visit_count: 1,
-                                                        status: 'ACTIVE'
-                                                    })
-                                                    .select()
-                                                    .single()
+                                                    .select('id')
+                                                    .eq('customer_phone', phone)
+                                                    .eq('store_id', store.id)
+                                                    .order('updated_at', { ascending: false })
+                                                    .limit(1)
+                                                    .maybeSingle();
 
-                                                if (newClaim && newClaim.id) {
-                                                    targetClaimId = newClaim.id;
-                                                } else {
-                                                    console.error('Error creating claim:', insertError);
-                                                    return;
+                                                let targetClaimId = existingClaim?.id || store.latestClaimId;
+
+                                                // 2. இல்லையென்றால் புதிய கிளைமை உருவாக்குதல்
+                                                if (!targetClaimId) {
+                                                    const { data: newClaim, error: insertError } = await supabase
+                                                        .from('cashback_claims')
+                                                        .insert({
+                                                            customer_phone: phone,
+                                                            store_id: store.id,
+                                                            cashback_amount: 0,
+                                                            claimable_amount: 0,
+                                                            visit_count: 1,
+                                                            status: 'ACTIVE'
+                                                        })
+                                                        .select('id')
+                                                        .single();
+
+                                                    if (newClaim && newClaim.id) {
+                                                        targetClaimId = newClaim.id;
+                                                    } else {
+                                                        console.error('Error creating claim:', insertError);
+                                                        return;
+                                                    }
                                                 }
-                                            }
 
-                                            if (targetClaimId) {
-                                                router.push(`/card/${targetClaimId}`);
+                                                // 3. உறுதியான ஐடியுடன் கார்டு பக்கத்திற்குச் செல்லுதல்
+                                                if (targetClaimId) {
+                                                    router.push(`/card/${targetClaimId}`);
+                                                }
+                                            } catch (err) {
+                                                console.error('Navigation error:', err);
                                             }
                                         }}
                                         className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 hover:border-[#EE8838] transition cursor-pointer shadow-xs hover:shadow-sm group"
