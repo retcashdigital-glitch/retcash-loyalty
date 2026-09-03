@@ -57,8 +57,9 @@ export default function CustomerWalletPage() {
             }
 
             const mergedStores = allStores?.map((store: any) => {
+                // ஸ்டோர் ஐடிகள் சரியாக ஒத்துப்போவதை உறுதி செய்தல்
                 const storeClaims = claimsData?.filter(
-                    (claim: any) => claim.store_id === store.id || claim.store_id === store.store_id
+                    (claim: any) => String(claim.store_id) === String(store.id)
                 ) || []
 
                 const totalBalance = storeClaims.reduce((sum: number, claim: any) => {
@@ -69,7 +70,7 @@ export default function CustomerWalletPage() {
                     return Math.max(max, Number(claim.visit_count) || 1)
                 }, storeClaims.length > 0 ? storeClaims.length : 0)
 
-                const latestClaim = storeClaims[0] || {}
+                const latestClaim = storeClaims[0] || null
 
                 let storeTarget = Number(store.target_visits) || 6;
                 if (storeTarget > 10) storeTarget = 10;
@@ -79,7 +80,7 @@ export default function CustomerWalletPage() {
                     balance: totalBalance,
                     visits: visitCount,
                     targetVisits: storeTarget,
-                    latestClaimId: latestClaim.id || null
+                    latestClaimId: latestClaim ? latestClaim.id : null
                 }
             }) || []
 
@@ -187,7 +188,7 @@ export default function CustomerWalletPage() {
                                             if (store.latestClaimId) {
                                                 router.push(`/card/${store.latestClaimId}`)
                                             } else {
-                                                const { data: newClaim } = await supabase
+                                                const { data: newClaim, error: insertError } = await supabase
                                                     .from('cashback_claims')
                                                     .insert({
                                                         customer_phone: phone,
@@ -200,8 +201,10 @@ export default function CustomerWalletPage() {
                                                     .select()
                                                     .single()
 
-                                                if (newClaim) {
+                                                if (newClaim && newClaim.id) {
                                                     router.push(`/card/${newClaim.id}`)
+                                                } else {
+                                                    console.error('Error creating claim:', insertError)
                                                 }
                                             }
                                         }}
