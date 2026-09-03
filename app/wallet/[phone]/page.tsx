@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Wallet, Compass, User, Search, QrCode, ChevronRight, X, LogOut } from 'lucide-react'
@@ -17,6 +17,7 @@ export default function CustomerWalletPage() {
     const [selectedCategory, setSelectedCategory] = useState('All Stores')
     const [showQrModal, setShowQrModal] = useState(false)
     const [navigatingStoreId, setNavigatingStoreId] = useState<string | null>(null)
+    const [isPending, startTransition] = useTransition()
 
     useEffect(() => {
         if (phone) {
@@ -73,6 +74,9 @@ export default function CustomerWalletPage() {
                 let storeTarget = Number(store.target_visits) || 6;
                 if (storeTarget > 10) storeTarget = 10;
 
+                // Prefetch route for instant navigation
+                router.prefetch(`/card/${store.id}?phone=${phone}`)
+
                 return {
                     ...store,
                     balance: totalBalance,
@@ -91,14 +95,15 @@ export default function CustomerWalletPage() {
         }
     }
 
-    // நேரடி மற்றும் அதிவேக ரவுட்டிங் (Direct Route)
     const handleStoreClick = (store: any) => {
         const storeId = store?.id;
         if (!storeId || navigatingStoreId) return;
-
+        
         setNavigatingStoreId(storeId);
-        // நேரடியாக Store ID மற்றும் Phone-ஐ மட்டும் அனுப்பி வைக்கிறது
-        router.push(`/card/${storeId}?phone=${phone}`);
+        
+        startTransition(() => {
+            router.push(`/card/${storeId}?phone=${phone}`);
+        })
     }
 
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${phone}`;

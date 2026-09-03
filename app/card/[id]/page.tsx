@@ -20,7 +20,7 @@ export default async function SingleCardPage({ params, searchParams }: PageProps
 
     let claim: any = null;
 
-    // 1. முதலாவதாக paramId-ஐ Claim ID ஆக தேடுதல்
+    // 1. முதலாவதாக paramId-ஐ Claim ID ஆக தேடுதல் (மிக வேகமானது)
     const { data: claimById } = await supabase
         .from('cashback_claims')
         .select(`
@@ -41,7 +41,7 @@ export default async function SingleCardPage({ params, searchParams }: PageProps
     if (claimById) {
         claim = claimById;
     } else if (phone) {
-        // 2. paramId என்பது Store ID ஆக இருந்தால், இந்த Store ID + Phone சேர்க்கையை நேரடியாகத் தேடுதல்
+        // 2. paramId என்பது Store ID ஆக இருந்தால், இந்த Store ID + Phone சேர்க்கையை தேடுதல்
         const { data: claimByStoreAndPhone } = await supabase
             .from('cashback_claims')
             .select(`
@@ -65,7 +65,7 @@ export default async function SingleCardPage({ params, searchParams }: PageProps
         claim = claimByStoreAndPhone;
     }
 
-    // 3. இன்னும் Claim கிடைக்கவில்லை என்றால், இந்த வாடிக்கையாளருக்கு புதிய Claim கணக்கை உருவாக்குதல்
+    // 3. Claim உருவாக்கப்படாவிட்டால் புதியதாக உருவாக்குதல்
     if (!claim) {
         const { data: storeData } = await supabase
             .from('stores')
