@@ -57,7 +57,7 @@ export default function CustomerWalletPage() {
             }
 
             const mergedStores = allStores?.map((store: any) => {
-                // ஸ்டோர் ஐடிகள் சரியாக ஒத்துப்போவதை உறுதி செய்தல்
+                // ஒவ்வொரு ஸ்டோருக்குமான கிளைம்களை மட்டும் சரியாக வடிகட்டுதல்
                 const storeClaims = claimsData?.filter(
                     (claim: any) => String(claim.store_id) === String(store.id)
                 ) || []
@@ -70,6 +70,7 @@ export default function CustomerWalletPage() {
                     return Math.max(max, Number(claim.visit_count) || 1)
                 }, storeClaims.length > 0 ? storeClaims.length : 0)
 
+                // இந்த குறிப்பிட்ட ஸ்டோருக்குரிய சரியான லேட்டஸ்ட் கிளைம் ஐடியை எடுப்பது
                 const latestClaim = storeClaims[0] || null
 
                 let storeTarget = Number(store.target_visits) || 6;
