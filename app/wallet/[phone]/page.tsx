@@ -20,24 +20,45 @@ export default function CustomerWalletPage() {
     const [isPending, startTransition] = useTransition()
 
     useEffect(() => {
-        if (phone) {
-            const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
-            if (cachedData) {
-                try {
-                    const parsed = JSON.parse(cachedData)
-                    setStores(parsed)
-                    setLoading(false)
-                    
-                    // லோக்கல் கேஷில் உள்ள அனைத்து கார்டு பக்கங்களையும் உடனே Prefetch செய்தல்
-                    parsed.forEach((s: any) => {
-                        router.prefetch(`/card/${s.id}?phone=${phone}`)
-                    })
-                } catch (e) {
-                    console.error('Error parsing cache:', e)
-                }
-            }
+        if (!phone) return;
 
-            fetchWalletAndClaimsData()
+        // 1. லோக்கல் கேஷில் உள்ள தரவுகளை உடனே காட்டுதல்
+        const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
+        if (cachedData) {
+            try {
+                const parsed = JSON.parse(cachedData)
+                setStores(parsed)
+                setLoading(false)
+                
+                parsed.forEach((s: any) => {
+                    router.prefetch(`/card/${s.id}?phone=${phone}`)
+                })
+            } catch (e) {
+                console.error('Error parsing cache:', e)
+            }
+        }
+
+        fetchWalletAndClaimsData()
+
+        // 2. Supabase Realtime Listener setup (ரீஃப்ரெஷ் இல்லாமலே டேட்டா அப்டேட் ஆக)
+        const channel = supabase
+            .channel(`wallet_realtime_${phone}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'cashback_claims',
+                    filter: `customer_phone=eq.${phone}`
+                },
+                () => {
+                    fetchWalletAndClaimsData()
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
         }
     }, [phone])
 
@@ -69,8 +90,20 @@ export default function CustomerWalletPage() {
                     (claim: any) => String(claim.store_id) === String(store.id)
                 ) || []
 
+                // சமீபத்திய Claim தரவைக் கண்டறிதல்
+                const latestClaim = storeClaims[0] || null
+
+                // Redeem செய்யப்பட்டதா அல்லது Claimable Amount 0-வா எனச் சரிபார்த்தல்
+                const isRedeemed = latestClaim
+                    ? (latestClaim.status === 'REDEEMED' || Number(latestClaim.claimable_amount || 0) <= 0)
+                    : false
+
+                const cashbackAmount = latestClaim
+                    ? Number(latestClaim.cashback_amount || 0)
+                    : 0
+
                 const totalBalance = storeClaims.reduce((sum: number, claim: any) => {
-                    return sum + (Number(claim.claimable_amount) || Number(claim.cashback_amount) || 0)
+                    return sum + (Number(claim.claimable_amount) || 0)
                 }, 0)
 
                 const visitCount = storeClaims.reduce((max: number, claim: any) => {
@@ -80,12 +113,13 @@ export default function CustomerWalletPage() {
                 let storeTarget = Number(store.target_visits) || 6;
                 if (storeTarget > 10) storeTarget = 10;
 
-                // Background router prefetching
                 router.prefetch(`/card/${store.id}?phone=${phone}`)
 
                 return {
                     ...store,
                     balance: totalBalance,
+                    cashbackAmount: cashbackAmount,
+                    isRedeemed: isRedeemed,
                     visits: visitCount,
                     targetVisits: storeTarget
                 }
@@ -107,7 +141,6 @@ export default function CustomerWalletPage() {
         
         setNavigatingStoreId(storeId);
         
-        // Instant Router transition without blocking UI
         startTransition(() => {
             router.push(`/card/${storeId}?phone=${phone}`);
         })
@@ -233,8 +266,24 @@ export default function CustomerWalletPage() {
                                         <div className="pt-3 border-t border-slate-100 flex items-end justify-between">
                                             <div>
                                                 <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">CASHBACK BALANCE</p>
-                                                <p className="text-lg font-black text-[#0F172A] mt-0.5">Rs. {Number(store.balance).toFixed(2)}</p>
+                                                
+                                                {/* Redeem செய்யப்பட்டிருந்தால் REDEEMED Badge காட்டுவது */}
+                                                {store.isRedeemed ? (
+                                                    <div className="flex items-center space-x-2 mt-1">
+                                                        <span className="text-base font-bold text-slate-400 line-through">
+                                                            Rs. {Number(store.cashbackAmount).toFixed(2)}
+                                                        </span>
+                                                        <span className="text-[10px] font-black bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                                            REDEEMED
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-lg font-black text-[#0F172A] mt-0.5">
+                                                        Rs. {Number(store.balance).toFixed(2)}
+                                                    </p>
+                                                )}
                                             </div>
+
                                             <div className="text-right space-y-1.5">
                                                 <p className="text-[10px] font-extrabold text-slate-400">{visits}/{target} VISITS</p>
                                                 <div className="flex space-x-1">
