@@ -7,17 +7,19 @@ export const fetchCache = 'force-no-store'
 
 interface PageProps {
     params: Promise<{ id: string }>
+    searchParams: Promise<{ phone?: string }>
 }
 
-export default async function SingleCardPage({ params }: PageProps) {
+export default async function SingleCardPage({ params, searchParams }: PageProps) {
     const { id } = await params
+    const { phone } = await searchParams
 
     if (!id) {
         notFound()
     }
 
     // 1. முதலில் இந்த id-ஐ cashback_claims டேபிளின் id-ஆக வைத்துத் தேடுதல்
-    let { data: claim, error } = await supabase
+    let { data: claim } = await supabase
         .from('cashback_claims')
         .select(`
             *,
@@ -34,8 +36,7 @@ export default async function SingleCardPage({ params }: PageProps) {
         .eq('id', id)
         .maybeSingle()
 
-    // 2. ஒருவேளை cashback_claims-ல் இந்த id கிடைக்கவில்லை என்றால், 
-    // இது store.id ஆக இருக்கக்கூடும் என்பதால் அந்த ஸ்டோருக்குரிய லேட்டஸ்ட் கிளைமைத் தேடுதல் அல்லது உருவாக்குதல்
+    // 2. ஒருவேளை cashback_claims-ல் கிடைக்கவில்லை என்றால் (id என்பது Store ID ஆக இருந்தால்)
     if (!claim) {
         const { data: storeData } = await supabase
             .from('stores')
@@ -44,8 +45,8 @@ export default async function SingleCardPage({ params }: PageProps) {
             .maybeSingle()
 
         if (storeData) {
-            // இந்த ஸ்டோருக்கு ஏற்கனவே கிளைம் இருக்கிறதா எனப் பார்த்தல்
-            const { data: existingClaim } = await supabase
+            // இந்த ஸ்டோருக்கும் போன் நம்பருக்கும் ஏற்கனவே கிளைம் இருக்கிறதா எனப் பார்த்தல்
+            let query = supabase
                 .from('cashback_claims')
                 .select(`
                     *,
@@ -60,6 +61,12 @@ export default async function SingleCardPage({ params }: PageProps) {
                     )
                 `)
                 .eq('store_id', id)
+
+            if (phone) {
+                query = query.eq('customer_phone', phone)
+            }
+
+            const { data: existingClaim } = await query
                 .order('updated_at', { ascending: false })
                 .limit(1)
                 .maybeSingle()
@@ -72,6 +79,7 @@ export default async function SingleCardPage({ params }: PageProps) {
                     .from('cashback_claims')
                     .insert({
                         store_id: storeData.id,
+                        customer_phone: phone || null,
                         cashback_amount: 0,
                         claimable_amount: 0,
                         visit_count: 1,

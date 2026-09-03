@@ -94,62 +94,14 @@ export default function CustomerWalletPage() {
         }
     }
 
-    // ஸ்டோரை கிளிக் செய்யும் போது மட்டும் துரிதமாகச் செயல்படும் லாஜிக்
-    const handleStoreClick = async (store: any) => {
-        if (navigatingStoreId) return;
+    // 0 விநாடியில் உடனடி ரவுட்டிங் (Instant Routing)
+    const handleStoreClick = (store: any) => {
+        if (!store?.id || navigatingStoreId) return;
         setNavigatingStoreId(store.id);
 
-        try {
-            let targetClaimId = store.latestClaimId;
-
-            // 1. ஒருவேளை cache-ல் ID இல்லையென்றால் உடனடியாக டேட்டாபேஸில் தேடுதல்
-            if (!targetClaimId) {
-                let { data: existingClaim } = await supabase
-                    .from('cashback_claims')
-                    .select('id')
-                    .eq('customer_phone', phone)
-                    .eq('store_id', store.id)
-                    .order('updated_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-
-                targetClaimId = existingClaim?.id;
-            }
-
-            // 2. டேட்டாபேஸிலும் இல்லையெனில் மட்டும் புதிய கிளைமை உருவாக்குதல்
-            if (!targetClaimId) {
-                const { data: newClaim, error: insertError } = await supabase
-                    .from('cashback_claims')
-                    .insert({
-                        customer_phone: phone,
-                        store_id: store.id,
-                        cashback_amount: 0,
-                        claimable_amount: 0,
-                        visit_count: 1,
-                        status: 'ACTIVE'
-                    })
-                    .select('id')
-                    .single();
-
-                if (newClaim && newClaim.id) {
-                    targetClaimId = newClaim.id;
-                } else {
-                    console.error('Error creating claim:', insertError);
-                    setNavigatingStoreId(null);
-                    return;
-                }
-            }
-
-            // 3. கார்டு பக்கத்திற்கு உடனடியாக நகர்தல்
-            if (targetClaimId) {
-                router.push(`/card/${targetClaimId}`);
-            } else {
-                setNavigatingStoreId(null);
-            }
-        } catch (err) {
-            console.error('Navigation error:', err);
-            setNavigatingStoreId(null);
-        }
+        // Claim ID இருந்தால் அதை அனுப்பும், இல்லையெனில் Store ID-ஐ நேரடியாக அனுப்பி URL வழியாக phone-ஐயும் அனுப்பும்
+        const targetId = store.latestClaimId || store.id;
+        router.push(`/card/${targetId}?phone=${phone}`);
     }
 
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${phone}`;
