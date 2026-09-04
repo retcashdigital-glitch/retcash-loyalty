@@ -60,6 +60,15 @@ function IconGift() {
     );
 }
 
+function IconMegaphone() {
+    return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m3 11 18-5v12L3 13v-2z" />
+            <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+        </svg>
+    );
+}
+
 function Chip() {
     return (
         <div
@@ -75,7 +84,30 @@ function Chip() {
 export default function ClientCardView({ initialClaim, id }: { initialClaim: any, id: string }) {
     const router = useRouter()
     const [claimData, setClaimData] = useState<any>(initialClaim)
+    const [offers, setOffers] = useState<any[]>([])
 
+    // Store Offers Fetching Logic
+    useEffect(() => {
+        const storeId = claimData?.stores?.id || claimData?.store_id;
+        if (!storeId) return;
+
+        const fetchOffers = async () => {
+            const { data, error } = await supabase
+                .from('store_offers')
+                .select('*')
+                .eq('store_id', storeId)
+                .gte('expires_at', new Date().toISOString())
+                .order('created_at', { ascending: false })
+
+            if (!error && data) {
+                setOffers(data)
+            }
+        }
+
+        fetchOffers()
+    }, [claimData])
+
+    // Realtime Claim Status Logic
     useEffect(() => {
         const channel = supabase
             .channel(`card_status_${id}`)
@@ -147,6 +179,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
             </div>
 
             <div className="w-full max-w-sm space-y-4">
+                {/* Store Loyalty Card Header */}
                 <div
                     className="relative rounded-3xl p-6 shadow-xl overflow-hidden text-white"
                     style={{
@@ -186,9 +219,10 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                     </div>
                 </div>
 
+                {/* Main Card View Section */}
                 <div className="bg-white border border-slate-200/80 rounded-3xl p-6 text-center relative overflow-hidden shadow-sm">
                     
-                    {/* மாற்றப்பட்ட பகுதி: TODAY'S CASHBACK -> LATEST CASHBACK & REDEEMED STATUS */}
+                    {/* Latest Cashback Display */}
                     <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl mb-5 flex justify-between items-center text-xs">
                         <span className="text-slate-500 font-medium">LATEST CASHBACK</span>
                         {isRedeemed ? (
@@ -207,6 +241,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                         )}
                     </div>
 
+                    {/* Visit Challenge Grid */}
                     <div className="mb-6">
                         <div className="flex justify-between text-[11px] font-bold tracking-wider uppercase mb-3">
                             <span className="text-slate-500">{totalVisits} Visit Challenge</span>
@@ -237,6 +272,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                         </div>
                     </div>
 
+                    {/* QR Code / Reward Section */}
                     <div className="relative min-h-[210px] flex items-center justify-center">
                         <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-out transform ${isRedeemed ? 'opacity-100 scale-100 translate-y-0 blur-0' : 'opacity-0 scale-90 translate-y-6 blur-md pointer-events-none'}`}>
                             <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl mb-3 animate-bounce shadow-sm">
@@ -279,6 +315,41 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                         </div>
                     </div>
 
+                    {/* STORE OFFERS SECTION */}
+                    {offers.length > 0 && (
+                        <div className="mt-6 pt-5 border-t border-slate-100 text-left">
+                            <div className="flex items-center gap-1.5 text-[#EE8838] font-bold text-xs uppercase tracking-wider mb-3">
+                                <IconMegaphone />
+                                <span>STORE OFFERS & DEALS</span>
+                            </div>
+                            <div className="space-y-3">
+                                {offers.map((offer) => (
+                                    <div key={offer.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-3 shadow-xs overflow-hidden">
+                                        {offer.image_url && (
+                                            <div className="w-full h-40 bg-slate-200 rounded-xl overflow-hidden mb-3">
+                                                <img 
+                                                    src={offer.image_url} 
+                                                    alt={offer.title} 
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                        )}
+                                        <h4 className="font-bold text-xs text-[#0F172A] leading-snug">{offer.title}</h4>
+                                        {offer.description && (
+                                            <p className="text-[11px] text-slate-500 mt-1 leading-normal">{offer.description}</p>
+                                        )}
+                                        {offer.expires_at && (
+                                            <div className="mt-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                                                Ends: {new Date(offer.expires_at).toLocaleDateString()}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Location & Review Action Buttons */}
                     <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100 mt-4">
                         {store?.location_url ? (
                             <a
