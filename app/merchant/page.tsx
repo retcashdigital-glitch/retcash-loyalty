@@ -3,7 +3,22 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Html5Qrcode } from 'html5-qrcode'
+import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode'
+
+interface MerchantSession {
+    id: string
+    store_name: string
+    default_cashback_percent?: number
+    target_visits?: number
+}
+
+interface CashbackClaim {
+    id: string
+    customer_phone: string
+    claimable_amount: number
+    visit_count: number
+    status: string
+}
 
 export default function GlobalEntryPoint() {
     const router = useRouter()
@@ -11,17 +26,16 @@ export default function GlobalEntryPoint() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
-    const [merchantSession, setMerchantSession] = useState<any>(null)
+    const [merchantSession, setMerchantSession] = useState<MerchantSession | null>(null)
     const [customerPhone, setCustomerPhone] = useState('')
     const [billAmount, setBillAmount] = useState('')
     const [actionLoading, setActionLoading] = useState(false)
 
-    // Target Visits setting state for merchant
     const [targetVisitsInput, setTargetVisitsInput] = useState('6')
     const [settingLoading, setSettingLoading] = useState(false)
     const [successMsg, setSuccessMsg] = useState(false)
 
-    const [scannedClaimData, setScannedClaimData] = useState<any>(null)
+    const [scannedClaimData, setScannedClaimData] = useState<CashbackClaim | null>(null)
     const [isScanning, setIsScanning] = useState(false)
     const scannerRef = useRef<Html5Qrcode | null>(null)
 
@@ -29,30 +43,40 @@ export default function GlobalEntryPoint() {
         const savedMerchant = localStorage.getItem('retcash_merchant')
         if (savedMerchant) {
             try {
-                const parsed = JSON.parse(savedMerchant)
+                const parsed: MerchantSession = JSON.parse(savedMerchant)
                 setMerchantSession(parsed)
-                setTargetVisitsInput(String(parsed.target_visits || 6))
+                setTargetVisitsInput(String(Math.min(parsed.target_visits || 6, 10)))
             } catch (e) {
-                console.error(e)
+                console.error('Invalid session format', e)
             }
         }
 
         return () => {
-            if (scannerRef.current && scannerRef.current.isScanning) {
-                scannerRef.current.stop().catch(err => console.error(err))
-            }
+            stopScannerInstance()
         }
     }, [])
 
+    const stopScannerInstance = async () => {
+        if (scannerRef.current) {
+            try {
+                if (scannerRef.current.getState() === Html5QrcodeScannerState.SCANNING) {
+                    await scannerRef.current.stop()
+                }
+            } catch (err) {
+                console.error('Failed to stop scanner:', err)
+            }
+        }
+    }
+
     const formatPhoneNumber = (inputPhone: string) => {
-        let cleaned = inputPhone.replace(/\D/g, '');
+        let cleaned = inputPhone.replace(/\D/g, '')
         if (cleaned.startsWith('0')) {
-            cleaned = cleaned.substring(1);
+            cleaned = cleaned.substring(1)
         }
         if (!cleaned.startsWith('94')) {
-            cleaned = '94' + cleaned;
+            cleaned = '94' + cleaned
         }
-        return cleaned;
+        return cleaned
     }
 
     const handleCheckUser = async (e: React.FormEvent) => {
@@ -66,7 +90,6 @@ export default function GlobalEntryPoint() {
         try {
             setLoading(true)
             setError('')
-
             const cleanPhone = formatPhoneNumber(phone)
 
             const { data: storeData } = await supabase
@@ -81,42 +104,40 @@ export default function GlobalEntryPoint() {
             }
 
             router.push(`/merchant/register?phone=${cleanPhone}`)
-
-        } catch (err: any) {
+        } catch (err) {
             console.error(err)
             setError('An unexpected error occurred. Please try again.')
-        } finally {
+        } font-sans finally {
             setLoading(false)
         }
     }
 
-    // 10-க்கு மேல் டைப் செய்தால் 10 ஆக மாற்றும் லாஜிக்
     const handleTargetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value;
+        const val = e.target.value
         if (val === '') {
-            setTargetVisitsInput('');
-            return;
+            setTargetVisitsInput('')
+            return
         }
-        let num = parseInt(val);
+        let num = parseInt(val, 10)
         if (!isNaN(num)) {
-            if (num > 10) num = 10;
-            setTargetVisitsInput(String(num));
+            if (num > 10) num = 10
+            setTargetVisitsInput(String(num))
         }
     }
 
     const handleUpdateTargetVisits = async (e: React.FormEvent) => {
         e.preventDefault()
-        let newTarget = parseInt(targetVisitsInput)
+        let newTarget = parseInt(targetVisitsInput, 10)
 
         if (isNaN(newTarget) || newTarget < 3) {
-            alert("Target visits must be at least 3.")
+            alert('Target visits must be at least 3.')
             return
         }
 
-        if (newTarget > 10) {
-            newTarget = 10;
-            setTargetVisitsInput('10');
-        }
+        newTarget = Math.min(newTarget, 10)
+        setTargetVisitsInput(String(newTarget))
+
+        if (!merchantSession?.id) return
 
         setSettingLoading(true)
         try {
@@ -133,9 +154,9 @@ export default function GlobalEntryPoint() {
 
             setSuccessMsg(true)
             setTimeout(() => setSuccessMsg(false), 3000)
-        } catch (err: any) {
-            console.error(err)
-            alert("Failed to update target visits: " + (err.message || JSON.stringify(err)))
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Unknown error'
+            alert('Failed to update target visits: ' + message)
         } finally {
             setSettingLoading(false)
         }
@@ -147,34 +168,32 @@ export default function GlobalEntryPoint() {
 
         setTimeout(async () => {
             try {
-                const scanner = new Html5Qrcode("reader")
+                const scanner = new Html5Qrcode('reader')
                 scannerRef.current = scanner
 
                 await scanner.start(
-                    { facingMode: "environment" },
+                    { facingMode: 'environment' },
                     {
                         fps: 10,
                         qrbox: { width: 250, height: 250 },
                     },
                     async (decodedText) => {
-                        await scanner.stop()
+                        await stopScannerInstance()
                         setIsScanning(false)
                         processScannedResult(decodedText)
                     },
-                    (errorMessage) => {
-                        // Ignore scanning frame errors
-                    }
+                    () => {}
                 )
             } catch (err) {
-                console.error("Camera start error:", err)
-                alert("Failed to start camera or permission denied.")
+                console.error('Camera start error:', err)
+                alert('Failed to start camera or permission denied.')
                 setIsScanning(false)
             }
         }, 100)
     }
 
     const processScannedResult = async (inputVal: string) => {
-        if (!inputVal) return
+        if (!inputVal || !merchantSession?.id) return
 
         try {
             setActionLoading(true)
@@ -188,11 +207,11 @@ export default function GlobalEntryPoint() {
                 .from('cashback_claims')
                 .select('*')
                 .eq('id', claimId)
-                .eq('store_id', merchantSession?.id)
+                .eq('store_id', merchantSession.id)
                 .maybeSingle()
 
             if (error || !data) {
-                alert("Invalid QR Code or does not belong to this store.")
+                alert('Invalid QR Code or does not belong to this store.')
                 setScannedClaimData(null)
                 return
             }
@@ -200,7 +219,7 @@ export default function GlobalEntryPoint() {
             setScannedClaimData(data)
         } catch (err) {
             console.error(err)
-            alert("Error verifying QR code.")
+            alert('Error verifying QR code.')
         } finally {
             setActionLoading(false)
         }
@@ -209,7 +228,7 @@ export default function GlobalEntryPoint() {
     const handleRedeemScannedReward = async () => {
         if (!scannedClaimData) return
 
-        if (!confirm(`Have you handed over the reward to customer (Phone: ${scannedClaimData.customer_phone})? The reward balance of Rs. ${scannedClaimData.claimable_amount} will be reset to zero.`)) {
+        if (!confirm(`Have you handed over the reward to customer (Phone: ${scannedClaimData.customer_phone})?`)) {
             return
         }
 
@@ -219,17 +238,17 @@ export default function GlobalEntryPoint() {
                 .from('cashback_claims')
                 .update({
                     claimable_amount: 0,
-                    status: 'REDEEMED'
+                    status: 'REDEEMED',
                 })
                 .eq('id', scannedClaimData.id)
 
             if (error) throw error
 
-            alert("🎉 Reward successfully redeemed! Balance cleared and QR code will now disappear from the customer card.")
+            alert('🎉 Reward successfully redeemed!')
             setScannedClaimData(null)
         } catch (err) {
             console.error(err)
-            alert("Failed to process redemption.")
+            alert('Failed to process redemption.')
         } finally {
             setActionLoading(false)
         }
@@ -237,77 +256,59 @@ export default function GlobalEntryPoint() {
 
     const handleGenerateCashback = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!customerPhone || !billAmount) {
-            return
-        }
+        if (!customerPhone || !billAmount || !merchantSession?.id) return
 
         setActionLoading(true)
         try {
-            const cashbackPercentage = merchantSession?.default_cashback_percent || 5;
-            let targetVisits = merchantSession?.target_visits || 6;
-            if (targetVisits > 10) targetVisits = 10;
+            const cashbackPercentage = merchantSession.default_cashback_percent || 5
+            const targetVisits = Math.min(merchantSession.target_visits || 6, 10)
 
-            const billNum = parseFloat(billAmount);
-            const cashbackAmount = (billNum * cashbackPercentage) / 100;
+            const billNum = parseFloat(billAmount)
+            const cashbackAmount = Math.round(((billNum * cashbackPercentage) / 100) * 100) / 100
 
-            const cleanCustPhone = formatPhoneNumber(customerPhone);
-            const storeId = merchantSession?.id;
+            const cleanCustPhone = formatPhoneNumber(customerPhone)
+            const storeId = merchantSession.id
 
-            if (!storeId) {
-                alert("Merchant session not found. Please log in again.");
-                setActionLoading(false);
-                return;
-            }
-
-            // 1. ஏற்கனவே உள்ள டேட்டாவைச் சரிபார்த்தல் (REDEEMED ஆகாதது)
             const { data: existingClaims } = await supabase
                 .from('cashback_claims')
                 .select('id, visit_count, claimable_amount, status')
                 .eq('store_id', storeId)
                 .eq('customer_phone', cleanCustPhone)
                 .neq('status', 'REDEEMED')
-                .maybeSingle();
+                .maybeSingle()
 
-            let newVisitCount = 1;
-            let totalClaimable = cashbackAmount;
-            let claimId = undefined;
+            let newVisitCount = 1
+            let totalClaimable = cashbackAmount
+            let claimId = existingClaims?.id
 
             if (existingClaims) {
-                const currentVisits = existingClaims.visit_count || 1;
-                newVisitCount = currentVisits >= targetVisits ? targetVisits : currentVisits + 1;
-                totalClaimable = Number(existingClaims.claimable_amount || 0) + cashbackAmount;
-                claimId = existingClaims.id;
+                const currentVisits = existingClaims.visit_count || 1
+                newVisitCount = currentVisits >= targetVisits ? targetVisits : currentVisits + 1
+                totalClaimable = Math.round((Number(existingClaims.claimable_amount || 0) + cashbackAmount) * 100) / 100
             }
 
-            // 2. Supabase Upsert மூலம் Duplicate Error வராமல் தடுத்தல்
-            const payload: any = {
+            const payload = {
+                ...(claimId ? { id: claimId } : {}),
                 store_id: storeId,
                 customer_phone: cleanCustPhone,
                 bill_amount: billNum,
                 cashback_amount: cashbackAmount,
                 claimable_amount: totalClaimable,
                 visit_count: newVisitCount,
-                status: newVisitCount >= targetVisits ? 'READY' : 'PENDING'
-            };
-
-            if (claimId) {
-                payload.id = claimId;
+                status: newVisitCount >= targetVisits ? 'READY' : 'PENDING',
             }
 
             const { data: upsertedData, error: upsertError } = await supabase
                 .from('cashback_claims')
-                .upsert(payload, { onConflict: 'store_id, customer_phone' })
+                .upsert(payload)
                 .select('id')
-                .single();
+                .single()
 
-            if (upsertError) throw upsertError;
-            if (upsertedData && upsertedData.id) {
-                claimId = upsertedData.id;
-            }
+            if (upsertError) throw upsertError
+            if (upsertedData?.id) claimId = upsertedData.id
 
-            const baseUrl = window.location.origin;
-            const cardLink = `${baseUrl}/card/${claimId}`;
-            const storeName = merchantSession?.store_name || 'RETCASH Partner';
+            const cardLink = `${window.location.origin}/card/${claimId}`
+            const storeName = merchantSession.store_name || 'RETCASH Partner'
 
             const message = `🎉 *Retcash Rewards!*\n\nYour visit has been recorded successfully. 📍\n\n` +
                 `Store: *${storeName}*\n` +
@@ -315,29 +316,24 @@ export default function GlobalEntryPoint() {
                 `Cashback Earned (${cashbackPercentage}%): Rs. ${cashbackAmount}\n` +
                 `Visit Count: ${newVisitCount} / ${targetVisits}\n\n` +
                 `✨ Keep visiting to unlock your exclusive cashback rewards.\n\n` +
-                `👉 Tap below to view your digital card, live balance & cashback details:\n${cardLink}`;
+                `👉 Tap below to view your digital card, live balance & cashback details:\n${cardLink}`
 
-            const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${encodeURIComponent(message)}`;
+            const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${encodeURIComponent(message)}`
 
-            setCustomerPhone('');
-            setBillAmount('');
-            setActionLoading(false);
-
-            const opened = window.open(whatsappUrl, '_blank');
-            if (!opened) {
-                window.location.href = whatsappUrl;
-            }
-
-        } catch (err: any) {
-            console.error(err);
-            alert("Error processing cashback: " + (err.message || JSON.stringify(err)));
-            setActionLoading(false);
+            setCustomerPhone('')
+            setBillAmount('')
+            
+            window.open(whatsappUrl, '_blank')
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Unknown error'
+            alert('Error processing cashback: ' + message)
+        } finally {
+            setActionLoading(false)
         }
     }
 
     if (merchantSession) {
-        let targetVisits = merchantSession?.target_visits || 6;
-        if (targetVisits > 10) targetVisits = 10;
+        const targetVisits = Math.min(merchantSession.target_visits || 6, 10)
 
         return (
             <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center p-4 font-sans selection:bg-[#FF6B00]">
@@ -349,8 +345,8 @@ export default function GlobalEntryPoint() {
                         </div>
                         <button
                             onClick={() => {
-                                localStorage.removeItem('retcash_merchant');
-                                setMerchantSession(null);
+                                localStorage.removeItem('retcash_merchant')
+                                setMerchantSession(null)
                             }}
                             className="text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 px-2.5 py-1.5 rounded-xl font-bold hover:bg-red-500/25 transition cursor-pointer"
                         >
@@ -358,7 +354,6 @@ export default function GlobalEntryPoint() {
                         </button>
                     </div>
 
-                    {/* Target Visits Settings Section */}
                     <div className="bg-[#0B0E14] p-4 rounded-2xl border border-gray-800 space-y-3">
                         <h2 className="text-xs font-bold text-[#FF6B00] uppercase">⚙️ Target Visits Settings</h2>
                         <p className="text-[10px] text-gray-400">Set how many visits a customer needs to unlock rewards (Max: 10):</p>
@@ -403,9 +398,7 @@ export default function GlobalEntryPoint() {
                                 <div id="reader" className="w-full overflow-hidden rounded-xl border border-gray-700"></div>
                                 <button
                                     onClick={async () => {
-                                        if (scannerRef.current && scannerRef.current.isScanning) {
-                                            await scannerRef.current.stop()
-                                        }
+                                        await stopScannerInstance()
                                         setIsScanning(false)
                                     }}
                                     className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded-xl text-xs transition cursor-pointer"

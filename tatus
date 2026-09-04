@@ -1,0 +1,93 @@
+[33m87d4ade[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: commit: UI: Added REDEEMED status to Wallet Page
+[33md589166[m HEAD@{1}: commit: UI Fix: Changed TODAY'S CASHBACK to LATEST CASHBACK with REDEEMED status
+[33mef44c42[m HEAD@{2}: commit: Fix: Speed optimization with parallel queries and router prefetching
+[33ma0436f9[m HEAD@{3}: commit: Optimize page transitions
+[33m5dbf8a9[m HEAD@{4}: commit: Fix: Add loading screen and resolve auto-format issue
+[33md754a08[m HEAD@{5}: commit: Fix: direct wallet to card navigation delay and add loading state
+[33macadfbe[m HEAD@{6}: commit: Fix delay: Direct store routing and optimized card fetching
+[33m686ccc6[m HEAD@{7}: commit: Optimize wallet-to-card instant navigation
+[33m8fbc1b5[m HEAD@{8}: commit: Fix wallet page freeze and optimize store click navigation
+[33me5e8a51[m HEAD@{9}: commit: Implement pre-created background claims for instant wallet-to-card navigation
+[33m54d6bcd[m HEAD@{10}: commit: Update card and wallet pages to fix click navigation and loading issue
+[33m1ab13a2[m HEAD@{11}: commit: Fix store card click navigation and robust claim lookup in customer wallet
+[33mb91f0b8[m HEAD@{12}: commit: Fix card page data fetching and fallback routing logic
+[33m5878e09[m HEAD@{13}: commit: Fix store card routing logic in wallet page
+[33m812d0da[m HEAD@{14}: commit: Fix wallet store card navigation route for each store ID
+[33m1cefbe0[m HEAD@{15}: commit: Fix wallet store card navigation route
+[33m8452636[m HEAD@{16}: commit: Fix: Wallet to card page navigation routing issue
+[33m501b298[m HEAD@{17}: commit: Fix wallet store click and cache refresh
+[33m87fc8f0[m HEAD@{18}: commit: Update ClientCardView with robust database fetch on realtime sync
+[33mcc3b104[m HEAD@{19}: commit: Fix Supabase explicit foreign key relationship for stores table
+[33ma4eeeb7[m HEAD@{20}: commit: Successfully split server and client components to fix cache and build errors
+[33mc8bc566[m HEAD@{21}: commit: Force dynamic and disable cache to fix initial visit count issue
+[33m021419f[m HEAD@{22}: commit: Fix initial visit count loading state and prevent wrong default values
+[33m7c14ca1[m HEAD@{23}: commit: Remove localstorage cache to fix initial visit count mismatch
+[33m5db883d[m HEAD@{24}: commit: Fix visit count cache and target visits loading issue
+[33mdb884bc[m HEAD@{25}: commit: Add local storage caching to wallet page for instant loading
+[33me84277d[m HEAD@{26}: commit: Fix target visits display dynamically in customer wallet page
+[33m1981f9e[m HEAD@{27}: commit: Replaced browser alert with professional inline success message for target visits
+[33mccd2d00[m HEAD@{28}: commit: Restricted merchant target visits input to a maximum of 10
+[33mf6a3202[m HEAD@{29}: commit: Added dynamic target visits feature (3 to 10) for merchants and customer cards
+[33ma53112f[m HEAD@{30}: commit: Fix duplicate key constraint using upsert logic
+[33m8ca2a7c[m HEAD@{31}: commit: Fix WhatsApp message redirect and database update logic
+[33ma8285df[m HEAD@{32}: commit: Fix active claim check and reset cycle logic
+[33m84e562c[m HEAD@{33}: commit: Fix visit count and reset logic after redemption
+[33m71e0df3[m HEAD@{34}: commit: Reset visit count to 1 after redemption
+[33m903c75d[m HEAD@{35}: commit: Fix QR visibility after redemption on customer card page
+[33m9a1e67e[m HEAD@{36}: commit: Update merchant page UI to professional English and fix QR state handling
+[33m2fb37e6[m HEAD@{37}: commit: Add html5-qrcode live camera scanner for merchant reward redemption
+[33m24d211b[m HEAD@{38}: commit: Add QR scan and redeem reward feature in merchant panel
+[33m2b24be8[m HEAD@{39}: commit: Add merchant redeem reward feature to clear cashback and hide QR
+[33mbdce50d[m HEAD@{40}: commit: Fix cashback percentage calculation to use store default_cashback_percent
+[33m1c26b82[m HEAD@{41}: commit: Add smart phone number formatting (94 prefix) for login and register
+[33m78ec294[m HEAD@{42}: commit: Fix store slug duplicate key constraint by appending phone suffix
+[33ma18182a[m HEAD@{43}: commit: Add phone number formatting for merchant login entry
+[33md241897[m HEAD@{44}: commit: Add dynamic cashback card link generation for whatsapp messages
+[33mae9e271[m HEAD@{45}: commit: Update whatsapp message format and phone number formatting
+[33m337e025[m HEAD@{46}: commit: Remove alert popup and implement anchor click for WhatsApp redirect
+[33mb5b6e03[m HEAD@{47}: commit: Update merchant login routing and cashback dashboard
+[33m8274837[m HEAD@{48}: commit: Replace wallet icon with original brand logo
+[33m68fbc2f[m HEAD@{49}: reset: moving to HEAD
+[33m68fbc2f[m HEAD@{50}: commit: Remove root layout header for clean mobile view
+[33m5228861[m HEAD@{51}: commit: Remove duplicate header, clean up layout and harmonize QR bottom nav icon
+[33ma852afb[m HEAD@{52}: commit: Update wallet page UI, layout and fix header duplication
+[33m8148f87[m HEAD@{53}: commit: Update wallet page UI, layout and fix header duplication
+[33ma872fe0[m HEAD@{54}: commit: Convert UI from dark tone to light tone for wallet and card pages
+[33mf07f589[m HEAD@{55}: commit: Fix visit count calculation and correct claim id routing for store cards
+[33m3419b12[m HEAD@{56}: commit: Fix cashback claims calculation and card routing in wallet page
+[33mac21b28[m HEAD@{57}: commit: Update wallet page to fetch accurate data from customer_store_balances table
+[33m67ec3bc[m HEAD@{58}: commit: Fetch stores from Supabase and fix navigation with modal popups
+[33m308a95b[m HEAD@{59}: commit: Add QR modal popup inside customer wallet page
+[33mb9cd19a[m HEAD@{60}: commit: Fix customer wallet page layout and navigation matching design
+[33m8e9c757[m HEAD@{61}: commit: Add full name, phone normalization, password eye toggle, and instant redirect to register page
+[33m881d6cd[m HEAD@{62}: commit: Add full name, phone normalization, password eye toggle, and instant redirect to register page
+[33m93a5b95[m HEAD@{63}: commit: Fix syntax errors and update login page
+[33m2fa16c4[m HEAD@{64}: commit: Add customer login page with eye icon and logo
+[33m40a6e26[m HEAD@{65}: reset: moving to origin/main
+[33m40a6e26[m HEAD@{66}: commit: Restore project to stable state
+[33m8f78772[m HEAD@{67}: reset: moving to HEAD
+[33m8f78772[m HEAD@{68}: commit: Restore and update project files
+[33mb3deca6[m HEAD@{69}: reset: moving to HEAD
+[33mb3deca6[m HEAD@{70}: commit: Updated admin dashboard and store rules
+[33md918cd9[m HEAD@{71}: commit: Updated admin dashboard and store rules
+[33m186d524[m HEAD@{72}: commit: Updated admin dashboard and store rules
+[33m42698bb[m HEAD@{73}: commit: Updated wallet page UI with logos and skeleton loading
+[33ma3d4cfd[m HEAD@{74}: commit: Added eye toggle icon to login page
+[33m2686d22[m HEAD@{75}: commit: Updated register page with eye icon and smooth redirect
+[33m1228816[m HEAD@{76}: reset: moving to HEAD
+[33m1228816[m HEAD@{77}: commit: Fix logo upload invalid path issue
+[33m14331c8[m HEAD@{78}: commit: Fix logo upload invalid path issue
+[33md272be5[m HEAD@{79}: commit: fix supabase hardcoded url fallback
+[33mb0697cf[m HEAD@{80}: commit: Fix supabase base URL trailing slash
+[33me2cd37b[m HEAD@{81}: commit: Fix supabase base URL trailing slash
+[33m2e2779f[m HEAD@{82}: commit: Fix supabase base URL trailing slash
+[33m4bb3b1e[m HEAD@{83}: commit: Fix merchant logo upload path and registration error
+[33m17a569f[m HEAD@{84}: Branch: renamed refs/heads/master to refs/heads/main
+[33m17a569f[m HEAD@{86}: commit: Update root page UI to professional English text
+[33mc1e5a7a[m HEAD@{87}: commit: Remove admin redirect from app page
+[33m41cf747[m HEAD@{88}: commit: Fix root redirect
+[33m32f207e[m HEAD@{89}: commit: Replace root redirect with global entry form
+[33m2e9319a[m HEAD@{90}: commit: Fix root redirect bug
+[33m7002eac[m HEAD@{91}: commit: Fix root portal entry
+[33m7f7be65[m HEAD@{92}: commit: Fix merchant auto-routing and auto-fill logic
+[33mec532e9[m HEA
