@@ -14,11 +14,8 @@ export default function CustomerLoginPage() {
     const [error, setMessage] = useState('');
     const router = useRouter();
 
-    // Enhanced phone number normalization logic
-    // Accepts inputs like 0771234567, +94771234567, 94771234567, or 771234567
-    // Always returns a clean 9-digit subscriber number (e.g., 771234567)
     const normalizePhone = (input: string) => {
-        let cleaned = input.replace(/\D/g, ''); // Remove non-numeric characters
+        let cleaned = input.replace(/\D/g, '');
 
         if (cleaned.startsWith('94') && cleaned.length >= 11) {
             cleaned = cleaned.slice(2);
@@ -36,24 +33,35 @@ export default function CustomerLoginPage() {
 
         const formattedPhone = normalizePhone(phone);
         if (formattedPhone.length !== 9) {
-            setMessage('Please enter a valid phone number (e.g., 0771234567 or 771234567)');
+            setMessage('Please enter a valid phone number.');
             setLoading(false);
             return;
         }
 
-        // Standardized format used in authentication backend
-        const emailPseudo = `${formattedPhone}@retcash.com`;
+        const dbPhone = `94${formattedPhone}`;
+        const securePassword = btoa(password.trim());
 
-        const { error: authError } = await supabase.auth.signInWithPassword({
-            email: emailPseudo,
-            password,
-        });
+        try {
+            const { data, error: fetchError } = await supabase
+                .from('customers')
+                .select('*')
+                .eq('phone_number', dbPhone)
+                .eq('password', securePassword)
+                .single();
 
-        if (authError) {
+            if (fetchError || !data) {
+                setMessage('Invalid phone number or password.');
+                setLoading(false);
+                return;
+            }
+
+            localStorage.setItem(`retcash_wallet_auth_${dbPhone}`, 'true');
+            router.push(`/wallet/${dbPhone}`);
+        } catch (err) {
+            console.error(err);
             setMessage('Invalid phone number or password.');
+        } finally {
             setLoading(false);
-        } else {
-            router.push('/wallet');
         }
     };
 
@@ -71,7 +79,6 @@ export default function CustomerLoginPage() {
 
             {/* Main Card */}
             <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-8 pt-10 border border-gray-100 relative z-20">
-                {/* Center Logo/Icon inside Card */}
                 <div className="flex flex-col items-center mb-6">
                     <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center shadow-md mb-3 text-white">
                         <Wallet className="w-8 h-8" />
@@ -100,7 +107,7 @@ export default function CustomerLoginPage() {
                                 type="tel"
                                 value={phone}
                                 onChange={(e) => setPhone(e.target.value)}
-                                placeholder="771234567 or 0771234567"
+                                placeholder="0771234567 or 771234567"
                                 required
                                 maxLength={12}
                                 className="w-full bg-transparent pl-3 focus:outline-none text-gray-800 text-sm font-medium"
@@ -130,7 +137,7 @@ export default function CustomerLoginPage() {
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                                className="absolute right-3 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
                             >
                                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                             </button>
@@ -147,7 +154,6 @@ export default function CustomerLoginPage() {
                     </button>
                 </form>
 
-                {/* Register Redirect Link */}
                 <div className="text-center mt-6 text-xs text-gray-500">
                     Don't have an account?{' '}
                     <Link href="/customer/register" className="text-orange-600 font-bold hover:underline">
