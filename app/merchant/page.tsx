@@ -809,15 +809,16 @@ export default function GlobalEntryPoint() {
                     />
                   </label>
 
-                  <label className="grid gap-2 text-xs font-semibold text-slate-700">
+                  {/* FIXED EXPIRY DATE INPUT FIELD CONTAINER */}
+                  <label className="grid gap-2 text-xs font-semibold text-slate-700 w-full min-w-0">
                     Expiry date & time
-                    <div className="relative">
-                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                    <div className="relative w-full min-w-0">
+                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400 z-10" />
                       <input
                         type="datetime-local"
                         value={offerExpiry}
                         onChange={(e) => setOfferExpiry(e.target.value)}
-                        className="h-11 w-full rounded-lg border border-slate-300 bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-[#EA580C] focus:bg-white"
+                        className="h-11 w-full max-w-full min-w-0 appearance-none rounded-lg border border-slate-300 bg-slate-50 pl-10 pr-3 text-xs sm:text-sm text-slate-900 outline-none focus:border-[#EA580C] focus:bg-white transition"
                         required
                       />
                     </div>
