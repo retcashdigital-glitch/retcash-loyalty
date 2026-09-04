@@ -27,6 +27,7 @@ interface Offer {
     title: string
     description: string
     image_url: string
+    expires_at: string
     created_at: string
 }
 
@@ -55,8 +56,10 @@ export default function GlobalEntryPoint() {
     const [offers, setOffers] = useState<Offer[]>([])
     const [offerTitle, setOfferTitle] = useState('')
     const [offerDesc, setOfferDesc] = useState('')
+    const [offerExpiry, setOfferExpiry] = useState('')
     const [offerImage, setOfferImage] = useState<File | null>(null)
     const [offerUploading, setOfferUploading] = useState(false)
+    const [offerStatusMsg, setOfferStatusMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
     useEffect(() => {
         const savedMerchant = localStorage.getItem('retcash_merchant')
@@ -76,13 +79,15 @@ export default function GlobalEntryPoint() {
         }
     }, [])
 
-    // Updated to query store_offers table
+    // Fetch non-expired offers only
     const fetchStoreOffers = async (storeId: string) => {
         try {
+            const now = new Date().toISOString()
             const { data, error } = await supabase
                 .from('store_offers')
                 .select('*')
                 .eq('store_id', storeId)
+                .gte('expires_at', now) // Exclude expired offers
                 .order('created_at', { ascending: false })
 
             if (!error && data) {
@@ -202,11 +207,13 @@ export default function GlobalEntryPoint() {
         }
     }
 
-    // OFFER POSTER UPLOAD HANDLER (Uses store_offers table)
+    // OFFER POSTER UPLOAD HANDLER WITH EXPIRY
     const handleAddOffer = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!offerTitle || !offerImage || !merchantSession?.id) {
-            alert('Please provide offer title and image')
+        setOfferStatusMsg(null)
+
+        if (!offerTitle || !offerImage || !offerExpiry || !merchantSession?.id) {
+            setOfferStatusMsg({ type: 'error', text: 'Please fill title, expiry date, and image.' })
             return
         }
 
@@ -238,21 +245,23 @@ export default function GlobalEntryPoint() {
                     title: offerTitle,
                     description: offerDesc,
                     image_url: publicUrl,
+                    expires_at: new Date(offerExpiry).toISOString(),
                     is_active: true
                 })
 
             if (dbError) throw dbError
 
-            alert('🎉 Offer posted successfully!')
+            setOfferStatusMsg({ type: 'success', text: '🎉 Offer posted successfully!' })
             setOfferTitle('')
             setOfferDesc('')
+            setOfferExpiry('')
             setOfferImage(null)
             fetchStoreOffers(merchantSession.id)
 
         } catch (err: unknown) {
             console.error(err)
-            const message = err instanceof Error ? err.message : JSON.stringify(err)
-            alert('Failed to upload offer: ' + message)
+            const message = err instanceof Error ? err.message : 'Database or Network Error'
+            setOfferStatusMsg({ type: 'error', text: 'Failed: ' + message })
         } finally {
             setOfferUploading(false)
         }
@@ -353,7 +362,7 @@ export default function GlobalEntryPoint() {
 
             if (error) throw error
 
-            alert('🎉 Reward successfully redeemed! Balance cleared and QR code will now disappear from the customer card.')
+            alert('🎉 Reward successfully redeemed! Balance cleared.')
             setScannedClaimData(null)
         } catch (err) {
             console.error(err)
@@ -495,6 +504,13 @@ export default function GlobalEntryPoint() {
                     {/* NEW OFFER POSTING SECTION */}
                     <div className="bg-[#0B0E14] p-4 rounded-2xl border border-gray-800 space-y-3">
                         <h2 className="text-xs font-bold text-[#FF6B00] uppercase">📢 Post Store Offer / Poster</h2>
+                        
+                        {offerStatusMsg && (
+                            <div className={`p-3 rounded-xl text-xs font-semibold ${offerStatusMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'}`}>
+                                {offerStatusMsg.text}
+                            </div>
+                        )}
+
                         <form onSubmit={handleAddOffer} className="space-y-3">
                             <input
                                 type="text"
@@ -510,6 +526,18 @@ export default function GlobalEntryPoint() {
                                 onChange={(e) => setOfferDesc(e.target.value)}
                                 className="w-full bg-[#161B26] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-xs text-white outline-none h-16"
                             />
+                            
+                            <div>
+                                <label className="text-[10px] text-gray-400 block mb-1">Offer Expiry Date & Time:</label>
+                                <input
+                                    type="datetime-local"
+                                    value={offerExpiry}
+                                    onChange={(e) => setOfferExpiry(e.target.value)}
+                                    className="w-full bg-[#161B26] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-xs text-white outline-none"
+                                    required
+                                />
+                            </div>
+
                             <div>
                                 <label className="text-[10px] text-gray-400 block mb-1">Select Offer Poster Image:</label>
                                 <input
@@ -523,7 +551,7 @@ export default function GlobalEntryPoint() {
                             <button
                                 type="submit"
                                 disabled={offerUploading}
-                                className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition"
+                                className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition cursor-pointer"
                             >
                                 {offerUploading ? 'Uploading Poster...' : '🚀 Publish Offer'}
                             </button>
@@ -538,7 +566,7 @@ export default function GlobalEntryPoint() {
                                         <img src={offer.image_url} alt={offer.title} className="w-10 h-10 object-cover rounded-lg" />
                                         <div className="flex-1 min-w-0">
                                             <p className="text-xs font-bold text-white truncate">{offer.title}</p>
-                                            <p className="text-[10px] text-gray-400 truncate">{offer.description}</p>
+                                            <p className="text-[10px] text-gray-400 truncate">Ends: {new Date(offer.expires_at).toLocaleDateString()}</p>
                                         </div>
                                         <button
                                             onClick={() => handleDeleteOffer(offer.id)}
