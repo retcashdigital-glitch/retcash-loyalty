@@ -61,6 +61,9 @@ export default function GlobalEntryPoint() {
     const [offerUploading, setOfferUploading] = useState(false)
     const [offerStatusMsg, setOfferStatusMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
+    // CUSTOM DELETE CONFIRMATION MODAL STATE
+    const [offerToDelete, setOfferToDelete] = useState<string | null>(null)
+
     useEffect(() => {
         const savedMerchant = localStorage.getItem('retcash_merchant')
         if (savedMerchant) {
@@ -79,7 +82,6 @@ export default function GlobalEntryPoint() {
         }
     }, [])
 
-    // Fetch non-expired offers only
     const fetchStoreOffers = async (storeId: string) => {
         try {
             const now = new Date().toISOString()
@@ -87,7 +89,7 @@ export default function GlobalEntryPoint() {
                 .from('store_offers')
                 .select('*')
                 .eq('store_id', storeId)
-                .gte('expires_at', now) // Exclude expired offers
+                .gte('expires_at', now)
                 .order('created_at', { ascending: false })
 
             if (!error && data) {
@@ -207,7 +209,6 @@ export default function GlobalEntryPoint() {
         }
     }
 
-    // OFFER POSTER UPLOAD HANDLER WITH EXPIRY
     const handleAddOffer = async (e: React.FormEvent) => {
         e.preventDefault()
         setOfferStatusMsg(null)
@@ -219,7 +220,6 @@ export default function GlobalEntryPoint() {
 
         setOfferUploading(true)
         try {
-            // 1. Upload Poster Image to Supabase Storage
             const fileExt = offerImage.name.split('.').pop()
             const fileName = `${merchantSession.id}_${Date.now()}.${fileExt}`
             const filePath = `${fileName}`
@@ -230,14 +230,12 @@ export default function GlobalEntryPoint() {
 
             if (uploadError) throw uploadError
 
-            // 2. Get Public URL
             const { data: urlData } = supabase.storage
                 .from('offer-posters')
                 .getPublicUrl(filePath)
 
             const publicUrl = urlData.publicUrl
 
-            // 3. Save Offer details to store_offers DB
             const { error: dbError } = await supabase
                 .from('store_offers')
                 .insert({
@@ -267,16 +265,18 @@ export default function GlobalEntryPoint() {
         }
     }
 
-    const handleDeleteOffer = async (offerId: string) => {
-        if (!confirm('Are you sure you want to delete this offer?')) return
+    const confirmDeleteOffer = async () => {
+        if (!offerToDelete) return
 
         try {
-            const { error } = await supabase.from('store_offers').delete().eq('id', offerId)
+            const { error } = await supabase.from('store_offers').delete().eq('id', offerToDelete)
             if (error) throw error
-            setOffers(offers.filter(o => o.id !== offerId))
+            setOffers(offers.filter(o => o.id !== offerToDelete))
+            setOfferToDelete(null)
         } catch (err) {
             console.error(err)
             alert('Failed to delete offer.')
+            setOfferToDelete(null)
         }
     }
 
@@ -452,9 +452,6 @@ export default function GlobalEntryPoint() {
             const cardLink = `${baseUrl}/card/${claimId}`
             const storeName = merchantSession?.store_name || 'RETCASH Partner'
 
-            // ==========================================
-            // வாடிக்கையாளருக்கு அனுப்பப்படும் WhatsApp குறுஞ்செய்தி வடிவம் (Template)
-            // ==========================================
             const message = `🎉 *Retcash Rewards - ${storeName}*\n\n` +
                 `உங்களின் வருகை வெற்றிகரமாகப் பதிவு செய்யப்பட்டுள்ளது! 📍\n\n` +
                 `🛍️ பில் தொகை: *Rs. ${billNum}*\n` +
@@ -487,7 +484,37 @@ export default function GlobalEntryPoint() {
         const targetVisits = Math.min(merchantSession?.target_visits || 6, 10)
 
         return (
-            <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center p-4 font-sans selection:bg-[#FF6B00]">
+            <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center p-4 font-sans selection:bg-[#FF6B00] relative">
+                
+                {/* CUSTOM PROFESSIONAL DELETE MODAL (Replaces ugly browser alert) */}
+                {offerToDelete && (
+                    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+                        <div className="bg-[#161B26] border border-gray-800 rounded-3xl p-6 max-w-xs w-full shadow-2xl space-y-4 text-center">
+                            <div className="w-12 h-12 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto text-xl font-bold border border-red-500/20">
+                                🗑️
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Delete Offer</h3>
+                                <p className="text-xs text-gray-400">Are you sure you want to delete this offer permanently?</p>
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                                <button
+                                    onClick={() => setOfferToDelete(null)}
+                                    className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDeleteOffer}
+                                    className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-lg cursor-pointer"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="w-full max-w-sm bg-[#161B26] border border-gray-800 rounded-3xl p-6 shadow-xl space-y-6 mt-6">
                     <div className="flex justify-between items-center border-b border-gray-800 pb-4">
                         <div>
@@ -573,8 +600,8 @@ export default function GlobalEntryPoint() {
                                             <p className="text-[10px] text-gray-400 truncate">Ends: {new Date(offer.expires_at).toLocaleDateString()}</p>
                                         </div>
                                         <button
-                                            onClick={() => handleDeleteOffer(offer.id)}
-                                            className="text-red-400 hover:text-red-300 text-xs font-bold px-2 py-1"
+                                            onClick={() => setOfferToDelete(offer.id)}
+                                            className="text-red-400 hover:text-red-300 text-xs font-bold px-2 py-1 cursor-pointer"
                                         >
                                             🗑️
                                         </button>
