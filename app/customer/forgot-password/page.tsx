@@ -6,23 +6,22 @@ import Link from 'next/link';
 import { KeyRound, Mail, ArrowLeft, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 
 export default function CustomerForgotPasswordPage() {
-    // Step state: 1 = Enter Email, 2 = Enter OTP & Reset Password
     const [step, setStep] = useState<1 | 2>(1);
     
-    // Form Inputs
+    // Form States
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    // Status States
+    // Feedback States
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
     const router = useRouter();
 
-    // Step 1: Send OTP to Registered Email
+    // STEP 1: Send OTP to User Email
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -41,15 +40,16 @@ export default function CustomerForgotPasswordPage() {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to send OTP verification code.');
+                throw new Error(data.error || 'Failed to send verification OTP.');
             }
 
-            if (data.data && data.data.otp) {
-                alert(`[RETCACH SECURE OTP] Your OTP is: ${data.data.otp} (Valid for 5 minutes)`);
+            // Fallback alert check
+            const receivedOtp = data?.data?.otp || data?.otp;
+            if (receivedOtp) {
+                alert(`[RETCACH SECURE OTP] Your OTP is: ${receivedOtp} (Valid for 5 minutes)`);
             }
 
             setMessage('Verification OTP has been sent to your email.');
-            // Switch to Step 2 upon successful dispatch
             setStep(2);
 
         } catch (err: any) {
@@ -59,7 +59,7 @@ export default function CustomerForgotPasswordPage() {
         }
     };
 
-    // Step 2: Verify OTP and Set New Password
+    // STEP 2: Verify OTP and Reset Password
     const handleResetPassword = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -108,7 +108,7 @@ export default function CustomerForgotPasswordPage() {
         <div className="flex min-h-screen items-center justify-center bg-[#F1F5F9] px-4 font-sans text-[#0F172A] selection:bg-[#EA580C] selection:text-white">
             <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-xl space-y-6">
                 
-                {/* Header Section (Matches Merchant Theme) */}
+                {/* Header Section */}
                 <div className="text-center space-y-2">
                     <div className="flex size-12 items-center justify-center rounded-2xl bg-[#EA580C] text-white mx-auto shadow-md">
                         <KeyRound className="size-6" />
@@ -124,7 +124,7 @@ export default function CustomerForgotPasswordPage() {
                     </p>
                 </div>
 
-                {/* Global Error Banner */}
+                {/* Error Alert */}
                 {error && (
                     <div className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs font-semibold text-red-600">
                         <AlertCircle className="size-4 shrink-0" />
@@ -132,7 +132,7 @@ export default function CustomerForgotPasswordPage() {
                     </div>
                 )}
 
-                {/* Global Success Banner */}
+                {/* Success Alert */}
                 {message && (
                     <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-xs font-semibold text-emerald-700">
                         <CheckCircle2 className="size-4 shrink-0" />
@@ -140,7 +140,7 @@ export default function CustomerForgotPasswordPage() {
                     </div>
                 )}
 
-                {/* STEP 1: EMAIL INPUT FORM */}
+                {/* STEP 1: EMAIL FORM */}
                 {step === 1 && (
                     <form onSubmit={handleSendOtp} className="space-y-4">
                         <div>
@@ -178,7 +178,7 @@ export default function CustomerForgotPasswordPage() {
                     </form>
                 )}
 
-                {/* STEP 2: OTP AND NEW PASSWORD FORM */}
+                {/* STEP 2: OTP & NEW PASSWORD FORM */}
                 {step === 2 && (
                     <form onSubmit={handleResetPassword} className="space-y-4">
                         <div>
