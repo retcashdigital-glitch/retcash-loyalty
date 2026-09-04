@@ -6,22 +6,23 @@ import Link from 'next/link';
 import { KeyRound, Mail, ArrowLeft, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 
 export default function CustomerForgotPasswordPage() {
+    // UI Step Control: 1 = Email Input, 2 = OTP & New Password
     const [step, setStep] = useState<1 | 2>(1);
-    
-    // Form States
+
+    // Form Inputs
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    // Feedback States
+    // UI Status
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
     const router = useRouter();
 
-    // STEP 1: Send OTP to User Email
+    // STEP 1: Send OTP to Registered Email
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -40,16 +41,17 @@ export default function CustomerForgotPasswordPage() {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to send verification OTP.');
+                throw new Error(data.error || 'Failed to send OTP verification code.');
             }
 
-            // Fallback alert check
+            // Handles both data.data.otp and data.otp response structures
             const receivedOtp = data?.data?.otp || data?.otp;
             if (receivedOtp) {
                 alert(`[RETCACH SECURE OTP] Your OTP is: ${receivedOtp} (Valid for 5 minutes)`);
             }
 
             setMessage('Verification OTP has been sent to your email.');
+            // Switch UI to Step 2 for OTP & Password Entry
             setStep(2);
 
         } catch (err: any) {
@@ -92,7 +94,7 @@ export default function CustomerForgotPasswordPage() {
             }
 
             setMessage('Password reset successful! Redirecting to login...');
-            
+
             setTimeout(() => {
                 router.push('/customer/login');
             }, 2000);
@@ -107,7 +109,7 @@ export default function CustomerForgotPasswordPage() {
     return (
         <div className="flex min-h-screen items-center justify-center bg-[#F1F5F9] px-4 font-sans text-[#0F172A] selection:bg-[#EA580C] selection:text-white">
             <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-xl space-y-6">
-                
+
                 {/* Header Section */}
                 <div className="text-center space-y-2">
                     <div className="flex size-12 items-center justify-center rounded-2xl bg-[#EA580C] text-white mx-auto shadow-md">
@@ -124,7 +126,7 @@ export default function CustomerForgotPasswordPage() {
                     </p>
                 </div>
 
-                {/* Error Alert */}
+                {/* Error Banner */}
                 {error && (
                     <div className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs font-semibold text-red-600">
                         <AlertCircle className="size-4 shrink-0" />
@@ -132,7 +134,7 @@ export default function CustomerForgotPasswordPage() {
                     </div>
                 )}
 
-                {/* Success Alert */}
+                {/* Success Banner */}
                 {message && (
                     <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-xs font-semibold text-emerald-700">
                         <CheckCircle2 className="size-4 shrink-0" />
@@ -140,12 +142,12 @@ export default function CustomerForgotPasswordPage() {
                     </div>
                 )}
 
-                {/* STEP 1: EMAIL FORM */}
+                {/* STEP 1: EMAIL INPUT FORM */}
                 {step === 1 && (
                     <form onSubmit={handleSendOtp} className="space-y-4">
                         <div>
                             <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
-                                Registered Email Address
+                                Registered Email
                             </label>
                             <div className="relative">
                                 <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -183,7 +185,7 @@ export default function CustomerForgotPasswordPage() {
                     <form onSubmit={handleResetPassword} className="space-y-4">
                         <div>
                             <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
-                                Verification OTP Code
+                                Enter 6-Digit OTP
                             </label>
                             <div className="relative">
                                 <ShieldCheck className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -193,7 +195,7 @@ export default function CustomerForgotPasswordPage() {
                                     maxLength={6}
                                     value={otp}
                                     onChange={(e) => setOtp(e.target.value)}
-                                    placeholder="Enter 6-digit OTP"
+                                    placeholder="123456"
                                     className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm font-mono tracking-widest text-slate-900 outline-none focus:border-[#EA580C] focus:bg-white focus:ring-2 focus:ring-[#EA580C]/20 transition"
                                 />
                             </div>
@@ -237,7 +239,7 @@ export default function CustomerForgotPasswordPage() {
                                 }}
                                 className="flex-1 rounded-xl border border-slate-300 bg-slate-50 py-3 text-center text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
                             >
-                                Resend / Back
+                                Back
                             </button>
                             <button
                                 type="submit"
