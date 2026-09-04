@@ -39,24 +39,37 @@ export default function CustomerLoginPage() {
         }
 
         const dbPhone = `94${formattedPhone}`;
-        const securePassword = btoa(password.trim());
+        const inputPass = password.trim();
+        const base64Pass = btoa(inputPass);
 
         try {
-            const { data, error: fetchError } = await supabase
+            // 1. First search by phone number only
+            const { data: customer, error: fetchError } = await supabase
                 .from('customers')
                 .select('*')
                 .eq('phone_number', dbPhone)
-                .eq('password', securePassword)
                 .single();
 
-            if (fetchError || !data) {
+            if (fetchError || !customer) {
                 setMessage('Invalid phone number or password.');
                 setLoading(false);
                 return;
             }
 
+            // 2. Flexible Password Comparison (Plain Text OR Base64 Encoded)
+            const storedPass = customer.password;
+            const isPasswordCorrect = storedPass === inputPass || storedPass === base64Pass;
+
+            if (!isPasswordCorrect) {
+                setMessage('Invalid phone number or password.');
+                setLoading(false);
+                return;
+            }
+
+            // 3. Success Log In
             localStorage.setItem(`retcash_wallet_auth_${dbPhone}`, 'true');
             router.push(`/wallet/${dbPhone}`);
+
         } catch (err) {
             console.error(err);
             setMessage('Invalid phone number or password.');
