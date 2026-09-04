@@ -88,6 +88,7 @@ export default function GlobalEntryPoint() {
   // QR Scanner State
   const [scannedClaimData, setScannedClaimData] = useState<CashbackClaim | null>(null)
   const [isScanning, setIsScanning] = useState(false)
+  const [showRedeemConfirmModal, setShowRedeemConfirmModal] = useState(false)
   const scannerRef = useRef<Html5Qrcode | null>(null)
 
   // OFFERS MANAGEMENT STATE
@@ -102,9 +103,19 @@ export default function GlobalEntryPoint() {
   // DELETE CONFIRMATION MODAL STATE
   const [offerToDelete, setOfferToDelete] = useState<string | null>(null)
 
+  // CUSTOM TOAST NOTIFICATION STATE
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
   // Customers list state
   const [customersList, setCustomersList] = useState<CashbackClaim[]>([])
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
+
+  const showToast = (type: 'success' | 'error', text: string) => {
+    setToastMessage({ type, text })
+    setTimeout(() => {
+      setToastMessage(null)
+    }, 3500)
+  }
 
   useEffect(() => {
     const savedMerchant = localStorage.getItem('retcash_merchant')
@@ -236,7 +247,7 @@ export default function GlobalEntryPoint() {
     let newTarget = parseInt(targetVisitsInput, 10)
 
     if (isNaN(newTarget) || newTarget < 3) {
-      alert('Target visits must be at least 3.')
+      showToast('error', 'Target visits must be at least 3.')
       return
     }
 
@@ -259,11 +270,12 @@ export default function GlobalEntryPoint() {
       localStorage.setItem('retcash_merchant', JSON.stringify(updatedSession))
 
       setSuccessMsg(true)
+      showToast('success', 'Target visits updated successfully!')
       setTimeout(() => setSuccessMsg(false), 3000)
     } catch (err: unknown) {
       console.error(err)
       const message = err instanceof Error ? err.message : JSON.stringify(err)
-      alert('Failed to update target visits: ' + message)
+      showToast('error', 'Failed to update target visits: ' + message)
     } finally {
       setSettingLoading(false)
     }
@@ -274,7 +286,7 @@ export default function GlobalEntryPoint() {
     let newPercent = parseFloat(cashbackPercentInput)
 
     if (isNaN(newPercent) || newPercent <= 0 || newPercent > 100) {
-      alert('Please enter a valid percentage between 1 and 100.')
+      showToast('error', 'Please enter a valid percentage between 1 and 100.')
       return
     }
 
@@ -294,11 +306,12 @@ export default function GlobalEntryPoint() {
       localStorage.setItem('retcash_merchant', JSON.stringify(updatedSession))
 
       setCashbackSuccessMsg(true)
+      showToast('success', 'Cashback percentage updated!')
       setTimeout(() => setCashbackSuccessMsg(false), 3000)
     } catch (err: unknown) {
       console.error(err)
       const message = err instanceof Error ? err.message : JSON.stringify(err)
-      alert('Failed to update cashback percentage: ' + message)
+      showToast('error', 'Failed to update cashback percentage: ' + message)
     } finally {
       setCashbackSettingLoading(false)
     }
@@ -345,6 +358,7 @@ export default function GlobalEntryPoint() {
       if (dbError) throw dbError
 
       setOfferStatusMsg({ type: 'success', text: '🎉 Offer posted successfully!' })
+      showToast('success', 'Offer posted successfully!')
       setOfferTitle('')
       setOfferDesc('')
       setOfferExpiry('')
@@ -368,9 +382,10 @@ export default function GlobalEntryPoint() {
       if (error) throw error
       setOffers(offers.filter(o => o.id !== offerToDelete))
       setOfferToDelete(null)
+      showToast('success', 'Offer deleted successfully.')
     } catch (err) {
       console.error(err)
-      alert('Failed to delete offer.')
+      showToast('error', 'Failed to delete offer.')
       setOfferToDelete(null)
     }
   }
@@ -398,7 +413,7 @@ export default function GlobalEntryPoint() {
         )
       } catch (err) {
         console.error('Camera start error:', err)
-        alert('Failed to start camera or permission denied.')
+        showToast('error', 'Failed to start camera or permission denied.')
         setIsScanning(false)
       }
     }, 100)
@@ -423,7 +438,7 @@ export default function GlobalEntryPoint() {
         .maybeSingle()
 
       if (error || !data) {
-        alert('Invalid QR Code or does not belong to this store.')
+        showToast('error', 'Invalid QR Code or does not belong to this store.')
         setScannedClaimData(null)
         return
       }
@@ -431,18 +446,14 @@ export default function GlobalEntryPoint() {
       setScannedClaimData(data)
     } catch (err) {
       console.error(err)
-      alert('Error verifying QR code.')
+      showToast('error', 'Error verifying QR code.')
     } finally {
       setActionLoading(false)
     }
   }
 
-  const handleRedeemScannedReward = async () => {
+  const executeRedeemReward = async () => {
     if (!scannedClaimData) return
-
-    if (!confirm(`Have you handed over the reward to customer (Phone: ${scannedClaimData.customer_phone})? The reward balance of Rs. ${scannedClaimData.claimable_amount} will be reset to zero.`)) {
-      return
-    }
 
     setActionLoading(true)
     try {
@@ -456,13 +467,14 @@ export default function GlobalEntryPoint() {
 
       if (error) throw error
 
-      alert('🎉 Reward successfully redeemed! Balance cleared.')
+      setShowRedeemConfirmModal(false)
       setScannedClaimData(null)
       setIsScanning(false)
+      showToast('success', '🎉 Reward successfully redeemed! Balance cleared.')
       fetchStoreCustomers(merchantSession!.id)
     } catch (err) {
       console.error(err)
-      alert('Failed to process redemption.')
+      showToast('error', 'Failed to process redemption.')
     } finally {
       setActionLoading(false)
     }
@@ -484,7 +496,7 @@ export default function GlobalEntryPoint() {
       const storeId = merchantSession?.id
 
       if (!storeId) {
-        alert('Merchant session not found. Please log in again.')
+        showToast('error', 'Merchant session not found. Please log in again.')
         setActionLoading(false)
         return
       }
@@ -572,7 +584,7 @@ export default function GlobalEntryPoint() {
     } catch (err: unknown) {
       console.error(err)
       const message = err instanceof Error ? err.message : JSON.stringify(err)
-      alert('Error processing cashback: ' + message)
+      showToast('error', 'Error processing cashback: ' + message)
       setActionLoading(false)
     }
   }
@@ -592,6 +604,18 @@ export default function GlobalEntryPoint() {
     return (
       <div className="min-h-screen bg-[#F1F5F9] text-[#0F172A] font-sans selection:bg-[#EA580C] selection:text-white">
         
+        {/* TOAST NOTIFICATION CONTAINER */}
+        {toastMessage && (
+          <div className="fixed top-5 right-5 z-50 animate-in fade-in slide-in-from-top-3 duration-200">
+            <div className={`flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl text-xs font-bold text-white ${
+              toastMessage.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
+            }`}>
+              {toastMessage.type === 'success' ? <CheckCircle2 className="size-4 shrink-0" /> : <X className="size-4 shrink-0" />}
+              <span>{toastMessage.text}</span>
+            </div>
+          </div>
+        )}
+
         {/* DELETE CONFIRMATION MODAL */}
         {offerToDelete && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -615,6 +639,39 @@ export default function GlobalEntryPoint() {
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md cursor-pointer"
                 >
                   Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* REDEEM REWARD CONFIRMATION MODAL (Replaces Native confirm()) */}
+        {showRedeemConfirmModal && scannedClaimData && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-xs w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold border border-emerald-100">
+                <CheckCircle2 className="size-6" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Confirm Redemption</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Have you handed over the reward to customer (<span className="font-mono font-semibold">{scannedClaimData.customer_phone}</span>)? 
+                  The balance of <span className="font-bold text-[#EA580C]">Rs. {scannedClaimData.claimable_amount}</span> will be reset to zero.
+                </p>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setShowRedeemConfirmModal(false)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeRedeemReward}
+                  disabled={actionLoading}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md cursor-pointer"
+                >
+                  {actionLoading ? 'Processing...' : 'Confirm & Reset'}
                 </button>
               </div>
             </div>
@@ -1136,11 +1193,11 @@ export default function GlobalEntryPoint() {
 
                   {Number(scannedClaimData.claimable_amount) > 0 ? (
                     <button
-                      onClick={handleRedeemScannedReward}
+                      onClick={() => setShowRedeemConfirmModal(true)}
                       disabled={actionLoading}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs mt-2 transition cursor-pointer shadow-md"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs mt-2 transition cursor-pointer shadow-md flex items-center justify-center gap-1.5"
                     >
-                      {actionLoading ? 'Processing...' : '🎁 Redeem Reward & Clear Cashback'}
+                      🎁 Redeem Reward & Clear Cashback
                     </button>
                   ) : (
                     <p className="text-slate-500 text-[11px] italic">Reward balance is 0 for this customer.</p>
