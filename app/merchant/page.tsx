@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode'
 
+export const dynamic = 'force-dynamic'
+
 interface MerchantSession {
     id: string
     store_name: string
@@ -20,6 +22,14 @@ interface CashbackClaim {
     status: string
 }
 
+interface Offer {
+    id: string
+    title: string
+    description: string
+    image_url: string
+    created_at: string
+}
+
 export default function GlobalEntryPoint() {
     const router = useRouter()
     const [phone, setPhone] = useState('')
@@ -31,14 +41,22 @@ export default function GlobalEntryPoint() {
     const [billAmount, setBillAmount] = useState('')
     const [actionLoading, setActionLoading] = useState(false)
 
-    // Target Visits setting state for merchant
+    // Target Visits setting state
     const [targetVisitsInput, setTargetVisitsInput] = useState('6')
     const [settingLoading, setSettingLoading] = useState(false)
     const [successMsg, setSuccessMsg] = useState(false)
 
+    // QR Scanner State
     const [scannedClaimData, setScannedClaimData] = useState<CashbackClaim | null>(null)
     const [isScanning, setIsScanning] = useState(false)
     const scannerRef = useRef<Html5Qrcode | null>(null)
+
+    // OFFERS MANAGEMENT STATE
+    const [offers, setOffers] = useState<Offer[]>([])
+    const [offerTitle, setOfferTitle] = useState('')
+    const [offerDesc, setOfferDesc] = useState('')
+    const [offerImage, setOfferImage] = useState<File | null>(null)
+    const [offerUploading, setOfferUploading] = useState(false)
 
     useEffect(() => {
         const savedMerchant = localStorage.getItem('retcash_merchant')
@@ -47,6 +65,7 @@ export default function GlobalEntryPoint() {
                 const parsed: MerchantSession = JSON.parse(savedMerchant)
                 setMerchantSession(parsed)
                 setTargetVisitsInput(String(Math.min(parsed.target_visits || 6, 10)))
+                fetchStoreOffers(parsed.id)
             } catch (e) {
                 console.error(e)
             }
@@ -56,6 +75,23 @@ export default function GlobalEntryPoint() {
             stopScannerInstance()
         }
     }, [])
+
+    // Updated to query store_offers table
+    const fetchStoreOffers = async (storeId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('store_offers')
+                .select('*')
+                .eq('store_id', storeId)
+                .order('created_at', { ascending: false })
+
+            if (!error && data) {
+                setOffers(data)
+            }
+        } catch (err) {
+            console.error('Error fetching offers:', err)
+        }
+    }
 
     const stopScannerInstance = async () => {
         if (scannerRef.current) {
@@ -115,7 +151,6 @@ export default function GlobalEntryPoint() {
         }
     }
 
-    // 10-க்கு மேல் டைப் செய்தால் 10 ஆக மாற்றும் லாஜிக்
     const handleTargetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value
         if (val === '') {
@@ -162,8 +197,77 @@ export default function GlobalEntryPoint() {
             console.error(err)
             const message = err instanceof Error ? err.message : JSON.stringify(err)
             alert('Failed to update target visits: ' + message)
-        }  finally {
+        } finally {
             setSettingLoading(false)
+        }
+    }
+
+    // OFFER POSTER UPLOAD HANDLER (Uses store_offers table)
+    const handleAddOffer = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!offerTitle || !offerImage || !merchantSession?.id) {
+            alert('Please provide offer title and image')
+            return
+        }
+
+        setOfferUploading(true)
+        try {
+            // 1. Upload Poster Image to Supabase Storage
+            const fileExt = offerImage.name.split('.').pop()
+            const fileName = `${merchantSession.id}_${Date.now()}.${fileExt}`
+            const filePath = `${fileName}`
+
+            const { error: uploadError } = await supabase.storage
+                .from('offer-posters')
+                .upload(filePath, offerImage)
+
+            if (uploadError) throw uploadError
+
+            // 2. Get Public URL
+            const { data: urlData } = supabase.storage
+                .from('offer-posters')
+                .getPublicUrl(filePath)
+
+            const publicUrl = urlData.publicUrl
+
+            // 3. Save Offer details to store_offers DB
+            const { error: dbError } = await supabase
+                .from('store_offers')
+                .insert({
+                    store_id: merchantSession.id,
+                    title: offerTitle,
+                    description: offerDesc,
+                    image_url: publicUrl,
+                    is_active: true
+                })
+
+            if (dbError) throw dbError
+
+            alert('🎉 Offer posted successfully!')
+            setOfferTitle('')
+            setOfferDesc('')
+            setOfferImage(null)
+            fetchStoreOffers(merchantSession.id)
+
+        } catch (err: unknown) {
+            console.error(err)
+            const message = err instanceof Error ? err.message : JSON.stringify(err)
+            alert('Failed to upload offer: ' + message)
+        } finally {
+            setOfferUploading(false)
+        }
+    }
+
+    const handleDeleteOffer = async (offerId: string) => {
+        if (!confirm('Are you sure you want to delete this offer?')) return
+
+        try {
+            const { error } = await supabase.from('store_offers').delete().eq('id', offerId)
+            if (error) throw error
+            setOffers(offers.filter(o => o.id !== offerId))
+        } catch (err) {
+            console.error(err)
+            alert('Failed to delete offer.')
         }
     }
 
@@ -187,9 +291,7 @@ export default function GlobalEntryPoint() {
                         setIsScanning(false)
                         processScannedResult(decodedText)
                     },
-                    () => {
-                        // Ignore scanning frame errors
-                    }
+                    () => {}
                 )
             } catch (err) {
                 console.error('Camera start error:', err)
@@ -263,9 +365,7 @@ export default function GlobalEntryPoint() {
 
     const handleGenerateCashback = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!customerPhone || !billAmount) {
-            return
-        }
+        if (!customerPhone || !billAmount) return
 
         setActionLoading(true)
         try {
@@ -284,7 +384,6 @@ export default function GlobalEntryPoint() {
                 return
             }
 
-            // 1. ஏற்கனவே உள்ள டேட்டாவைச் சரிபார்த்தல் (REDEEMED ஆகாதது)
             const { data: existingClaims } = await supabase
                 .from('cashback_claims')
                 .select('id, visit_count, claimable_amount, status')
@@ -304,7 +403,6 @@ export default function GlobalEntryPoint() {
                 claimId = existingClaims.id
             }
 
-            // 2. Supabase Upsert மூலம் Duplicate Error வராமல் தடுத்தல்
             interface Payload {
                 id?: string
                 store_id: string
@@ -394,10 +492,69 @@ export default function GlobalEntryPoint() {
                         </button>
                     </div>
 
-                    {/* Target Visits Settings Section */}
+                    {/* NEW OFFER POSTING SECTION */}
+                    <div className="bg-[#0B0E14] p-4 rounded-2xl border border-gray-800 space-y-3">
+                        <h2 className="text-xs font-bold text-[#FF6B00] uppercase">📢 Post Store Offer / Poster</h2>
+                        <form onSubmit={handleAddOffer} className="space-y-3">
+                            <input
+                                type="text"
+                                placeholder="Offer Title (e.g. 20% Off Weekend Sale)"
+                                value={offerTitle}
+                                onChange={(e) => setOfferTitle(e.target.value)}
+                                className="w-full bg-[#161B26] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-xs text-white outline-none"
+                                required
+                            />
+                            <textarea
+                                placeholder="Description / Conditions (Optional)"
+                                value={offerDesc}
+                                onChange={(e) => setOfferDesc(e.target.value)}
+                                className="w-full bg-[#161B26] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-xs text-white outline-none h-16"
+                            />
+                            <div>
+                                <label className="text-[10px] text-gray-400 block mb-1">Select Offer Poster Image:</label>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => setOfferImage(e.target.files?.[0] || null)}
+                                    className="w-full text-xs text-gray-400 file:mr-2 file:py-1 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-gray-800 file:text-white hover:file:bg-[#FF6B00]"
+                                    required
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={offerUploading}
+                                className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition"
+                            >
+                                {offerUploading ? 'Uploading Poster...' : '🚀 Publish Offer'}
+                            </button>
+                        </form>
+
+                        {/* ACTIVE OFFERS DISPLAY */}
+                        {offers.length > 0 && (
+                            <div className="mt-4 border-t border-gray-800 pt-3 space-y-2">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase">Active Offers ({offers.length}):</span>
+                                {offers.map((offer) => (
+                                    <div key={offer.id} className="flex items-center gap-3 bg-[#161B26] p-2 rounded-xl border border-gray-800">
+                                        <img src={offer.image_url} alt={offer.title} className="w-10 h-10 object-cover rounded-lg" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-bold text-white truncate">{offer.title}</p>
+                                            <p className="text-[10px] text-gray-400 truncate">{offer.description}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleDeleteOffer(offer.id)}
+                                            className="text-red-400 hover:text-red-300 text-xs font-bold px-2 py-1"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* TARGET VISITS SETTINGS */}
                     <div className="bg-[#0B0E14] p-4 rounded-2xl border border-gray-800 space-y-3">
                         <h2 className="text-xs font-bold text-[#FF6B00] uppercase">⚙️ Target Visits Settings</h2>
-                        <p className="text-[10px] text-gray-400">Set how many visits a customer needs to unlock rewards (Max: 10):</p>
                         <form onSubmit={handleUpdateTargetVisits} className="flex gap-2 items-center">
                             <input
                                 type="number"
@@ -405,7 +562,7 @@ export default function GlobalEntryPoint() {
                                 max="10"
                                 value={targetVisitsInput}
                                 onChange={handleTargetInputChange}
-                                className="w-20 bg-[#161B26] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition font-mono text-center"
+                                className="w-20 bg-[#161B26] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none font-mono text-center"
                                 required
                             />
                             <button
@@ -423,9 +580,9 @@ export default function GlobalEntryPoint() {
                         )}
                     </div>
 
+                    {/* LIVE QR SCANNER */}
                     <div className="bg-[#0B0E14] p-4 rounded-2xl border border-gray-800 space-y-3 text-center">
                         <h2 className="text-xs font-bold text-[#FF6B00] uppercase text-left">📷 Live QR Scanner</h2>
-                        <p className="text-[10px] text-gray-400 text-left">Scan the customer's {targetVisits}th visit QR code using the camera below:</p>
 
                         {!isScanning ? (
                             <button
@@ -475,6 +632,7 @@ export default function GlobalEntryPoint() {
 
                     <hr className="border-gray-800" />
 
+                    {/* CASHBACK ENTRY FORM */}
                     <form onSubmit={handleGenerateCashback} className="space-y-4">
                         <div>
                             <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">
@@ -485,7 +643,7 @@ export default function GlobalEntryPoint() {
                                 value={customerPhone}
                                 onChange={(e) => setCustomerPhone(e.target.value)}
                                 placeholder="e.g. 0771234567"
-                                className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-3 text-sm text-white outline-none transition font-mono"
+                                className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-3 text-sm text-white outline-none font-mono"
                                 required
                             />
                         </div>
@@ -499,7 +657,7 @@ export default function GlobalEntryPoint() {
                                 value={billAmount}
                                 onChange={(e) => setBillAmount(e.target.value)}
                                 placeholder="e.g. 2500"
-                                className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-3 text-sm text-white outline-none transition font-mono"
+                                className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-3 text-sm text-white outline-none font-mono"
                                 required
                             />
                         </div>
@@ -535,7 +693,7 @@ export default function GlobalEntryPoint() {
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
                             placeholder="e.g. 0771234567"
-                            className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-3 text-sm text-white outline-none transition font-mono"
+                            className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-3 text-sm text-white outline-none font-mono"
                             required
                         />
                     </div>
