@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Eye, EyeOff } from 'lucide-react'
 
@@ -14,41 +15,47 @@ export default function CustomerRegisterPage() {
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [errorMsg, setErrorMsg] = useState('')
+    const [successMsg, setSuccessMsg] = useState('')
 
-    // Phone normalization: ensures it becomes 94xxxxxxxxx format
+    // Standardized Phone normalization logic
+    // Accepts formats like: 0771234567, +94771234567, 94771234567, or 771234567
+    // Returns a standard 11-digit database format starting with 94 (e.g. 94771234567)
     const normalizePhone = (input: string) => {
         let cleaned = input.replace(/\D/g, '')
-        if (cleaned.startsWith('0')) {
+
+        if (cleaned.startsWith('94') && cleaned.length >= 11) {
+            cleaned = cleaned.slice(2)
+        } else if (cleaned.startsWith('0') && cleaned.length >= 10) {
             cleaned = cleaned.slice(1)
         }
-        if (!cleaned.startsWith('94') && cleaned.length > 0) {
-            cleaned = '94' + cleaned
-        }
-        return cleaned
+
+        cleaned = cleaned.slice(0, 9)
+        return cleaned.length === 9 ? `94${cleaned}` : ''
     }
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault()
         setErrorMsg('')
+        setSuccessMsg('')
 
         const cleanPhone = normalizePhone(phoneInput)
-        if (!cleanPhone || cleanPhone.length < 11) {
-            setErrorMsg('தயவுசெய்து சரியான தொலைபேசி எண்ணை உள்ளிடவும் (Please enter a valid phone number)')
+        if (!cleanPhone) {
+            setErrorMsg('Please enter a valid phone number (e.g., 0771234567 or 771234567)')
             return
         }
 
         if (!fullNameInput.trim()) {
-            setErrorMsg('Full name is mandatory')
+            setErrorMsg('Full name is required.')
             return
         }
 
         if (!emailInput.trim()) {
-            setErrorMsg('Email address is mandatory')
+            setErrorMsg('Email address is required.')
             return
         }
 
         if (!passwordInput.trim() || passwordInput.length < 6) {
-            setErrorMsg('Password must be at least 6 characters')
+            setErrorMsg('Password must be at least 6 characters.')
             return
         }
 
@@ -56,49 +63,44 @@ export default function CustomerRegisterPage() {
             setLoading(true)
             const securePassword = btoa(passwordInput.trim())
 
-            // 1. இந்த போன் நம்பர் ஏற்கனவே உள்ளதா எனச் சரிபார்த்தல்
+            // 1. Check if user already exists with this phone number
             const { data: existingData, error: checkError } = await supabase
                 .from('customers')
-                .select('id, email')
+                .select('id, phone_number')
                 .eq('phone_number', cleanPhone)
 
             if (checkError) throw checkError
 
             if (existingData && existingData.length > 0) {
-                // ஏற்கனவே கணக்கு உள்ளது, அப்டேட் செய்வோம்
-                const { error: updateError } = await supabase
-                    .from('customers')
-                    .update({
-                        full_name: fullNameInput.trim(),
-                        email: emailInput.trim(),
-                        password: securePassword
-                    })
-                    .eq('phone_number', cleanPhone)
-
-                if (updateError) throw updateError
-            } else {
-                // 2. புதிய கஸ்டமர் பதிவேீடு
-                const { error: insertError } = await supabase
-                    .from('customers')
-                    .insert([
-                        {
-                            full_name: fullNameInput.trim(),
-                            phone_number: cleanPhone,
-                            email: emailInput.trim(),
-                            password: securePassword
-                        }
-                    ])
-
-                if (insertError) throw insertError
+                // User already registered -> Inform and redirect to login
+                setSuccessMsg('Account already exists! Redirecting to login...')
+                setTimeout(() => {
+                    router.push('/customer/login')
+                }, 2000)
+                return
             }
 
-            // லோக்கல் ஸ்டோரேஜில் லாகின் செஷனைச் சேமித்து உடனடியாக வாலட்டுக்கு அனுப்புதல்
+            // 2. Register New Customer
+            const { error: insertError } = await supabase
+                .from('customers')
+                .insert([
+                    {
+                        full_name: fullNameInput.trim(),
+                        phone_number: cleanPhone,
+                        email: emailInput.trim(),
+                        password: securePassword
+                    }
+                ])
+
+            if (insertError) throw insertError
+
+            // Save login session and route directly to wallet
             localStorage.setItem(`retcash_wallet_auth_${cleanPhone}`, 'true')
             router.push(`/wallet/${cleanPhone}`)
 
         } catch (err: any) {
             console.error(err)
-            setErrorMsg('பதிவு செய்வதில் பிழை ஏற்பட்டுள்ளது. மீண்டும் முயற்சிக்கவும்.')
+            setErrorMsg(err.message || 'Registration failed. Please try again.')
         } finally {
             setLoading(false)
         }
@@ -112,7 +114,7 @@ export default function CustomerRegisterPage() {
                     <h1 className="text-xl font-black text-[#FF6B00] tracking-wider">RETCASH</h1>
                     <h2 className="text-sm font-bold text-white">Customer Registration</h2>
                     <p className="text-[11px] text-gray-400">
-                        Enter your details, phone number, email, and create a password to access your cashback wallet.
+                        Enter your details to create an account and access your cashback wallet.
                     </p>
                 </div>
 
@@ -139,7 +141,7 @@ export default function CustomerRegisterPage() {
                                 type="tel"
                                 value={phoneInput}
                                 onChange={(e) => setPhoneInput(e.target.value)}
-                                placeholder="771234567"
+                                placeholder="0771234567 or 771234567"
                                 className="w-full bg-transparent pl-3 text-sm text-white outline-none"
                                 required
                             />
@@ -148,7 +150,7 @@ export default function CustomerRegisterPage() {
 
                     {/* Email Field */}
                     <div>
-                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Email Address (Mandatory)</label>
+                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Email Address</label>
                         <input
                             type="email"
                             value={emailInput}
@@ -159,7 +161,7 @@ export default function CustomerRegisterPage() {
                         />
                     </div>
 
-                    {/* Password Field with Eye Icon */}
+                    {/* Password Field */}
                     <div>
                         <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Create Password</label>
                         <div className="relative flex items-center w-full bg-[#0B0E14] border border-gray-800 focus-within:border-[#FF6B00] rounded-xl px-3 py-2 transition">
@@ -174,38 +176,39 @@ export default function CustomerRegisterPage() {
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 text-gray-400 hover:text-white outline-none"
+                                className="absolute right-3 text-gray-400 hover:text-white outline-none cursor-pointer"
                             >
                                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
                         </div>
-                        <p className="text-[10px] text-gray-500 mt-1">Use 6 or more characters with a mix of letters & numbers.</p>
+                        <p className="text-[10px] text-gray-500 mt-1">Use 6 or more characters with letters & numbers.</p>
                     </div>
 
                     {errorMsg && <p className="text-[11px] text-red-500 font-medium text-center">{errorMsg}</p>}
+                    {successMsg && <p className="text-[11px] text-emerald-400 font-medium text-center">{successMsg}</p>}
 
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-2.5 rounded-xl text-sm transition shadow-lg active:scale-95 flex items-center justify-center"
+                        className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-2.5 rounded-xl text-sm transition shadow-lg active:scale-95 flex items-center justify-center cursor-pointer disabled:opacity-50"
                     >
                         {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'Register & Open Wallet'}
                     </button>
                 </form>
 
-                <div className="text-center pt-2">
-                    <button
-                        onClick={() => router.back()}
-                        className="text-[11px] text-gray-400 hover:text-white transition"
-                    >
-                        ← Back to previous page
-                    </button>
+                <div className="text-center pt-2 space-y-2">
+                    <p className="text-[11px] text-gray-400">
+                        Already have an account?{' '}
+                        <Link href="/customer/login" className="text-[#FF6B00] font-bold hover:underline">
+                            Login here
+                        </Link>
+                    </p>
                 </div>
 
             </div>
 
             <div className="py-8 text-center text-[10px] text-gray-600 tracking-wider">
-                <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM</p>
+                <p>© 2026 RETCASH DIGITAL LOYALTY PLATFORM</p>
             </div>
         </div>
     )
