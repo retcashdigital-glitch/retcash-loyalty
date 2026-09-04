@@ -20,7 +20,8 @@ import {
   WalletCards,
   X,
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  Percent
 } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -73,6 +74,11 @@ export default function GlobalEntryPoint() {
   const [settingLoading, setSettingLoading] = useState(false)
   const [successMsg, setSuccessMsg] = useState(false)
 
+  // NEW: Cashback Percent settings state
+  const [cashbackPercentInput, setCashbackPercentInput] = useState('5')
+  const [cashbackSettingLoading, setCashbackSettingLoading] = useState(false)
+  const [cashbackSuccessMsg, setCashbackSuccessMsg] = useState(false)
+
   // QR Scanner State
   const [scannedClaimData, setScannedClaimData] = useState<CashbackClaim | null>(null)
   const [isScanning, setIsScanning] = useState(false)
@@ -101,6 +107,7 @@ export default function GlobalEntryPoint() {
         const parsed: MerchantSession = JSON.parse(savedMerchant)
         setMerchantSession(parsed)
         setTargetVisitsInput(String(Math.min(parsed.target_visits || 6, 10)))
+        setCashbackPercentInput(String(parsed.default_cashback_percent ?? 5))
         fetchStoreOffers(parsed.id)
         fetchStoreCustomers(parsed.id)
       } catch (e) {
@@ -253,6 +260,42 @@ export default function GlobalEntryPoint() {
       alert('Failed to update target visits: ' + message)
     } finally {
       setSettingLoading(false)
+    }
+  }
+
+  // NEW: HANDLE UPDATE DEFAULT CASHBACK PERCENTAGE
+  const handleUpdateCashbackPercent = async (e: React.FormEvent) => {
+    e.preventDefault()
+    let newPercent = parseFloat(cashbackPercentInput)
+
+    if (isNaN(newPercent) || newPercent <= 0 || newPercent > 100) {
+      alert('Please enter a valid percentage between 1 and 100.')
+      return
+    }
+
+    if (!merchantSession?.id) return
+
+    setCashbackSettingLoading(true)
+    try {
+      const { error } = await supabase
+        .from('stores')
+        .update({ default_cashback_percent: newPercent })
+        .eq('id', merchantSession.id)
+
+      if (error) throw error
+
+      const updatedSession = { ...merchantSession, default_cashback_percent: newPercent }
+      setMerchantSession(updatedSession)
+      localStorage.setItem('retcash_merchant', JSON.stringify(updatedSession))
+
+      setCashbackSuccessMsg(true)
+      setTimeout(() => setCashbackSuccessMsg(false), 3000)
+    } catch (err: unknown) {
+      console.error(err)
+      const message = err instanceof Error ? err.message : JSON.stringify(err)
+      alert('Failed to update cashback percentage: ' + message)
+    } finally {
+      setCashbackSettingLoading(false)
     }
   }
 
@@ -535,7 +578,7 @@ export default function GlobalEntryPoint() {
     { id: 'customers', label: 'Customers', icon: Users },
   ]
 
-  // LOGGED IN DASHBOARD VIEW (Professional Light Theme with High Contrast Slate & Orange Accent)
+  // LOGGED IN DASHBOARD VIEW
   if (merchantSession) {
     const targetVisits = Math.min(merchantSession?.target_visits || 6, 10)
     const filteredCustomers = customersList.filter(c => c.customer_phone.includes(customerSearchQuery))
@@ -573,7 +616,7 @@ export default function GlobalEntryPoint() {
           </div>
         )}
 
-        {/* HEADER - Deep Slate Blue for Corporate Authority */}
+        {/* HEADER */}
         <header className="border-b border-slate-800 bg-[#0F172A] text-white sticky top-0 z-40 shadow-md">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-5 lg:px-8">
             <div className="flex items-center gap-3">
@@ -708,7 +751,7 @@ export default function GlobalEntryPoint() {
                 </button>
               </div>
 
-              {/* QUICK STATS & TARGET VISITS */}
+              {/* QUICK STATS & SETTINGS */}
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
                 <div className="mb-6 flex items-center justify-between">
                   <div>
@@ -733,7 +776,43 @@ export default function GlobalEntryPoint() {
                   </div>
                 </div>
 
-                <div className="mt-5 border-t border-slate-200 pt-5">
+                {/* SETTINGS AREA */}
+                <div className="mt-5 border-t border-slate-200 pt-5 space-y-5">
+                  {/* DEFAULT CASHBACK PERCENT FORM */}
+                  <form onSubmit={handleUpdateCashbackPercent}>
+                    <div className="mb-3 flex items-center justify-between">
+                      <label htmlFor="cashbackPercent" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                        <Percent className="size-3.5 text-[#EA580C]" /> Default Cashback %
+                      </label>
+                      <span className="font-mono text-[11px] text-slate-500">per transaction</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        id="cashbackPercent"
+                        type="number"
+                        step="0.1"
+                        min="0.1"
+                        max="100"
+                        value={cashbackPercentInput}
+                        onChange={(e) => setCashbackPercentInput(e.target.value)}
+                        className="h-10 min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm outline-none focus:border-[#EA580C] focus:bg-white font-mono text-slate-900"
+                        placeholder="5"
+                        required
+                      />
+                      <button
+                        type="submit"
+                        disabled={cashbackSettingLoading}
+                        className="rounded-lg border border-[#EA580C] bg-orange-50 text-[#EA580C] hover:bg-[#EA580C] hover:text-white px-3 text-xs font-bold transition cursor-pointer"
+                      >
+                        {cashbackSettingLoading ? '...' : 'Update'}
+                      </button>
+                    </div>
+                    {cashbackSuccessMsg && (
+                      <p className="text-[11px] text-emerald-600 font-bold mt-2">✓ Default Cashback updated!</p>
+                    )}
+                  </form>
+
+                  {/* TARGET VISITS FORM */}
                   <form onSubmit={handleUpdateTargetVisits}>
                     <div className="mb-3 flex items-center justify-between">
                       <label htmlFor="target" className="text-xs font-semibold text-slate-700">Target visits</label>
@@ -809,7 +888,6 @@ export default function GlobalEntryPoint() {
                     />
                   </label>
 
-                  {/* FIXED EXPIRY DATE INPUT FIELD CONTAINER */}
                   <label className="grid gap-2 text-xs font-semibold text-slate-700 w-full min-w-0">
                     Expiry date & time
                     <div className="relative w-full min-w-0">
@@ -991,7 +1069,7 @@ export default function GlobalEntryPoint() {
     )
   }
 
-  // NON-LOGGED IN STATE (Store Mobile Login Entry View - Slate Header Style)
+  // NON-LOGGED IN STATE
   return (
     <div className="min-h-screen bg-[#F1F5F9] text-slate-900 flex flex-col items-center justify-center p-4 font-sans selection:bg-[#EA580C] selection:text-white">
       <div className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl p-6 shadow-xl space-y-6">
