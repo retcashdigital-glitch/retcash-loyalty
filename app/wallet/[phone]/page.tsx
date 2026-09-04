@@ -3,16 +3,18 @@
 import { useState, useEffect, useTransition } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Wallet, Compass, User, Search, QrCode, ChevronRight, X, LogOut } from 'lucide-react'
+import { Wallet, Tag, User, Search, QrCode, ChevronRight, X, LogOut, Megaphone, Store } from 'lucide-react'
 
 export default function CustomerWalletPage() {
     const params = useParams()
     const router = useRouter()
     const phone = params.phone as string
 
-    const [activeTab, setActiveTab] = useState<'wallet' | 'discover' | 'profile'>('wallet')
+    const [activeTab, setActiveTab] = useState<'wallet' | 'offers' | 'profile'>('wallet')
     const [loading, setLoading] = useState(true)
     const [stores, setStores] = useState<any[]>([])
+    const [activeOffers, setActiveOffers] = useState<any[]>([])
+    const [offersLoading, setOffersLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('All Stores')
     const [showQrModal, setShowQrModal] = useState(false)
@@ -39,6 +41,7 @@ export default function CustomerWalletPage() {
         }
 
         fetchWalletAndClaimsData()
+        fetchActiveOffers()
 
         // 2. Supabase Realtime Listener setup (ரீஃப்ரெஷ் இல்லாமலே டேட்டா அப்டேட் ஆக)
         const channel = supabase
@@ -135,8 +138,34 @@ export default function CustomerWalletPage() {
         }
     }
 
-    const handleStoreClick = (store: any) => {
-        const storeId = store?.id;
+    // ஆஃபர் பதிவிட்டுள்ள கடைகளின் ஆஃபர்களை மட்டும் எடுக்கும் லாஜிக்
+    const fetchActiveOffers = async () => {
+        try {
+            setOffersLoading(true)
+            const { data, error } = await supabase
+                .from('store_offers')
+                .select(`
+                    *,
+                    stores:store_id (
+                        id,
+                        store_name,
+                        logo_url
+                    )
+                `)
+                .gte('expires_at', new Date().toISOString())
+                .order('created_at', { ascending: false })
+
+            if (!error && data) {
+                setActiveOffers(data)
+            }
+        } catch (err) {
+            console.error('Error fetching active offers:', err)
+        } finally {
+            setOffersLoading(false)
+        }
+    }
+
+    const handleStoreClick = (storeId: string) => {
         if (!storeId || navigatingStoreId) return;
         
         setNavigatingStoreId(storeId);
@@ -170,6 +199,7 @@ export default function CustomerWalletPage() {
 
             <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5">
 
+                {/* WALLET TAB */}
                 {activeTab === 'wallet' && (
                     <>
                         <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs space-y-4 mt-2">
@@ -194,7 +224,7 @@ export default function CustomerWalletPage() {
                                     type="text"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search stores, categories..."
+                                    placeholder="Search stores..."
                                     className="w-full bg-slate-50/80 border border-slate-200 focus:border-[#EE8838] focus:bg-white rounded-2xl pl-10 pr-4 py-3 text-sm text-[#0F172A] outline-none transition shadow-inner"
                                 />
                             </div>
@@ -237,7 +267,7 @@ export default function CustomerWalletPage() {
                                 return (
                                     <div
                                         key={index}
-                                        onClick={() => handleStoreClick(store)}
+                                        onClick={() => handleStoreClick(store.id)}
                                         onMouseEnter={() => router.prefetch(`/card/${store.id}?phone=${phone}`)}
                                         className={`bg-white border rounded-3xl p-5 space-y-4 transition cursor-pointer shadow-xs group ${isThisNavigating
                                             ? 'border-[#EE8838] bg-orange-50/20 opacity-80'
@@ -303,27 +333,80 @@ export default function CustomerWalletPage() {
                     </>
                 )}
 
-                {activeTab === 'discover' && (
+                {/* OFFERS TAB */}
+                {activeTab === 'offers' && (
                     <div className="space-y-4 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
-                            <h1 className="text-xl font-black text-[#0F172A]">Discover Offers</h1>
-                            <p className="text-xs text-slate-500">Explore partner stores offering special cashback and rewards.</p>
+                            <div className="flex items-center space-x-2">
+                                <Megaphone className="w-5 h-5 text-[#EE8838]" />
+                                <h1 className="text-xl font-black text-[#0F172A]">Store Offers & Deals</h1>
+                            </div>
+                            <p className="text-xs text-slate-500">Exclusive active offers posted by our partner stores.</p>
                         </div>
 
-                        {stores.map((store, idx) => (
-                            <div key={idx} className="bg-white border border-slate-200 rounded-3xl p-5 space-y-3 shadow-xs">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-sm font-bold text-[#0F172A]">{store.store_name}</h3>
-                                    <span className="text-[10px] bg-orange-50 text-[#EE8838] px-2.5 py-1 rounded-full font-bold border border-orange-100">
-                                        Active Offer
-                                    </span>
-                                </div>
-                                <p className="text-xs text-slate-500 leading-relaxed">Visit this store and earn exciting cashback rewards on every purchase!</p>
+                        {offersLoading ? (
+                            <div className="text-center py-12 text-slate-400 text-xs font-medium">Loading store offers...</div>
+                        ) : activeOffers.length === 0 ? (
+                            <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-xs">
+                                <Megaphone className="w-8 h-8 text-slate-300 mx-auto" />
+                                <p className="text-xs text-slate-500 font-medium">No active store offers available right now.</p>
                             </div>
-                        ))}
+                        ) : (
+                            activeOffers.map((offer) => (
+                                <div key={offer.id} className="bg-white border border-slate-200 rounded-3xl p-5 space-y-3 shadow-xs hover:border-[#EE8838] transition">
+                                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                                        <div className="flex items-center space-x-2.5">
+                                            <div className="w-8 h-8 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center font-bold text-xs text-[#EE8838]">
+                                                {offer.stores?.store_name?.[0] || 'S'}
+                                            </div>
+                                            <div>
+                                                <h3 className="text-xs font-bold text-[#0F172A]">{offer.stores?.store_name || 'Partner Store'}</h3>
+                                                <p className="text-[10px] text-slate-400 font-medium">Active Promotion</p>
+                                            </div>
+                                        </div>
+                                        <span className="text-[10px] bg-orange-50 text-[#EE8838] px-2.5 py-1 rounded-full font-bold border border-orange-100 uppercase tracking-wider">
+                                            Special Deal
+                                        </span>
+                                    </div>
+
+                                    {offer.image_url && (
+                                        <div className="w-full h-44 bg-slate-100 rounded-2xl overflow-hidden border border-slate-100">
+                                            <img 
+                                                src={offer.image_url} 
+                                                alt={offer.title} 
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-1">
+                                        <h4 className="font-extrabold text-sm text-[#0F172A]">{offer.title}</h4>
+                                        {offer.description && (
+                                            <p className="text-xs text-slate-500 leading-relaxed">{offer.description}</p>
+                                        )}
+                                    </div>
+
+                                    <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                            Ends: {new Date(offer.expires_at).toLocaleDateString()}
+                                        </span>
+                                        {offer.stores?.id && (
+                                            <button
+                                                onClick={() => handleStoreClick(offer.stores.id)}
+                                                className="text-xs font-bold text-[#EE8838] hover:underline flex items-center space-x-1"
+                                            >
+                                                <span>View Store Card</span>
+                                                <ChevronRight className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 )}
 
+                {/* PROFILE TAB */}
                 {activeTab === 'profile' && (
                     <div className="space-y-5 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
@@ -360,6 +443,7 @@ export default function CustomerWalletPage() {
 
             </main>
 
+            {/* MY QR MODAL */}
             {showQrModal && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
                     <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-xl relative animate-in fade-in zoom-in duration-200">
@@ -386,6 +470,7 @@ export default function CustomerWalletPage() {
                 </div>
             )}
 
+            {/* BOTTOM NAVIGATION */}
             <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2 px-6 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-lg">
                 <button
                     onClick={() => setActiveTab('wallet')}
@@ -396,11 +481,11 @@ export default function CustomerWalletPage() {
                 </button>
 
                 <button
-                    onClick={() => setActiveTab('discover')}
-                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'discover' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
+                    onClick={() => setActiveTab('offers')}
+                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'offers' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
                 >
-                    <Compass className="w-5 h-5" />
-                    <span className="text-[10px] font-bold">Discover</span>
+                    <Tag className="w-5 h-5" />
+                    <span className="text-[10px] font-bold">Offers</span>
                 </button>
 
                 <button
