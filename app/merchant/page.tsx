@@ -21,7 +21,9 @@ import {
   X,
   Trash2,
   CheckCircle2,
-  Percent
+  Percent,
+  User,
+  Store
 } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -29,6 +31,7 @@ export const dynamic = 'force-dynamic'
 interface MerchantSession {
   id: string
   store_name: string
+  phone_number?: string
   default_cashback_percent?: number
   target_visits?: number
 }
@@ -69,12 +72,15 @@ export default function GlobalEntryPoint() {
   // Navigation Tab State
   const [activeTab, setActiveTab] = useState<Tab>('billing')
 
+  // Profile Modal State
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+
   // Target Visits settings state
   const [targetVisitsInput, setTargetVisitsInput] = useState('6')
   const [settingLoading, setSettingLoading] = useState(false)
   const [successMsg, setSuccessMsg] = useState(false)
 
-  // NEW: Cashback Percent settings state
+  // Cashback Percent settings state
   const [cashbackPercentInput, setCashbackPercentInput] = useState('5')
   const [cashbackSettingLoading, setCashbackSettingLoading] = useState(false)
   const [cashbackSuccessMsg, setCashbackSuccessMsg] = useState(false)
@@ -263,7 +269,6 @@ export default function GlobalEntryPoint() {
     }
   }
 
-  // NEW: HANDLE UPDATE DEFAULT CASHBACK PERCENTAGE
   const handleUpdateCashbackPercent = async (e: React.FormEvent) => {
     e.preventDefault()
     let newPercent = parseFloat(cashbackPercentInput)
@@ -616,6 +621,133 @@ export default function GlobalEntryPoint() {
           </div>
         )}
 
+        {/* STORE PROFILE & SETTINGS MODAL */}
+        {isProfileOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+              
+              {/* Profile Header */}
+              <div className="bg-[#0F172A] text-white p-5 flex items-center justify-between border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-[#EA580C] text-white">
+                    <Store className="size-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-white">{merchantSession.store_name}</h3>
+                    <p className="text-[11px] text-slate-400">Store Profile & Settings</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsProfileOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-6 max-h-[80vh] overflow-y-auto">
+                
+                {/* Account Details */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Account Details</h4>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Store Name:</span>
+                      <span className="font-semibold text-slate-900">{merchantSession.store_name}</span>
+                    </div>
+                    {merchantSession.phone_number && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Registered Phone:</span>
+                        <span className="font-mono font-semibold text-slate-900">+{merchantSession.phone_number}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Cashback Rules Settings */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Store Rules & Configuration</h4>
+                  
+                  {/* DEFAULT CASHBACK PERCENT FORM */}
+                  <form onSubmit={handleUpdateCashbackPercent} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="cashbackPercentModal" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                        <Percent className="size-3.5 text-[#EA580C]" /> Default Cashback %
+                      </label>
+                      <span className="font-mono text-[10px] text-slate-400">per transaction</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        id="cashbackPercentModal"
+                        type="number"
+                        step="0.1"
+                        min="0.1"
+                        max="100"
+                        value={cashbackPercentInput}
+                        onChange={(e) => setCashbackPercentInput(e.target.value)}
+                        className="h-10 min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm outline-none focus:border-[#EA580C] focus:bg-white font-mono text-slate-900"
+                        placeholder="5"
+                        required
+                      />
+                      <button
+                        type="submit"
+                        disabled={cashbackSettingLoading}
+                        className="rounded-lg border border-[#EA580C] bg-orange-50 text-[#EA580C] hover:bg-[#EA580C] hover:text-white px-4 text-xs font-bold transition cursor-pointer"
+                      >
+                        {cashbackSettingLoading ? '...' : 'Update'}
+                      </button>
+                    </div>
+                    {cashbackSuccessMsg && (
+                      <p className="text-[11px] text-emerald-600 font-bold mt-1">✓ Default Cashback updated!</p>
+                    )}
+                  </form>
+
+                  {/* TARGET VISITS FORM */}
+                  <form onSubmit={handleUpdateTargetVisits} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="targetModal" className="text-xs font-semibold text-slate-700">Target Visits</label>
+                      <span className="font-mono text-[10px] text-slate-400">per customer</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        id="targetModal"
+                        type="number"
+                        min="3"
+                        max="10"
+                        value={targetVisitsInput}
+                        onChange={handleTargetInputChange}
+                        className="h-10 min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm outline-none focus:border-[#EA580C] focus:bg-white font-mono text-slate-900"
+                        required
+                      />
+                      <button
+                        type="submit"
+                        disabled={settingLoading}
+                        className="rounded-lg border border-[#EA580C] bg-orange-50 text-[#EA580C] hover:bg-[#EA580C] hover:text-white px-4 text-xs font-bold transition cursor-pointer"
+                      >
+                        {settingLoading ? '...' : 'Update'}
+                      </button>
+                    </div>
+                    {successMsg && (
+                      <p className="text-[11px] text-emerald-600 font-bold mt-1">✓ Target visits updated!</p>
+                    )}
+                  </form>
+                </div>
+
+              </div>
+
+              <div className="bg-slate-50 p-4 border-t border-slate-200 text-right">
+                <button
+                  onClick={() => setIsProfileOpen(false)}
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-2 rounded-xl text-xs transition cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+
         {/* HEADER */}
         <header className="border-b border-slate-800 bg-[#0F172A] text-white sticky top-0 z-40 shadow-md">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-5 lg:px-8">
@@ -630,7 +762,19 @@ export default function GlobalEntryPoint() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Store Profile Button */}
+              <button
+                onClick={() => setIsProfileOpen(true)}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition cursor-pointer"
+                type="button"
+              >
+                <User className="size-3.5 text-[#EA580C]" />
+                <span className="hidden sm:inline">Store Profile</span>
+              </button>
+
+              {/* Logout Button */}
               <button
                 onClick={() => {
                   localStorage.removeItem('retcash_merchant')
@@ -751,96 +895,40 @@ export default function GlobalEntryPoint() {
                 </button>
               </div>
 
-              {/* QUICK STATS & SETTINGS */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-                <div className="mb-6 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">Today's quick stats</h2>
-                    <p className="mt-1 text-xs text-slate-500">Your store at a glance.</p>
+              {/* TODAY'S OVERVIEW (CLEAN STATS CARD) */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7 flex flex-col justify-between">
+                <div>
+                  <div className="mb-6 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">Today's Overview</h2>
+                      <p className="mt-1 text-xs text-slate-500">Real-time stats for your store.</p>
+                    </div>
+                    <div className="rounded-lg bg-orange-50 p-2 text-[#EA580C]">
+                      <Users className="size-4" />
+                    </div>
                   </div>
-                  <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
-                    <Settings2 className="size-4" />
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                      <Users className="mb-4 size-4 text-[#EA580C]" />
+                      <p className="font-mono text-3xl font-bold text-slate-900">{customersList.length}</p>
+                      <p className="mt-1 text-[11px] font-medium text-slate-500">Total Visits</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                      <WalletCards className="mb-4 size-4 text-emerald-600" />
+                      <p className="font-mono text-2xl font-bold text-slate-900">Rs. {totalClaimableSum}</p>
+                      <p className="mt-1 text-[11px] font-medium text-slate-500">Total Cashback Claimable</p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                    <Users className="mb-5 size-4 text-[#EA580C]" />
-                    <p className="font-mono text-3xl font-bold text-slate-900">{customersList.length}</p>
-                    <p className="mt-1 text-[11px] text-slate-500">Total visits</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                    <WalletCards className="mb-5 size-4 text-emerald-600" />
-                    <p className="font-mono text-2xl font-bold text-slate-900">Rs. {totalClaimableSum}</p>
-                    <p className="mt-1 text-[11px] text-slate-500">Total cashback claimable</p>
-                  </div>
-                </div>
-
-                {/* SETTINGS AREA */}
-                <div className="mt-5 border-t border-slate-200 pt-5 space-y-5">
-                  {/* DEFAULT CASHBACK PERCENT FORM */}
-                  <form onSubmit={handleUpdateCashbackPercent}>
-                    <div className="mb-3 flex items-center justify-between">
-                      <label htmlFor="cashbackPercent" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                        <Percent className="size-3.5 text-[#EA580C]" /> Default Cashback %
-                      </label>
-                      <span className="font-mono text-[11px] text-slate-500">per transaction</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <input
-                        id="cashbackPercent"
-                        type="number"
-                        step="0.1"
-                        min="0.1"
-                        max="100"
-                        value={cashbackPercentInput}
-                        onChange={(e) => setCashbackPercentInput(e.target.value)}
-                        className="h-10 min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm outline-none focus:border-[#EA580C] focus:bg-white font-mono text-slate-900"
-                        placeholder="5"
-                        required
-                      />
-                      <button
-                        type="submit"
-                        disabled={cashbackSettingLoading}
-                        className="rounded-lg border border-[#EA580C] bg-orange-50 text-[#EA580C] hover:bg-[#EA580C] hover:text-white px-3 text-xs font-bold transition cursor-pointer"
-                      >
-                        {cashbackSettingLoading ? '...' : 'Update'}
-                      </button>
-                    </div>
-                    {cashbackSuccessMsg && (
-                      <p className="text-[11px] text-emerald-600 font-bold mt-2">✓ Default Cashback updated!</p>
-                    )}
-                  </form>
-
-                  {/* TARGET VISITS FORM */}
-                  <form onSubmit={handleUpdateTargetVisits}>
-                    <div className="mb-3 flex items-center justify-between">
-                      <label htmlFor="target" className="text-xs font-semibold text-slate-700">Target visits</label>
-                      <span className="font-mono text-[11px] text-slate-500">per customer</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <input
-                        id="target"
-                        type="number"
-                        min="3"
-                        max="10"
-                        value={targetVisitsInput}
-                        onChange={handleTargetInputChange}
-                        className="h-10 min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm outline-none focus:border-[#EA580C] focus:bg-white font-mono text-slate-900"
-                        required
-                      />
-                      <button
-                        type="submit"
-                        disabled={settingLoading}
-                        className="rounded-lg border border-[#EA580C] bg-orange-50 text-[#EA580C] hover:bg-[#EA580C] hover:text-white px-3 text-xs font-bold transition cursor-pointer"
-                      >
-                        {settingLoading ? '...' : 'Update'}
-                      </button>
-                    </div>
-                    {successMsg && (
-                      <p className="text-[11px] text-emerald-600 font-bold mt-2">✓ Target visits updated!</p>
-                    )}
-                  </form>
+                <div className="mt-6 border-t border-slate-100 pt-4 text-center">
+                  <button
+                    onClick={() => setIsProfileOpen(true)}
+                    className="text-xs font-semibold text-[#EA580C] hover:underline flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                  >
+                    <Settings2 className="size-3.5" /> Manage Cashback Rules in Profile
+                  </button>
                 </div>
               </div>
             </section>
