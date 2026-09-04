@@ -22,32 +22,32 @@ export default function CustomerForgotPasswordPage() {
 
     const router = useRouter();
 
-    // STEP 1: Send OTP via Dedicated Customer API
+    // STEP 1: Send OTP via Dedicated Customer API (Resend Integration)
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         setMessage('');
 
+        // Generate 6-digit random OTP
+        const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+
         try {
-            // Updated Endpoint: /api/customer/send-otp
             const response = await fetch('/api/customer/send-otp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email }),
+                body: JSON.stringify({ 
+                    email, 
+                    otp: generatedOtp 
+                }),
             });
 
             const data = await response.json();
 
             if (!response.ok) {
                 throw new Error(data.error || 'Failed to send OTP verification code.');
-            }
-
-            const receivedOtp = data?.data?.otp || data?.otp;
-            if (receivedOtp) {
-                alert(`[RETCACH SECURE OTP] Your OTP is: ${receivedOtp} (Valid for 5 minutes)`);
             }
 
             setMessage('Verification OTP has been sent to your email.');
