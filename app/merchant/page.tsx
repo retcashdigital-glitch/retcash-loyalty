@@ -31,6 +31,7 @@ export default function GlobalEntryPoint() {
     const [billAmount, setBillAmount] = useState('')
     const [actionLoading, setActionLoading] = useState(false)
 
+    // Target Visits setting state for merchant
     const [targetVisitsInput, setTargetVisitsInput] = useState('6')
     const [settingLoading, setSettingLoading] = useState(false)
     const [successMsg, setSuccessMsg] = useState(false)
@@ -47,7 +48,7 @@ export default function GlobalEntryPoint() {
                 setMerchantSession(parsed)
                 setTargetVisitsInput(String(Math.min(parsed.target_visits || 6, 10)))
             } catch (e) {
-                console.error('Invalid session format', e)
+                console.error(e)
             }
         }
 
@@ -90,6 +91,7 @@ export default function GlobalEntryPoint() {
         try {
             setLoading(true)
             setError('')
+
             const cleanPhone = formatPhoneNumber(phone)
 
             const { data: storeData } = await supabase
@@ -104,14 +106,16 @@ export default function GlobalEntryPoint() {
             }
 
             router.push(`/merchant/register?phone=${cleanPhone}`)
-        } catch (err) {
+
+        } catch (err: unknown) {
             console.error(err)
             setError('An unexpected error occurred. Please try again.')
-        } font-sans finally {
+        } finally {
             setLoading(false)
         }
     }
 
+    // 10-க்கு மேல் டைப் செய்தால் 10 ஆக மாற்றும் லாஜிக்
     const handleTargetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value
         if (val === '') {
@@ -155,9 +159,10 @@ export default function GlobalEntryPoint() {
             setSuccessMsg(true)
             setTimeout(() => setSuccessMsg(false), 3000)
         } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : 'Unknown error'
+            console.error(err)
+            const message = err instanceof Error ? err.message : JSON.stringify(err)
             alert('Failed to update target visits: ' + message)
-        } finally {
+        }  finally {
             setSettingLoading(false)
         }
     }
@@ -182,7 +187,9 @@ export default function GlobalEntryPoint() {
                         setIsScanning(false)
                         processScannedResult(decodedText)
                     },
-                    () => {}
+                    () => {
+                        // Ignore scanning frame errors
+                    }
                 )
             } catch (err) {
                 console.error('Camera start error:', err)
@@ -228,7 +235,7 @@ export default function GlobalEntryPoint() {
     const handleRedeemScannedReward = async () => {
         if (!scannedClaimData) return
 
-        if (!confirm(`Have you handed over the reward to customer (Phone: ${scannedClaimData.customer_phone})?`)) {
+        if (!confirm(`Have you handed over the reward to customer (Phone: ${scannedClaimData.customer_phone})? The reward balance of Rs. ${scannedClaimData.claimable_amount} will be reset to zero.`)) {
             return
         }
 
@@ -244,7 +251,7 @@ export default function GlobalEntryPoint() {
 
             if (error) throw error
 
-            alert('🎉 Reward successfully redeemed!')
+            alert('🎉 Reward successfully redeemed! Balance cleared and QR code will now disappear from the customer card.')
             setScannedClaimData(null)
         } catch (err) {
             console.error(err)
@@ -256,19 +263,28 @@ export default function GlobalEntryPoint() {
 
     const handleGenerateCashback = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!customerPhone || !billAmount || !merchantSession?.id) return
+        if (!customerPhone || !billAmount) {
+            return
+        }
 
         setActionLoading(true)
         try {
-            const cashbackPercentage = merchantSession.default_cashback_percent || 5
-            const targetVisits = Math.min(merchantSession.target_visits || 6, 10)
+            const cashbackPercentage = merchantSession?.default_cashback_percent || 5
+            const targetVisits = Math.min(merchantSession?.target_visits || 6, 10)
 
             const billNum = parseFloat(billAmount)
             const cashbackAmount = Math.round(((billNum * cashbackPercentage) / 100) * 100) / 100
 
             const cleanCustPhone = formatPhoneNumber(customerPhone)
-            const storeId = merchantSession.id
+            const storeId = merchantSession?.id
 
+            if (!storeId) {
+                alert('Merchant session not found. Please log in again.')
+                setActionLoading(false)
+                return
+            }
+
+            // 1. ஏற்கனவே உள்ள டேட்டாவைச் சரிபார்த்தல் (REDEEMED ஆகாதது)
             const { data: existingClaims } = await supabase
                 .from('cashback_claims')
                 .select('id, visit_count, claimable_amount, status')
@@ -279,16 +295,28 @@ export default function GlobalEntryPoint() {
 
             let newVisitCount = 1
             let totalClaimable = cashbackAmount
-            let claimId = existingClaims?.id
+            let claimId: string | undefined = undefined
 
             if (existingClaims) {
                 const currentVisits = existingClaims.visit_count || 1
                 newVisitCount = currentVisits >= targetVisits ? targetVisits : currentVisits + 1
                 totalClaimable = Math.round((Number(existingClaims.claimable_amount || 0) + cashbackAmount) * 100) / 100
+                claimId = existingClaims.id
             }
 
-            const payload = {
-                ...(claimId ? { id: claimId } : {}),
+            // 2. Supabase Upsert மூலம் Duplicate Error வராமல் தடுத்தல்
+            interface Payload {
+                id?: string
+                store_id: string
+                customer_phone: string
+                bill_amount: number
+                cashback_amount: number
+                claimable_amount: number
+                visit_count: number
+                status: string
+            }
+
+            const payload: Payload = {
                 store_id: storeId,
                 customer_phone: cleanCustPhone,
                 bill_amount: billNum,
@@ -298,17 +326,24 @@ export default function GlobalEntryPoint() {
                 status: newVisitCount >= targetVisits ? 'READY' : 'PENDING',
             }
 
+            if (claimId) {
+                payload.id = claimId
+            }
+
             const { data: upsertedData, error: upsertError } = await supabase
                 .from('cashback_claims')
-                .upsert(payload)
+                .upsert(payload, { onConflict: 'store_id, customer_phone' })
                 .select('id')
                 .single()
 
             if (upsertError) throw upsertError
-            if (upsertedData?.id) claimId = upsertedData.id
+            if (upsertedData && upsertedData.id) {
+                claimId = upsertedData.id
+            }
 
-            const cardLink = `${window.location.origin}/card/${claimId}`
-            const storeName = merchantSession.store_name || 'RETCASH Partner'
+            const baseUrl = window.location.origin
+            const cardLink = `${baseUrl}/card/${claimId}`
+            const storeName = merchantSession?.store_name || 'RETCASH Partner'
 
             const message = `🎉 *Retcash Rewards!*\n\nYour visit has been recorded successfully. 📍\n\n` +
                 `Store: *${storeName}*\n` +
@@ -322,18 +357,23 @@ export default function GlobalEntryPoint() {
 
             setCustomerPhone('')
             setBillAmount('')
-            
-            window.open(whatsappUrl, '_blank')
+            setActionLoading(false)
+
+            const opened = window.open(whatsappUrl, '_blank')
+            if (!opened) {
+                window.location.href = whatsappUrl
+            }
+
         } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : 'Unknown error'
+            console.error(err)
+            const message = err instanceof Error ? err.message : JSON.stringify(err)
             alert('Error processing cashback: ' + message)
-        } finally {
             setActionLoading(false)
         }
     }
 
     if (merchantSession) {
-        const targetVisits = Math.min(merchantSession.target_visits || 6, 10)
+        const targetVisits = Math.min(merchantSession?.target_visits || 6, 10)
 
         return (
             <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center p-4 font-sans selection:bg-[#FF6B00]">
@@ -354,6 +394,7 @@ export default function GlobalEntryPoint() {
                         </button>
                     </div>
 
+                    {/* Target Visits Settings Section */}
                     <div className="bg-[#0B0E14] p-4 rounded-2xl border border-gray-800 space-y-3">
                         <h2 className="text-xs font-bold text-[#FF6B00] uppercase">⚙️ Target Visits Settings</h2>
                         <p className="text-[10px] text-gray-400">Set how many visits a customer needs to unlock rewards (Max: 10):</p>
