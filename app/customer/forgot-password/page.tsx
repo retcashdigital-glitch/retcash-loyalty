@@ -22,15 +22,12 @@ export default function CustomerForgotPasswordPage() {
 
     const router = useRouter();
 
-    // STEP 1: Send OTP via Dedicated Customer API (Resend Integration)
+    // STEP 1: Send OTP via Secure Backend API
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         setMessage('');
-
-        // Generate 6-digit random OTP
-        const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
         try {
             const response = await fetch('/api/customer/send-otp', {
@@ -38,10 +35,7 @@ export default function CustomerForgotPasswordPage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
-                    email, 
-                    otp: generatedOtp 
-                }),
+                body: JSON.stringify({ email }), // OTP Backend-இல் உருவாக்கப்பட்டு DB & Email-க்கு அனுப்பப்படும்
             });
 
             const data = await response.json();
@@ -60,7 +54,7 @@ export default function CustomerForgotPasswordPage() {
         }
     };
 
-    // STEP 2: Verify OTP and Reset Password
+    // STEP 2: Verify OTP and Reset Password via Secure Backend
     const handleResetPassword = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
