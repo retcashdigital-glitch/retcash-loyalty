@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Wallet, Tag, User, Search, QrCode, ChevronRight, X, LogOut, Megaphone, Store } from 'lucide-react'
+import { Wallet, Tag, User, Search, QrCode, ChevronRight, X, LogOut, Megaphone, Maximize2 } from 'lucide-react'
 
 export default function CustomerWalletPage() {
     const params = useParams()
@@ -18,13 +18,13 @@ export default function CustomerWalletPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('All Stores')
     const [showQrModal, setShowQrModal] = useState(false)
+    const [selectedImage, setSelectedImage] = useState<string | null>(null)
     const [navigatingStoreId, setNavigatingStoreId] = useState<string | null>(null)
     const [isPending, startTransition] = useTransition()
 
     useEffect(() => {
         if (!phone) return;
 
-        // 1. லோக்கல் கேஷில் உள்ள தரவுகளை உடனே காட்டுதல்
         const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
         if (cachedData) {
             try {
@@ -43,7 +43,6 @@ export default function CustomerWalletPage() {
         fetchWalletAndClaimsData()
         fetchActiveOffers()
 
-        // 2. Supabase Realtime Listener setup (ரீஃப்ரெஷ் இல்லாமலே டேட்டா அப்டேட் ஆக)
         const channel = supabase
             .channel(`wallet_realtime_${phone}`)
             .on(
@@ -93,10 +92,8 @@ export default function CustomerWalletPage() {
                     (claim: any) => String(claim.store_id) === String(store.id)
                 ) || []
 
-                // சமீபத்திய Claim தரவைக் கண்டறிதல்
                 const latestClaim = storeClaims[0] || null
 
-                // Redeem செய்யப்பட்டதா அல்லது Claimable Amount 0-வா எனச் சரிபார்த்தல்
                 const isRedeemed = latestClaim
                     ? (latestClaim.status === 'REDEEMED' || Number(latestClaim.claimable_amount || 0) <= 0)
                     : false
@@ -138,7 +135,6 @@ export default function CustomerWalletPage() {
         }
     }
 
-    // ஆஃபர் பதிவிட்டுள்ள கடைகளின் ஆஃபர்களை மட்டும் எடுக்கும் லாஜிக்
     const fetchActiveOffers = async () => {
         try {
             setOffersLoading(true)
@@ -297,7 +293,6 @@ export default function CustomerWalletPage() {
                                             <div>
                                                 <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">CASHBACK BALANCE</p>
                                                 
-                                                {/* Redeem செய்யப்பட்டிருந்தால் REDEEMED Badge காட்டுவது */}
                                                 {store.isRedeemed ? (
                                                     <div className="flex items-center space-x-2 mt-1">
                                                         <span className="text-base font-bold text-slate-400 line-through">
@@ -369,13 +364,20 @@ export default function CustomerWalletPage() {
                                         </span>
                                     </div>
 
+                                    {/* POSTER WITH FULLSCREEN TRIGGER */}
                                     {offer.image_url && (
-                                        <div className="w-full h-44 bg-slate-100 rounded-2xl overflow-hidden border border-slate-100">
+                                        <div 
+                                            onClick={() => setSelectedImage(offer.image_url)}
+                                            className="relative w-full h-48 bg-slate-100 rounded-2xl overflow-hidden border border-slate-100 cursor-pointer group"
+                                        >
                                             <img 
                                                 src={offer.image_url} 
                                                 alt={offer.title} 
-                                                className="w-full h-full object-cover"
+                                                className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                                             />
+                                            <div className="absolute bottom-2 right-2 bg-slate-900/60 text-white p-1.5 rounded-lg backdrop-blur-xs group-hover:bg-[#EE8838] transition">
+                                                <Maximize2 className="w-3.5 h-3.5" />
+                                            </div>
                                         </div>
                                     )}
 
@@ -393,7 +395,7 @@ export default function CustomerWalletPage() {
                                         {offer.stores?.id && (
                                             <button
                                                 onClick={() => handleStoreClick(offer.stores.id)}
-                                                className="text-xs font-bold text-[#EE8838] hover:underline flex items-center space-x-1"
+                                                className="text-xs font-bold text-[#EE8838] hover:underline flex items-center space-x-1 cursor-pointer"
                                             >
                                                 <span>View Store Card</span>
                                                 <ChevronRight className="w-3.5 h-3.5" />
@@ -442,6 +444,28 @@ export default function CustomerWalletPage() {
                 )}
 
             </main>
+
+            {/* FULLSCREEN IMAGE MODAL */}
+            {selectedImage && (
+                <div 
+                    onClick={() => setSelectedImage(null)}
+                    className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 cursor-pointer animate-in fade-in duration-200"
+                >
+                    <div className="relative max-w-sm w-full bg-transparent p-2">
+                        <button
+                            onClick={() => setSelectedImage(null)}
+                            className="absolute -top-10 right-2 text-white bg-white/20 hover:bg-white/40 p-2 rounded-full outline-none transition cursor-pointer"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                        <img 
+                            src={selectedImage} 
+                            alt="Full Offer Poster" 
+                            className="w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl"
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* MY QR MODAL */}
             {showQrModal && (
