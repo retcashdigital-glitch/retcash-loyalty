@@ -452,13 +452,17 @@ export default function GlobalEntryPoint() {
             const cardLink = `${baseUrl}/card/${claimId}`
             const storeName = merchantSession?.store_name || 'RETCASH Partner'
 
-            const message = `🎉 *Retcash Rewards!*\n\nYour visit has been recorded successfully. 📍\n\n` +
-                `Store: *${storeName}*\n` +
-                `Bill Amount: Rs. ${billNum}\n` +
-                `Cashback Earned (${cashbackPercentage}%): Rs. ${cashbackAmount}\n` +
-                `Visit Count: ${newVisitCount} / ${targetVisits}\n\n` +
-                `✨ Keep visiting to unlock your exclusive cashback rewards.\n\n` +
-                `👉 Tap below to view your digital card, live balance & cashback details:\n${cardLink}`
+            // ==========================================
+            // வாடிக்கையாளருக்கு அனுப்பப்படும் WhatsApp குறுஞ்செய்தி வடிவம் (Template)
+            // ==========================================
+            const message = `🎉 *Retcash Rewards - ${storeName}*\n\n` +
+                `உங்களின் வருகை வெற்றிகரமாகப் பதிவு செய்யப்பட்டுள்ளது! 📍\n\n` +
+                `🛍️ பில் தொகை: *Rs. ${billNum}*\n` +
+                `💰 பெற்ற காஷ்பேக் (${cashbackPercentage}%): *Rs. ${cashbackAmount}*\n` +
+                `⭐ வருகை எண்ணிக்கை (Visits): *${newVisitCount} / ${targetVisits}*\n\n` +
+                `🎁 தற்போதைய மொத்த காஷ்பேக் இருப்பு (Balance): *Rs. ${totalClaimable}*\n\n` +
+                `✨ தொடர்ந்து வருகை தந்து உங்களின் பிரத்யேக வெகுமதிகளைப் பெறுங்கள்!\n\n` +
+                `👉 உங்களின் டிஜிட்டல் கார்டு, நேரலை இருப்பு (Live Balance) மற்றும் காஷ்பேக் விவரங்களைக் காண கீழே உள்ள லிங்கை அழுத்தவும்:\n${cardLink}`
 
             const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${encodeURIComponent(message)}`
 
