@@ -8,8 +8,13 @@ import { Wallet, Tag, User, Search, QrCode, ChevronRight, X, LogOut, Megaphone, 
 export default function CustomerWalletPage() {
     const params = useParams()
     const router = useRouter()
-    const phone = params.phone as string
+    const rawPhone = params.phone as string
 
+    // Phone Normalization Logic
+    const phone = rawPhone ? (rawPhone.startsWith('94') ? rawPhone : `94${rawPhone.replace(/^0/, '')}`) : ''
+
+    const [customerName, setCustomerName] = useState<string>('')
+    const [customerEmail, setCustomerEmail] = useState<string>('')
     const [activeTab, setActiveTab] = useState<'wallet' | 'offers' | 'profile'>('wallet')
     const [loading, setLoading] = useState(true)
     const [stores, setStores] = useState<any[]>([])
@@ -22,10 +27,17 @@ export default function CustomerWalletPage() {
     const [navigatingStoreId, setNavigatingStoreId] = useState<string | null>(null)
     const [isPending, startTransition] = useTransition()
 
+    // 1. SESSION GUARD & INITIALIZATION
     useEffect(() => {
         if (!phone) return;
 
+        // Check Local Storage Session Guard
+        const session = localStorage.getItem(`retcash_wallet_session_${phone}`)
         const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
+
+        // Fetch Customer Profile (Full Name & Email)
+        fetchCustomerDetails()
+
         if (cachedData) {
             try {
                 const parsed = JSON.parse(cachedData)
@@ -64,6 +76,25 @@ export default function CustomerWalletPage() {
         }
     }, [phone])
 
+    // 2. FETCH CUSTOMER NAME
+    const fetchCustomerDetails = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('customers')
+                .select('full_name, email')
+                .or(`phone_number.eq.${phone},phone_number.eq.${phone.replace(/^94/, '0')}`)
+                .maybeSingle()
+
+            if (data) {
+                if (data.full_name) setCustomerName(data.full_name)
+                if (data.email) setCustomerEmail(data.email)
+            }
+        } catch (err) {
+            console.error('Error fetching customer profile:', err)
+        }
+    }
+
+    // 3. FETCH WALLET DATA (FILTERED BY CUSTOMER STORES ONLY)
     const fetchWalletAndClaimsData = async () => {
         try {
             const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
@@ -71,23 +102,37 @@ export default function CustomerWalletPage() {
                 setLoading(true)
             }
 
-            const { data: allStores, error: storeError } = await supabase
-                .from('stores')
-                .select('*')
-
-            if (storeError) throw storeError
-
+            // Step A: Get cashback claims for THIS specific customer
             const { data: claimsData, error: claimsError } = await supabase
                 .from('cashback_claims')
                 .select('*')
-                .eq('customer_phone', phone)
+                .or(`customer_phone.eq.${phone},customer_phone.eq.${phone.replace(/^94/, '0')}`)
                 .order('updated_at', { ascending: false })
 
-            if (claimsError) {
-                console.error('Error fetching claims:', claimsError)
+            if (claimsError) throw claimsError
+
+            // Extract unique store IDs where customer has interacted
+            const customerStoreIds = Array.from(
+                new Set((claimsData || []).map((claim: any) => String(claim.store_id)).filter(Boolean))
+            )
+
+            if (customerStoreIds.length === 0) {
+                setStores([])
+                localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify([]))
+                setLoading(false)
+                return
             }
 
-            const mergedStores = allStores?.map((store: any) => {
+            // Step B: Fetch store details ONLY for stores where customer has claims/cards
+            const { data: userStores, error: storeError } = await supabase
+                .from('stores')
+                .select('*')
+                .in('id', customerStoreIds)
+
+            if (storeError) throw storeError
+
+            // Step C: Merge Claims and Store Data
+            const mergedStores = userStores?.map((store: any) => {
                 const storeClaims = claimsData?.filter(
                     (claim: any) => String(claim.store_id) === String(store.id)
                 ) || []
@@ -171,6 +216,12 @@ export default function CustomerWalletPage() {
         })
     }
 
+    const handleLogout = () => {
+        localStorage.removeItem(`wallet_cache_${phone}`)
+        localStorage.removeItem(`retcash_wallet_session_${phone}`)
+        router.push('/customer/login')
+    }
+
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${phone}`;
 
     const formatPhoneNumber = (num: string) => {
@@ -210,7 +261,11 @@ export default function CustomerWalletPage() {
                                         <span className="font-black text-lg tracking-wider text-[#0F172A]">RET<span className="text-[#EE8838]">CASH</span></span>
                                     </div>
                                     <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider pt-2">WELCOME BACK</p>
-                                    <h1 className="text-xl font-black text-[#0F172A]">{formatPhoneNumber(phone)}</h1>
+                                    
+                                    {/* SHOW CUSTOMER NAME INSTEAD OF PHONE NUMBER */}
+                                    <h1 className="text-xl font-black text-[#0F172A]">
+                                        {customerName ? customerName : formatPhoneNumber(phone)}
+                                    </h1>
                                 </div>
                             </div>
 
@@ -252,7 +307,8 @@ export default function CustomerWalletPage() {
                             <div className="text-center py-12 text-slate-400 text-xs font-medium">Loading wallet data...</div>
                         ) : filteredStores.length === 0 ? (
                             <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-xs">
-                                <p className="text-xs text-slate-500">No stores found in your wallet yet.</p>
+                                <p className="text-xs text-slate-500 font-medium">No active store cards found in your wallet.</p>
+                                <p className="text-[11px] text-slate-400">Scan a store QR code to get your first loyalty card.</p>
                             </div>
                         ) : (
                             filteredStores.map((store, index) => {
@@ -422,17 +478,19 @@ export default function CustomerWalletPage() {
                                     <User className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <p className="text-xs text-slate-400 font-bold">Phone Number</p>
-                                    <p className="text-base font-extrabold text-[#0F172A]">{formatPhoneNumber(phone)}</p>
+                                    <h3 className="text-base font-extrabold text-[#0F172A]">
+                                        {customerName || 'Customer'}
+                                    </h3>
+                                    <p className="text-xs text-slate-400 font-medium">{formatPhoneNumber(phone)}</p>
+                                    {customerEmail && (
+                                        <p className="text-[11px] text-slate-400 font-normal pt-0.5">{customerEmail}</p>
+                                    )}
                                 </div>
                             </div>
 
                             <div className="space-y-2">
                                 <button
-                                    onClick={() => {
-                                        localStorage.removeItem(`wallet_cache_${phone}`)
-                                        router.push('/customer/login')
-                                    }}
+                                    onClick={handleLogout}
                                     className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3.5 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition outline-none cursor-pointer shadow-xs"
                                 >
                                     <LogOut className="w-4 h-4" />
