@@ -158,17 +158,17 @@ export default function SingleCardPage() {
         )
     }
 
-    // வேறு ஒருவரின் கார்டைத் திறக்க முயன்றால் காட்டும் பாதுகாப்புத் திரை
+    // Professional English UI for Access Denied Screen
     if (accessDenied) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center items-center p-6 text-center space-y-4">
-                <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center font-bold text-xl">
+                <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center font-bold text-xl shadow-xs">
                     ✕
                 </div>
-                <div className="space-y-1">
-                    <h3 className="text-sm font-bold text-slate-800">அணுகல் மறுக்கப்பட்டது</h3>
-                    <p className="text-xs text-slate-500 max-w-xs">
-                        இந்த டிஜிட்டல் கார்டு வேறு ஒரு வாடிக்கையாளருக்குரியது. உங்களது கார்டுகளைக் காண உங்களது வாலட்டிற்குச் செல்லவும்.
+                <div className="space-y-1.5 max-w-xs">
+                    <h3 className="text-sm font-bold text-slate-800 tracking-tight">Access Denied</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                        This digital card belongs to another customer. Please return to your wallet to view your personal loyalty cards.
                     </p>
                 </div>
                 <button 
@@ -176,9 +176,9 @@ export default function SingleCardPage() {
                         const storedPhone = localStorage.getItem('retcash_phone') || ''
                         router.push(storedPhone ? `/wallet/${storedPhone}` : '/customer/login')
                     }}
-                    className="px-5 py-2.5 bg-[#EE8838] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer active:scale-95 transition-all"
+                    className="px-5 py-2.5 bg-[#EE8838] hover:bg-[#d8772a] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer active:scale-95 transition-all"
                 >
-                    எனது வாலட்டிற்குச் செல்
+                    Go to My Wallet
                 </button>
             </div>
         )
@@ -187,7 +187,7 @@ export default function SingleCardPage() {
     if (!claim) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center items-center p-4 space-y-3">
-                <p className="text-xs font-bold text-slate-500">கார்டு விபரங்கள் கிடைக்கவில்லை.</p>
+                <p className="text-xs font-bold text-slate-500">Card details not found.</p>
                 <button 
                     onClick={() => {
                         const storedPhone = localStorage.getItem('retcash_phone') || ''
@@ -195,7 +195,7 @@ export default function SingleCardPage() {
                     }}
                     className="px-4 py-2 bg-[#EE8838] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
                 >
-                    வாலட்டிற்கு திரும்பச் செல்
+                    Back to Wallet
                 </button>
             </div>
         )
