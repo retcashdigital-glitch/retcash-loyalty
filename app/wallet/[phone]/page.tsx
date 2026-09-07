@@ -10,6 +10,9 @@ export default function CustomerWalletPage() {
     const router = useRouter()
     const rawPhone = params.phone as string
 
+    // Auth Verification State (Default: true)
+    const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+
     // Phone Normalization Logic
     const phone = rawPhone ? (rawPhone.startsWith('94') ? rawPhone : `94${rawPhone.replace(/^0/, '')}`) : ''
 
@@ -39,6 +42,9 @@ export default function CustomerWalletPage() {
             router.replace('/customer/login')
             return
         }
+
+        // Session சரிபார்க்கப்பட்ட பின் மட்டுமே Wallet UI காட்டப்படும்
+        setIsCheckingAuth(false)
 
         const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
 
@@ -248,6 +254,15 @@ export default function CustomerWalletPage() {
         const matchesSearch = store.store_name?.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesSearch
     })
+
+    // AUTH CHECKING LOADING SCREEN (Prevents UI Flash)
+    if (isCheckingAuth) {
+        return (
+            <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
+                <div className="w-10 h-10 border-3 border-slate-200 border-t-[#EE8838] rounded-full animate-spin"></div>
+            </div>
+        )
+    }
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col pb-24 font-sans selection:bg-[#EE8838]">
