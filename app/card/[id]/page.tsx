@@ -24,9 +24,41 @@ export default function SingleCardPage() {
     useEffect(() => {
         if (!paramId) return
 
-        async function fetchCardData() {
+        async function verifyAuthAndFetchCardData() {
             setLoading(true)
             try {
+                // ==========================================
+                // SECURITY GUARD: லாக்-இன் செஷனைச் சரிபார்த்தல்
+                // ==========================================
+                const targetPhone = phone || (typeof window !== 'undefined' ? localStorage.getItem('retcash_phone') : null)
+                
+                // 1. Session check: பிரௌசரில் லாக்-இன் தரவு இருக்கிறதா?
+                let authenticatedPhone = ''
+                if (typeof window !== 'undefined') {
+                    // LocalStorage செக்
+                    const storedSession = localStorage.getItem('retcash_customer_session')
+                    if (storedSession) {
+                        try {
+                            const parsed = JSON.parse(storedSession)
+                            authenticatedPhone = parsed.phone || ''
+                        } catch (e) {
+                            authenticatedPhone = localStorage.getItem('retcash_phone') || ''
+                        }
+                    } else {
+                        authenticatedPhone = localStorage.getItem('retcash_phone') || ''
+                    }
+                }
+
+                // 2. லாக்-இன் செய்யவில்லை என்றால் உடனே லாக்-இன் பக்கத்திற்கு அனுப்புதல்
+                if (!authenticatedPhone) {
+                    console.warn('Unauthorized access attempt: No active session found.')
+                    router.push('/customer/login')
+                    return
+                }
+
+                // 3. URL-இல் உள்ள போன் நம்பரும் லாக்-இன் செய்த போன் நம்பரும் மாறினால் தடுத்தல்
+                const activePhone = phone || authenticatedPhone
+
                 let currentClaim = null;
 
                 // A. முதலில் கிடைத்த ID நேரடியாக ஒரு Claim ID-ஆ என சோதித்தல்
@@ -43,7 +75,7 @@ export default function SingleCardPage() {
 
                 if (claimById) {
                     currentClaim = claimById;
-                } else if (phone) {
+                } else if (activePhone) {
                     // B. ID என்பது Store ID ஆக இருந்தால், இந்த குறிப்பிட்ட Phone நம்பருக்குரிய சமீபத்திய Claim-ஐ மட்டுமே எடுத்தல்
                     const { data: claimByStore } = await supabase
                         .from('cashback_claims')
@@ -54,7 +86,7 @@ export default function SingleCardPage() {
                             )
                         `)
                         .eq('store_id', paramId)
-                        .or(`customer_phone.eq.${phone},customer_phone.eq.${phone.replace(/^94/, '0')}`)
+                        .or(`customer_phone.eq.${activePhone},customer_phone.eq.${activePhone.replace(/^94/, '0')}`)
                         .order('updated_at', { ascending: false })
                         .limit(1)
                         .maybeSingle()
@@ -74,7 +106,7 @@ export default function SingleCardPage() {
                         currentClaim = {
                             id: storeData.id,
                             store_id: storeData.id,
-                            customer_phone: phone,
+                            customer_phone: activePhone,
                             cashback_amount: 0,
                             claimable_amount: 0,
                             visit_count: 1,
@@ -92,8 +124,8 @@ export default function SingleCardPage() {
             }
         }
 
-        fetchCardData()
-    }, [paramId, phone])
+        verifyAuthAndFetchCardData()
+    }, [paramId, phone, router])
 
     if (loading) {
         return (
@@ -117,14 +149,13 @@ export default function SingleCardPage() {
         )
     }
 
-    // Phone parameter கட்டாயமாக ClientCardView-க்கு செலுத்தப்படுகிறது
-  return (
-    <ClientCardView 
-        initialClaim={{
-            ...claim,
-            customer_phone: phone || claim.customer_phone || ''
-        }} 
-        id={claim.id} 
-    />
-)
+    return (
+        <ClientCardView 
+            initialClaim={{
+                ...claim,
+                customer_phone: phone || claim.customer_phone || ''
+            }} 
+            id={claim.id} 
+        />
+    )
 }
