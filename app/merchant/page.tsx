@@ -5,10 +5,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode'
 import {
-  ArrowUpRight,
   CalendarDays,
   ChevronRight,
-  CircleHelp,
   LogOut,
   MessageCircle,
   Phone,
@@ -65,6 +63,7 @@ export default function GlobalEntryPoint() {
 
   // Merchant session & core action states
   const [merchantSession, setMerchantSession] = useState<MerchantSession | null>(null)
+  const [isVerifyingSession, setIsVerifyingSession] = useState(true)
   const [customerPhone, setCustomerPhone] = useState('')
   const [billAmount, setBillAmount] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
@@ -117,20 +116,52 @@ export default function GlobalEntryPoint() {
     }, 3500)
   }
 
+  // HARDENED SESSION VERIFICATION
   useEffect(() => {
-    const savedMerchant = localStorage.getItem('retcash_merchant')
-    if (savedMerchant) {
-      try {
-        const parsed: MerchantSession = JSON.parse(savedMerchant)
-        setMerchantSession(parsed)
-        setTargetVisitsInput(String(Math.min(parsed.target_visits || 6, 10)))
-        setCashbackPercentInput(String(parsed.default_cashback_percent ?? 5))
-        fetchStoreOffers(parsed.id)
-        fetchStoreCustomers(parsed.id)
-      } catch (e) {
-        console.error(e)
+    async function verifyMerchantSession() {
+      setIsVerifyingSession(true)
+      const savedMerchant = localStorage.getItem('retcash_merchant')
+      
+      if (savedMerchant) {
+        try {
+          const parsed: MerchantSession = JSON.parse(savedMerchant)
+          
+          // Verify with database if this merchant store actually exists
+          const { data: realStore, error: storeErr } = await supabase
+            .from('stores')
+            .select('id, store_name, phone_number, default_cashback_percent, target_visits')
+            .eq('id', parsed.id)
+            .maybeSingle()
+
+          if (storeErr || !realStore) {
+            console.warn('Unauthorized or invalid local session detected.')
+            localStorage.removeItem('retcash_merchant')
+            setMerchantSession(null)
+          } else {
+            const verifiedSession: MerchantSession = {
+              id: realStore.id,
+              store_name: realStore.store_name,
+              phone_number: realStore.phone_number,
+              default_cashback_percent: realStore.default_cashback_percent ?? 5,
+              target_visits: realStore.target_visits ?? 6
+            }
+            setMerchantSession(verifiedSession)
+            localStorage.setItem('retcash_merchant', JSON.stringify(verifiedSession))
+            setTargetVisitsInput(String(Math.min(verifiedSession.target_visits || 6, 10)))
+            setCashbackPercentInput(String(verifiedSession.default_cashback_percent ?? 5))
+            fetchStoreOffers(verifiedSession.id)
+            fetchStoreCustomers(verifiedSession.id)
+          }
+        } catch (e) {
+          console.error('Session Parsing Error', e)
+          localStorage.removeItem('retcash_merchant')
+          setMerchantSession(null)
+        }
       }
+      setIsVerifyingSession(false)
     }
+
+    verifyMerchantSession()
 
     return () => {
       stopScannerInstance()
@@ -453,7 +484,7 @@ export default function GlobalEntryPoint() {
   }
 
   const executeRedeemReward = async () => {
-    if (!scannedClaimData) return
+    if (!scannedClaimData || actionLoading) return
 
     setActionLoading(true)
     try {
@@ -464,6 +495,7 @@ export default function GlobalEntryPoint() {
           status: 'REDEEMED',
         })
         .eq('id', scannedClaimData.id)
+        .eq('store_id', merchantSession!.id) // Strict store lock
 
       if (error) throw error
 
@@ -482,7 +514,7 @@ export default function GlobalEntryPoint() {
 
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!customerPhone || !billAmount) return
+    if (!customerPhone || !billAmount || actionLoading) return
 
     setActionLoading(true)
     try {
@@ -573,7 +605,6 @@ export default function GlobalEntryPoint() {
 
       setCustomerPhone('')
       setBillAmount('')
-      setActionLoading(false)
       fetchStoreCustomers(storeId)
 
       const opened = window.open(whatsappUrl, '_blank')
@@ -585,6 +616,7 @@ export default function GlobalEntryPoint() {
       console.error(err)
       const message = err instanceof Error ? err.message : JSON.stringify(err)
       showToast('error', 'Error processing cashback: ' + message)
+    } finally {
       setActionLoading(false)
     }
   }
@@ -594,6 +626,14 @@ export default function GlobalEntryPoint() {
     { id: 'offers', label: 'Store Offers', icon: Upload },
     { id: 'customers', label: 'Customers', icon: Users },
   ]
+
+  if (isVerifyingSession) {
+    return (
+      <div className="min-h-screen bg-[#F1F5F9] flex flex-col items-center justify-center p-4">
+        <div className="w-8 h-8 border-3 border-slate-200 border-t-[#EA580C] rounded-full animate-spin"></div>
+      </div>
+    )
+  }
 
   // LOGGED IN DASHBOARD VIEW
   if (merchantSession) {
@@ -645,7 +685,7 @@ export default function GlobalEntryPoint() {
           </div>
         )}
 
-        {/* REDEEM REWARD CONFIRMATION MODAL (Replaces Native confirm()) */}
+        {/* REDEEM REWARD CONFIRMATION MODAL */}
         {showRedeemConfirmModal && scannedClaimData && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-xs w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95">
@@ -669,7 +709,7 @@ export default function GlobalEntryPoint() {
                 <button
                   onClick={executeRedeemReward}
                   disabled={actionLoading}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md cursor-pointer"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md cursor-pointer disabled:opacity-50"
                 >
                   {actionLoading ? 'Processing...' : 'Confirm & Reset'}
                 </button>
@@ -821,7 +861,6 @@ export default function GlobalEntryPoint() {
             </div>
             
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Store Profile Button */}
               <button
                 onClick={() => setIsProfileOpen(true)}
                 className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition cursor-pointer"
@@ -831,7 +870,6 @@ export default function GlobalEntryPoint() {
                 <span className="hidden sm:inline">Store Profile</span>
               </button>
 
-              {/* Logout Button */}
               <button
                 onClick={() => {
                   localStorage.removeItem('retcash_merchant')
@@ -848,7 +886,6 @@ export default function GlobalEntryPoint() {
 
         <main className="mx-auto max-w-7xl px-4 py-6 sm:px-5 sm:py-8 lg:px-8 lg:py-10">
           
-          {/* TITLE & HEADER BANNER */}
           <div className="mb-6 flex items-start justify-between gap-3">
             <div>
               <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#EA580C]">
@@ -859,7 +896,6 @@ export default function GlobalEntryPoint() {
             </div>
           </div>
 
-          {/* TAB NAVIGATION */}
           <nav aria-label="Merchant dashboard sections" className="mb-6 border-b border-slate-200">
             <div className="grid grid-cols-3 gap-1" role="tablist">
               {tabs.map(({ id, label, icon: Icon }) => (
@@ -883,10 +919,8 @@ export default function GlobalEntryPoint() {
             </div>
           </nav>
 
-          {/* TAB 1: QUICK BILLING & SCANNER */}
           {activeTab === 'billing' && (
             <section className="grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
-              {/* CASHBACK TRANSACTION FORM */}
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
                 <div className="mb-7 flex items-start justify-between">
                   <div>
@@ -935,7 +969,7 @@ export default function GlobalEntryPoint() {
                   <button
                     type="submit"
                     disabled={actionLoading}
-                    className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#EA580C] hover:bg-[#d64e05] px-4 text-xs font-bold text-white shadow-md hover:shadow-lg transition cursor-pointer"
+                    className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#EA580C] hover:bg-[#d64e05] px-4 text-xs font-bold text-white shadow-md hover:shadow-lg transition cursor-pointer disabled:opacity-50"
                   >
                     <MessageCircle className="size-4" />
                     {actionLoading ? 'Processing...' : 'Add cashback & send WhatsApp'}
@@ -952,7 +986,6 @@ export default function GlobalEntryPoint() {
                 </button>
               </div>
 
-              {/* TODAY'S OVERVIEW (CLEAN STATS CARD) */}
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7 flex flex-col justify-between">
                 <div>
                   <div className="mb-6 flex items-center justify-between">
@@ -973,7 +1006,7 @@ export default function GlobalEntryPoint() {
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                       <WalletCards className="mb-4 size-4 text-emerald-600" />
-                      <p className="font-mono text-2xl font-bold text-slate-900">Rs. {totalClaimableSum}</p>
+                      <p className="font-mono text-2xl font-bold text-slate-900">Rs. {totalClaimableSum.toFixed(2)}</p>
                       <p className="mt-1 text-[11px] font-medium text-slate-500">Total Cashback Claimable</p>
                     </div>
                   </div>
@@ -991,7 +1024,6 @@ export default function GlobalEntryPoint() {
             </section>
           )}
 
-          {/* TAB 2: STORE OFFERS */}
           {activeTab === 'offers' && (
             <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
@@ -1062,7 +1094,7 @@ export default function GlobalEntryPoint() {
                   <button
                     type="submit"
                     disabled={offerUploading}
-                    className="mt-2 h-11 w-full rounded-lg bg-[#EA580C] hover:bg-[#d64e05] text-xs font-bold text-white shadow-md transition cursor-pointer"
+                    className="mt-2 h-11 w-full rounded-lg bg-[#EA580C] hover:bg-[#d64e05] text-xs font-bold text-white shadow-md transition cursor-pointer disabled:opacity-50"
                   >
                     {offerUploading ? 'Uploading...' : 'Publish offer to customers'}
                   </button>
@@ -1109,7 +1141,6 @@ export default function GlobalEntryPoint() {
             </section>
           )}
 
-          {/* TAB 3: CUSTOMERS DIRECTORY */}
           {activeTab === 'customers' && (
             <section className="max-w-3xl">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
@@ -1162,7 +1193,6 @@ export default function GlobalEntryPoint() {
 
         </main>
 
-        {/* LIVE CAMERA QR SCANNER MODAL */}
         {isScanning && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-5" role="dialog" aria-modal="true">
             <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl space-y-4">
@@ -1195,7 +1225,7 @@ export default function GlobalEntryPoint() {
                     <button
                       onClick={() => setShowRedeemConfirmModal(true)}
                       disabled={actionLoading}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs mt-2 transition cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs mt-2 transition cursor-pointer shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
                     >
                       🎁 Redeem Reward & Clear Cashback
                     </button>
@@ -1214,7 +1244,6 @@ export default function GlobalEntryPoint() {
     )
   }
 
-  // NON-LOGGED IN STATE
   return (
     <div className="min-h-screen bg-[#F1F5F9] text-slate-900 flex flex-col items-center justify-center p-4 font-sans selection:bg-[#EA580C] selection:text-white">
       <div className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl p-6 shadow-xl space-y-6">
