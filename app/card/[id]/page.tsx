@@ -20,6 +20,7 @@ export default function SingleCardPage() {
 
     const [claim, setClaim] = useState<any>(null)
     const [loading, setLoading] = useState(true)
+    const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
 
     useEffect(() => {
         if (!paramId) return
@@ -28,7 +29,7 @@ export default function SingleCardPage() {
             setLoading(true)
             try {
                 // ==========================================
-                // DYNAMIC AUTH GUARD: அனைத்து லாக்-இன் சாவிகளையும் சரிபார்த்தல்
+                // STRICT AUTH GUARD: லாக்-இன் செஷனை முதலில் சரிபார்த்தல்
                 // ==========================================
                 let authenticatedPhone = ''
 
@@ -53,13 +54,14 @@ export default function SingleCardPage() {
                     }
                 }
 
-                // லாக்-இன் செய்யவில்லை என்றால் மட்டுமே லாக்-இன் பக்கத்திற்கு அனுப்புதல்
+                // லாக்-இன் செய்யவில்லை என்றால் UI காட்டாமல் உடனடியாக விரட்டுதல்
                 if (!authenticatedPhone) {
-                    console.warn('Unauthorized access attempt: No active session found.')
-                    router.push('/customer/login')
+                    setIsAuthorized(false)
+                    router.replace('/customer/login')
                     return
                 }
 
+                setIsAuthorized(true)
                 const activePhone = phone || authenticatedPhone
                 let currentClaim = null;
 
@@ -129,7 +131,8 @@ export default function SingleCardPage() {
         verifyAuthAndFetchCardData()
     }, [paramId, phone, router])
 
-    if (loading) {
+    // லாக்-இன் உறுதிசெய்யப்படும் வரை அல்லது லோடிங் முடியும் வரை வெற்று லோடிங் திரையை மட்டுமே காட்டுதல் (No UI Leakage/Glitch)
+    if (loading || isAuthorized === false || isAuthorized === null) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
                 <div className="w-8 h-8 border-3 border-slate-200 border-t-[#EE8838] rounded-full animate-spin"></div>
