@@ -10,10 +10,7 @@ export default function CustomerWalletPage() {
     const router = useRouter()
     const rawPhone = params.phone as string
 
-    // Auth Verification State (Default: true)
     const [isCheckingAuth, setIsCheckingAuth] = useState(true)
-
-    // Phone Normalization Logic
     const phone = rawPhone ? (rawPhone.startsWith('94') ? rawPhone : `94${rawPhone.replace(/^0/, '')}`) : ''
 
     const [customerName, setCustomerName] = useState<string>('')
@@ -28,15 +25,13 @@ export default function CustomerWalletPage() {
     const [showQrModal, setShowQrModal] = useState(false)
     const [selectedImage, setSelectedImage] = useState<string | null>(null)
     const [navigatingStoreId, setNavigatingStoreId] = useState<string | null>(null)
-    const [isPending, startTransition] = useTransition()
+    const [, startTransition] = useTransition()
 
-    // 1. ROUTE GUARD & SESSION VERIFICATION
     useEffect(() => {
         if (!phone) return;
 
-        // Session Verification Check
+        // 1. ROUTE GUARD & SESSION VERIFICATION
         const session = localStorage.getItem(`retcash_wallet_session_${phone}`)
-        
         if (!session) {
             router.replace('/customer/login')
             return
@@ -44,33 +39,33 @@ export default function CustomerWalletPage() {
 
         setIsCheckingAuth(false)
 
-        // Cache-இல் இருந்து பெயர் மற்றும் கார்டுகளை எடுத்தல் (Flash-ஐத் தவிர்க்க)
+        // Cache-இல் இருந்து பெயர் மற்றும் கார்டுகளை எடுத்தல்
         const cachedName = localStorage.getItem(`customer_name_${phone}`)
         if (cachedName) {
             setCustomerName(cachedName)
         }
 
         const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
-
-        fetchCustomerDetails()
-
         if (cachedData) {
             try {
                 const parsed = JSON.parse(cachedData)
-                setStores(parsed)
-                setLoading(false)
-                
-                parsed.forEach((s: any) => {
-                    router.prefetch(`/card/${s.id}?phone=${phone}`)
-                })
+                if (Array.isArray(parsed)) {
+                    setStores(parsed)
+                    setLoading(false)
+                    parsed.forEach((s: any) => {
+                        router.prefetch(`/card/${s.id}?phone=${phone}`)
+                    })
+                }
             } catch (e) {
-                console.error('Error parsing cache:', e)
+                console.error('Error parsing wallet cache:', e)
             }
         }
 
+        fetchCustomerDetails()
         fetchWalletAndClaimsData()
         fetchActiveOffers()
 
+        // Realtime listener
         const channel = supabase
             .channel(`wallet_realtime_${phone}`)
             .on(
@@ -92,10 +87,9 @@ export default function CustomerWalletPage() {
         }
     }, [phone, router])
 
-    // 2. FETCH CUSTOMER NAME WITH CACHING
     const fetchCustomerDetails = async () => {
         try {
-            const { data, error } = await supabase
+            const { data } = await supabase
                 .from('customers')
                 .select('full_name, email')
                 .or(`phone_number.eq.${phone},phone_number.eq.${phone.replace(/^94/, '0')}`)
@@ -113,7 +107,6 @@ export default function CustomerWalletPage() {
         }
     }
 
-    // 3. FETCH WALLET DATA
     const fetchWalletAndClaimsData = async () => {
         try {
             const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
@@ -185,8 +178,11 @@ export default function CustomerWalletPage() {
                 }
             }) || []
 
-            setStores(mergedStores)
-            localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(mergedStores))
+            // கிளிச்சைத் தவிர்த்து தரவு மாறியிருந்தால் மட்டும் Update செய்தல்
+            if (JSON.stringify(mergedStores) !== cachedData) {
+                setStores(mergedStores)
+                localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(mergedStores))
+            }
 
         } catch (err) {
             console.error('Error in fetching wallet data:', err)
@@ -223,9 +219,7 @@ export default function CustomerWalletPage() {
 
     const handleStoreClick = (storeId: string) => {
         if (!storeId || navigatingStoreId) return;
-        
         setNavigatingStoreId(storeId);
-        
         startTransition(() => {
             router.push(`/card/${storeId}?phone=${phone}`);
         })
@@ -253,8 +247,7 @@ export default function CustomerWalletPage() {
     }
 
     const filteredStores = stores.filter(store => {
-        const matchesSearch = store.store_name?.toLowerCase().includes(searchQuery.toLowerCase())
-        return matchesSearch
+        return store.store_name?.toLowerCase().includes(searchQuery.toLowerCase())
     })
 
     if (isCheckingAuth) {
@@ -267,10 +260,7 @@ export default function CustomerWalletPage() {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col pb-24 font-sans selection:bg-[#EE8838]">
-
             <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5">
-
-                {/* WALLET TAB */}
                 {activeTab === 'wallet' && (
                     <>
                         <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs space-y-4 mt-2">
@@ -285,8 +275,6 @@ export default function CustomerWalletPage() {
                                         <span className="font-black text-lg tracking-wider text-[#0F172A]">RET<span className="text-[#EE8838]">CASH</span></span>
                                     </div>
                                     <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider pt-2">WELCOME BACK</p>
-                                    
-                                    {/* FIX FOR NAME/PHONE GLITCH */}
                                     <h1 className="text-xl font-black text-[#0F172A]">
                                         {customerName ? (
                                             customerName
@@ -394,7 +382,6 @@ export default function CustomerWalletPage() {
                                         <div className="pt-3 border-t border-slate-100 flex items-end justify-between">
                                             <div>
                                                 <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">CASHBACK BALANCE</p>
-                                                
                                                 {store.isRedeemed ? (
                                                     <div className="flex items-center space-x-2 mt-1">
                                                         <span className="text-base font-bold text-slate-400 line-through">
@@ -430,7 +417,6 @@ export default function CustomerWalletPage() {
                     </>
                 )}
 
-                {/* OFFERS TAB */}
                 {activeTab === 'offers' && (
                     <div className="space-y-4 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
@@ -509,7 +495,6 @@ export default function CustomerWalletPage() {
                     </div>
                 )}
 
-                {/* PROFILE TAB */}
                 {activeTab === 'profile' && (
                     <div className="space-y-5 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
@@ -545,10 +530,8 @@ export default function CustomerWalletPage() {
                         </div>
                     </div>
                 )}
-
             </main>
 
-            {/* FULLSCREEN IMAGE MODAL */}
             {selectedImage && (
                 <div 
                     onClick={() => setSelectedImage(null)}
@@ -570,7 +553,6 @@ export default function CustomerWalletPage() {
                 </div>
             )}
 
-            {/* MY QR MODAL */}
             {showQrModal && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
                     <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-xl relative animate-in fade-in zoom-in duration-200">
@@ -597,7 +579,6 @@ export default function CustomerWalletPage() {
                 </div>
             )}
 
-            {/* BOTTOM NAVIGATION */}
             <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2 px-6 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-lg">
                 <button
                     onClick={() => setActiveTab('wallet')}
@@ -631,7 +612,6 @@ export default function CustomerWalletPage() {
                     <span className="text-[10px] font-bold">Profile</span>
                 </button>
             </nav>
-
         </div>
     )
 }
