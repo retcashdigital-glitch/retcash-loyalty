@@ -2,8 +2,9 @@ import { supabase } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import ClientCardView from './ClientCardView'
 
-// Dynamic rendering ஆனால் வேகமான cacher configurations
-export const dynamic = 'force-dynamic'
+// 1. FAST SERVER RESPONSIVENESS:
+// force-dynamic ஐ நீக்குவதன் மூலம் Server Response Time (TTFB) மிக வேகமாக மாறும்.
+export const revalidate = 0;
 
 interface PageProps {
     params: Promise<{ id: string }>
@@ -18,9 +19,12 @@ export default async function SingleCardPage({ params, searchParams }: PageProps
         notFound()
     }
 
+    // Phone normalization (Phone Number format இருந்தால் சீரமைத்தல்)
+    const normalizedPhone = phone ? (phone.startsWith('94') ? phone : `94${phone.replace(/^0/, '')}`) : ''
+
     let claim: any = null;
 
-    // 1. Claim ID அல்லது (Store ID + Phone) இரண்டையும் ஒரே நேரத்தில் Parallel Query செய்கிறோம்
+    // 1. Parallel Supabase Queries (Claim ID அல்லது Store ID + Phone)
     const [claimByIdRes, claimByStoreRes] = await Promise.all([
         supabase
             .from('cashback_claims')
@@ -33,7 +37,7 @@ export default async function SingleCardPage({ params, searchParams }: PageProps
             .eq('id', paramId)
             .maybeSingle(),
 
-        phone
+        normalizedPhone
             ? supabase
                 .from('cashback_claims')
                 .select(`
@@ -43,11 +47,11 @@ export default async function SingleCardPage({ params, searchParams }: PageProps
                     )
                 `)
                 .eq('store_id', paramId)
-                .eq('customer_phone', phone)
+                .or(`customer_phone.eq.${normalizedPhone},customer_phone.eq.${normalizedPhone.replace(/^94/, '0')}`)
                 .order('updated_at', { ascending: false })
                 .limit(1)
                 .maybeSingle()
-            : Promise.resolve({ data: null })
+            : Promise.resolve({ data: null, error: null })
     ]);
 
     claim = claimByIdRes.data || claimByStoreRes.data;
@@ -65,7 +69,7 @@ export default async function SingleCardPage({ params, searchParams }: PageProps
                 .from('cashback_claims')
                 .insert({
                     store_id: storeData.id,
-                    customer_phone: phone || null,
+                    customer_phone: normalizedPhone || null,
                     cashback_amount: 0,
                     claimable_amount: 0,
                     visit_count: 1,
