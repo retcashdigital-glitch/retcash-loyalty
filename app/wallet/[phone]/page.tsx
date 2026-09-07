@@ -325,8 +325,25 @@ export default function CustomerWalletPage() {
                             </span>
                         </div>
 
+                        {/* SMOOTH SKELETON LOADING (Prevents UI Glitch) */}
                         {loading && stores.length === 0 ? (
-                            <div className="text-center py-12 text-slate-400 text-xs font-medium">Loading wallet data...</div>
+                            <div className="space-y-4">
+                                {[1, 2].map((i) => (
+                                    <div key={i} className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 animate-pulse">
+                                        <div className="flex items-center space-x-3.5">
+                                            <div className="w-11 h-11 bg-slate-200 rounded-2xl"></div>
+                                            <div className="space-y-2 flex-1">
+                                                <div className="h-4 bg-slate-200 rounded w-1/3"></div>
+                                                <div className="h-3 bg-slate-100 rounded w-1/4"></div>
+                                            </div>
+                                        </div>
+                                        <div className="pt-3 border-t border-slate-100 flex justify-between items-end">
+                                            <div className="h-6 bg-slate-200 rounded w-1/3"></div>
+                                            <div className="h-4 bg-slate-100 rounded w-1/4"></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         ) : filteredStores.length === 0 ? (
                             <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-xs">
                                 <p className="text-xs text-slate-500 font-medium">No active store cards found in your wallet.</p>
