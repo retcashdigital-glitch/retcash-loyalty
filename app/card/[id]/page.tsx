@@ -12,7 +12,11 @@ export default function SingleCardPage() {
 
     const paramId = params.id as string
     const rawPhone = searchParams.get('phone') || ''
-    const phone = rawPhone ? (rawPhone.startsWith('94') ? rawPhone : `94${rawPhone.replace(/^0/, '')}`) : ''
+    
+    // 1. Phone Format Standardization (94XXXXXXXXX)
+    const phone = rawPhone 
+        ? (rawPhone.startsWith('94') ? rawPhone : `94${rawPhone.replace(/^0/, '')}`) 
+        : ''
 
     const [claim, setClaim] = useState<any>(null)
     const [loading, setLoading] = useState(true)
@@ -23,8 +27,10 @@ export default function SingleCardPage() {
         async function fetchCardData() {
             setLoading(true)
             try {
-                // 1. Claim ID அல்லது Store ID + Phone மூலம் தரவை எடுத்தல்
-                const { data, error } = await supabase
+                let currentClaim = null;
+
+                // A. முதலில் கிடைத்த ID நேரடியாக ஒரு Claim ID-ஆ என சோதித்தல்
+                const { data: claimById } = await supabase
                     .from('cashback_claims')
                     .select(`
                         *,
@@ -32,16 +38,55 @@ export default function SingleCardPage() {
                             id, store_name, store_slug, logo_url, location_url, review_url, target_visits
                         )
                     `)
-                    .or(`id.eq.${paramId},store_id.eq.${paramId}`)
-                    .order('updated_at', { ascending: false })
-                    .limit(1)
+                    .eq('id', paramId)
                     .maybeSingle()
 
-                if (data) {
-                    setClaim(data)
+                if (claimById) {
+                    currentClaim = claimById;
+                } else if (phone) {
+                    // B. ID என்பது Store ID ஆக இருந்தால், இந்த குறிப்பிட்ட Phone நம்பருக்குரிய சமீபத்திய Claim-ஐ மட்டுமே எடுத்தல்
+                    const { data: claimByStore } = await supabase
+                        .from('cashback_claims')
+                        .select(`
+                            *,
+                            stores:store_id (
+                                id, store_name, store_slug, logo_url, location_url, review_url, target_visits
+                            )
+                        `)
+                        .eq('store_id', paramId)
+                        .or(`customer_phone.eq.${phone},customer_phone.eq.${phone.replace(/^94/, '0')}`)
+                        .order('updated_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle()
+
+                    currentClaim = claimByStore;
                 }
+
+                // C. ஒருவேளை Claim இல்லை என்றால், இந்த Store-க்கான விவரங்களை நேரடியாக எடுத்து போலி Claim உருவாக்குதல்
+                if (!currentClaim) {
+                    const { data: storeData } = await supabase
+                        .from('stores')
+                        .select('*')
+                        .eq('id', paramId)
+                        .maybeSingle()
+
+                    if (storeData) {
+                        currentClaim = {
+                            id: storeData.id,
+                            store_id: storeData.id,
+                            customer_phone: phone,
+                            cashback_amount: 0,
+                            claimable_amount: 0,
+                            visit_count: 1,
+                            status: 'ACTIVE',
+                            stores: storeData
+                        }
+                    }
+                }
+
+                setClaim(currentClaim)
             } catch (err) {
-                console.error('Error loading card:', err)
+                console.error('Error fetching card details:', err)
             } finally {
                 setLoading(false)
             }
@@ -64,7 +109,7 @@ export default function SingleCardPage() {
                 <p className="text-xs font-bold text-slate-500">கார்டு விபரங்கள் கிடைக்கவில்லை.</p>
                 <button 
                     onClick={() => router.push(phone ? `/wallet/${phone}` : '/customer/login')}
-                    className="px-4 py-2 bg-[#EE8838] text-white text-xs font-bold rounded-xl shadow-xs"
+                    className="px-4 py-2 bg-[#EE8838] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
                 >
                     வாலட்டிற்கு திரும்பச் செல்
                 </button>
@@ -72,6 +117,14 @@ export default function SingleCardPage() {
         )
     }
 
-    // Phone parameter கட்டாயமாக ClientCardView-க்கு செலுத்தப்படுகிறது (Back Button சரி செய்யப்பட்டது)
-    return <ClientCardView initialClaim={claim} id={claim.id} phone={phone} customerPhone={phone} />
+    // Phone parameter கட்டாயமாக ClientCardView-க்கு செலுத்தப்படுகிறது
+  return (
+    <ClientCardView 
+        initialClaim={{
+            ...claim,
+            customer_phone: phone || claim.customer_phone || ''
+        }} 
+        id={claim.id} 
+    />
+)
 }
