@@ -21,6 +21,7 @@ export default function SingleCardPage() {
     const [claim, setClaim] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
+    const [accessDenied, setAccessDenied] = useState(false)
 
     useEffect(() => {
         if (!paramId) return
@@ -29,16 +30,14 @@ export default function SingleCardPage() {
             setLoading(true)
             try {
                 // ==========================================
-                // STRICT AUTH GUARD: லாக்-இன் செஷனை முதலில் சரிபார்த்தல்
+                // STRICT AUTH GUARD: லாக்-இன் செய்த பயனரின் போன் நம்பரைக் கண்டறிதல்
                 // ==========================================
                 let authenticatedPhone = ''
 
                 if (typeof window !== 'undefined') {
-                    // 1. URL-இல் போன் நம்பர் இருந்தால் அதற்குரிய செஷன் உள்ளதா எனப் பார்த்தல்
                     if (phone && localStorage.getItem(`retcash_wallet_session_${phone}`)) {
                         authenticatedPhone = phone
                     } else {
-                        // 2. பிரௌசரில் உள்ள ஏதேனும் retcash_wallet_session_ சாவியைத் தேடுதல்
                         for (let i = 0; i < localStorage.length; i++) {
                             const key = localStorage.key(i)
                             if (key && key.startsWith('retcash_wallet_session_')) {
@@ -48,21 +47,23 @@ export default function SingleCardPage() {
                         }
                     }
 
-                    // 3. மாற்றுச் சாவிகள் (Fallback Check)
                     if (!authenticatedPhone) {
                         authenticatedPhone = localStorage.getItem('retcash_phone') || ''
                     }
                 }
 
-                // லாக்-இன் செய்யவில்லை என்றால் UI காட்டாமல் உடனடியாக விரட்டுதல்
+                // லாக்-இன் செய்யவில்லை என்றால் லாக்-இன் பக்கத்திற்கு அனுப்புதல்
                 if (!authenticatedPhone) {
                     setIsAuthorized(false)
                     router.replace('/customer/login')
                     return
                 }
 
-                setIsAuthorized(true)
-                const activePhone = phone || authenticatedPhone
+                // போன் நம்பரை 94... வடிவில் சீரமைத்தல்
+                const formattedAuthPhone = authenticatedPhone.startsWith('94') 
+                    ? authenticatedPhone 
+                    : `94${authenticatedPhone.replace(/^0/, '')}`
+
                 let currentClaim = null;
 
                 // A. முதலில் கிடைத்த ID நேரடியாக ஒரு Claim ID-ஆ என சோதித்தல்
@@ -79,8 +80,8 @@ export default function SingleCardPage() {
 
                 if (claimById) {
                     currentClaim = claimById;
-                } else if (activePhone) {
-                    // B. ID என்பது Store ID ஆக இருந்தால், இந்த குறிப்பிட்ட Phone நம்பருக்குரிய சமீபத்திய Claim-ஐ மட்டுமே எடுத்தல்
+                } else {
+                    // B. ID என்பது Store ID ஆக இருந்தால், இந்த லாக்-இன் செய்த நபருக்குரிய Claim-ஐ எடுத்தல்
                     const { data: claimByStore } = await supabase
                         .from('cashback_claims')
                         .select(`
@@ -90,7 +91,7 @@ export default function SingleCardPage() {
                             )
                         `)
                         .eq('store_id', paramId)
-                        .or(`customer_phone.eq.${activePhone},customer_phone.eq.${activePhone.replace(/^94/, '0')}`)
+                        .or(`customer_phone.eq.${formattedAuthPhone},customer_phone.eq.${formattedAuthPhone.replace(/^94/, '0')}`)
                         .order('updated_at', { ascending: false })
                         .limit(1)
                         .maybeSingle()
@@ -110,7 +111,7 @@ export default function SingleCardPage() {
                         currentClaim = {
                             id: storeData.id,
                             store_id: storeData.id,
-                            customer_phone: activePhone,
+                            customer_phone: formattedAuthPhone,
                             cashback_amount: 0,
                             claimable_amount: 0,
                             visit_count: 1,
@@ -120,7 +121,25 @@ export default function SingleCardPage() {
                     }
                 }
 
+                // ==========================================
+                // STRICT OWNERSHIP CHECK: கார்டு சொந்தக்காரர் தானா எனச் சரிபார்த்தல்
+                // ==========================================
+                if (currentClaim && currentClaim.customer_phone) {
+                    const claimPhoneFormatted = currentClaim.customer_phone.startsWith('94')
+                        ? currentClaim.customer_phone
+                        : `94${currentClaim.customer_phone.replace(/^0/, '')}`
+
+                    if (claimPhoneFormatted !== formattedAuthPhone) {
+                        console.warn('Unauthorized Access: User trying to view someone else card.')
+                        setAccessDenied(true)
+                        setIsAuthorized(true)
+                        setLoading(false)
+                        return
+                    }
+                }
+
                 setClaim(currentClaim)
+                setIsAuthorized(true)
             } catch (err) {
                 console.error('Error fetching card details:', err)
             } finally {
@@ -131,11 +150,36 @@ export default function SingleCardPage() {
         verifyAuthAndFetchCardData()
     }, [paramId, phone, router])
 
-    // லாக்-இன் உறுதிசெய்யப்படும் வரை அல்லது லோடிங் முடியும் வரை வெற்று லோடிங் திரையை மட்டுமே காட்டுதல் (No UI Leakage/Glitch)
     if (loading || isAuthorized === false || isAuthorized === null) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
                 <div className="w-8 h-8 border-3 border-slate-200 border-t-[#EE8838] rounded-full animate-spin"></div>
+            </div>
+        )
+    }
+
+    // வேறு ஒருவரின் கார்டைத் திறக்க முயன்றால் காட்டும் பாதுகாப்புத் திரை
+    if (accessDenied) {
+        return (
+            <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center items-center p-6 text-center space-y-4">
+                <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center font-bold text-xl">
+                    ✕
+                </div>
+                <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-slate-800">அணுகல் மறுக்கப்பட்டது</h3>
+                    <p className="text-xs text-slate-500 max-w-xs">
+                        இந்த டிஜிட்டல் கார்டு வேறு ஒரு வாடிக்கையாளருக்குரியது. உங்களது கார்டுகளைக் காண உங்களது வாலட்டிற்குச் செல்லவும்.
+                    </p>
+                </div>
+                <button 
+                    onClick={() => {
+                        const storedPhone = localStorage.getItem('retcash_phone') || ''
+                        router.push(storedPhone ? `/wallet/${storedPhone}` : '/customer/login')
+                    }}
+                    className="px-5 py-2.5 bg-[#EE8838] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer active:scale-95 transition-all"
+                >
+                    எனது வாலட்டிற்குச் செல்
+                </button>
             </div>
         )
     }
@@ -145,7 +189,10 @@ export default function SingleCardPage() {
             <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center items-center p-4 space-y-3">
                 <p className="text-xs font-bold text-slate-500">கார்டு விபரங்கள் கிடைக்கவில்லை.</p>
                 <button 
-                    onClick={() => router.push(phone ? `/wallet/${phone}` : '/customer/login')}
+                    onClick={() => {
+                        const storedPhone = localStorage.getItem('retcash_phone') || ''
+                        router.push(storedPhone ? `/wallet/${storedPhone}` : '/customer/login')
+                    }}
                     className="px-4 py-2 bg-[#EE8838] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
                 >
                     வாலட்டிற்கு திரும்பச் செல்
@@ -158,7 +205,7 @@ export default function SingleCardPage() {
         <ClientCardView 
             initialClaim={{
                 ...claim,
-                customer_phone: phone || claim.customer_phone || ''
+                customer_phone: claim.customer_phone || ''
             }} 
             id={claim.id} 
         />
