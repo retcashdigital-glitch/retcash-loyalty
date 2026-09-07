@@ -27,12 +27,19 @@ export default function CustomerWalletPage() {
     const [navigatingStoreId, setNavigatingStoreId] = useState<string | null>(null)
     const [isPending, startTransition] = useTransition()
 
-    // 1. SESSION GUARD & INITIALIZATION
+    // 1. ROUTE GUARD & SESSION VERIFICATION
     useEffect(() => {
         if (!phone) return;
 
-        // Check Local Storage Session Guard
+        // Session Verification Check
         const session = localStorage.getItem(`retcash_wallet_session_${phone}`)
+        
+        if (!session) {
+            // Session இல்லையென்றால் உடனடியாக Login பக்கத்திற்கு அனுப்பப்படும்
+            router.replace('/customer/login')
+            return
+        }
+
         const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
 
         // Fetch Customer Profile (Full Name & Email)
@@ -74,7 +81,7 @@ export default function CustomerWalletPage() {
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [phone])
+    }, [phone, router])
 
     // 2. FETCH CUSTOMER NAME
     const fetchCustomerDetails = async () => {
@@ -216,10 +223,11 @@ export default function CustomerWalletPage() {
         })
     }
 
+    // COMPLETE LOGOUT CLEANUP
     const handleLogout = () => {
         localStorage.removeItem(`wallet_cache_${phone}`)
         localStorage.removeItem(`retcash_wallet_session_${phone}`)
-        router.push('/customer/login')
+        router.replace('/customer/login')
     }
 
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${phone}`;
@@ -262,7 +270,6 @@ export default function CustomerWalletPage() {
                                     </div>
                                     <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider pt-2">WELCOME BACK</p>
                                     
-                                    {/* SHOW CUSTOMER NAME INSTEAD OF PHONE NUMBER */}
                                     <h1 className="text-xl font-black text-[#0F172A]">
                                         {customerName ? customerName : formatPhoneNumber(phone)}
                                     </h1>
@@ -420,7 +427,6 @@ export default function CustomerWalletPage() {
                                         </span>
                                     </div>
 
-                                    {/* POSTER WITH FULLSCREEN TRIGGER */}
                                     {offer.image_url && (
                                         <div 
                                             onClick={() => setSelectedImage(offer.image_url)}
