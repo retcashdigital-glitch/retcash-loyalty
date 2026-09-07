@@ -28,37 +28,39 @@ export default function SingleCardPage() {
             setLoading(true)
             try {
                 // ==========================================
-                // SECURITY GUARD: லாக்-இன் செஷனைச் சரிபார்த்தல்
+                // DYNAMIC AUTH GUARD: அனைத்து லாக்-இன் சாவிகளையும் சரிபார்த்தல்
                 // ==========================================
-                const targetPhone = phone || (typeof window !== 'undefined' ? localStorage.getItem('retcash_phone') : null)
-                
-                // 1. Session check: பிரௌசரில் லாக்-இன் தரவு இருக்கிறதா?
                 let authenticatedPhone = ''
+
                 if (typeof window !== 'undefined') {
-                    // LocalStorage செக்
-                    const storedSession = localStorage.getItem('retcash_customer_session')
-                    if (storedSession) {
-                        try {
-                            const parsed = JSON.parse(storedSession)
-                            authenticatedPhone = parsed.phone || ''
-                        } catch (e) {
-                            authenticatedPhone = localStorage.getItem('retcash_phone') || ''
-                        }
+                    // 1. URL-இல் போன் நம்பர் இருந்தால் அதற்குரிய செஷன் உள்ளதா எனப் பார்த்தல்
+                    if (phone && localStorage.getItem(`retcash_wallet_session_${phone}`)) {
+                        authenticatedPhone = phone
                     } else {
+                        // 2. பிரௌசரில் உள்ள ஏதேனும் retcash_wallet_session_ சாவியைத் தேடுதல்
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const key = localStorage.key(i)
+                            if (key && key.startsWith('retcash_wallet_session_')) {
+                                authenticatedPhone = key.replace('retcash_wallet_session_', '')
+                                break
+                            }
+                        }
+                    }
+
+                    // 3. மாற்றுச் சாவிகள் (Fallback Check)
+                    if (!authenticatedPhone) {
                         authenticatedPhone = localStorage.getItem('retcash_phone') || ''
                     }
                 }
 
-                // 2. லாக்-இன் செய்யவில்லை என்றால் உடனே லாக்-இன் பக்கத்திற்கு அனுப்புதல்
+                // லாக்-இன் செய்யவில்லை என்றால் மட்டுமே லாக்-இன் பக்கத்திற்கு அனுப்புதல்
                 if (!authenticatedPhone) {
                     console.warn('Unauthorized access attempt: No active session found.')
                     router.push('/customer/login')
                     return
                 }
 
-                // 3. URL-இல் உள்ள போன் நம்பரும் லாக்-இன் செய்த போன் நம்பரும் மாறினால் தடுத்தல்
                 const activePhone = phone || authenticatedPhone
-
                 let currentClaim = null;
 
                 // A. முதலில் கிடைத்த ID நேரடியாக ஒரு Claim ID-ஆ என சோதித்தல்
