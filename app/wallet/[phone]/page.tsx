@@ -38,17 +38,20 @@ export default function CustomerWalletPage() {
         const session = localStorage.getItem(`retcash_wallet_session_${phone}`)
         
         if (!session) {
-            // Session இல்லையென்றால் உடனடியாக Login பக்கத்திற்கு அனுப்பப்படும்
             router.replace('/customer/login')
             return
         }
 
-        // Session சரிபார்க்கப்பட்ட பின் மட்டுமே Wallet UI காட்டப்படும்
         setIsCheckingAuth(false)
+
+        // Cache-இல் இருந்து பெயர் மற்றும் கார்டுகளை எடுத்தல் (Flash-ஐத் தவிர்க்க)
+        const cachedName = localStorage.getItem(`customer_name_${phone}`)
+        if (cachedName) {
+            setCustomerName(cachedName)
+        }
 
         const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
 
-        // Fetch Customer Profile (Full Name & Email)
         fetchCustomerDetails()
 
         if (cachedData) {
@@ -89,7 +92,7 @@ export default function CustomerWalletPage() {
         }
     }, [phone, router])
 
-    // 2. FETCH CUSTOMER NAME
+    // 2. FETCH CUSTOMER NAME WITH CACHING
     const fetchCustomerDetails = async () => {
         try {
             const { data, error } = await supabase
@@ -99,7 +102,10 @@ export default function CustomerWalletPage() {
                 .maybeSingle()
 
             if (data) {
-                if (data.full_name) setCustomerName(data.full_name)
+                if (data.full_name) {
+                    setCustomerName(data.full_name)
+                    localStorage.setItem(`customer_name_${phone}`, data.full_name)
+                }
                 if (data.email) setCustomerEmail(data.email)
             }
         } catch (err) {
@@ -107,7 +113,7 @@ export default function CustomerWalletPage() {
         }
     }
 
-    // 3. FETCH WALLET DATA (FILTERED BY CUSTOMER STORES ONLY)
+    // 3. FETCH WALLET DATA
     const fetchWalletAndClaimsData = async () => {
         try {
             const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
@@ -115,7 +121,6 @@ export default function CustomerWalletPage() {
                 setLoading(true)
             }
 
-            // Step A: Get cashback claims for THIS specific customer
             const { data: claimsData, error: claimsError } = await supabase
                 .from('cashback_claims')
                 .select('*')
@@ -124,7 +129,6 @@ export default function CustomerWalletPage() {
 
             if (claimsError) throw claimsError
 
-            // Extract unique store IDs where customer has interacted
             const customerStoreIds = Array.from(
                 new Set((claimsData || []).map((claim: any) => String(claim.store_id)).filter(Boolean))
             )
@@ -136,7 +140,6 @@ export default function CustomerWalletPage() {
                 return
             }
 
-            // Step B: Fetch store details ONLY for stores where customer has claims/cards
             const { data: userStores, error: storeError } = await supabase
                 .from('stores')
                 .select('*')
@@ -144,7 +147,6 @@ export default function CustomerWalletPage() {
 
             if (storeError) throw storeError
 
-            // Step C: Merge Claims and Store Data
             const mergedStores = userStores?.map((store: any) => {
                 const storeClaims = claimsData?.filter(
                     (claim: any) => String(claim.store_id) === String(store.id)
@@ -229,10 +231,10 @@ export default function CustomerWalletPage() {
         })
     }
 
-    // COMPLETE LOGOUT CLEANUP
     const handleLogout = () => {
         localStorage.removeItem(`wallet_cache_${phone}`)
         localStorage.removeItem(`retcash_wallet_session_${phone}`)
+        localStorage.removeItem(`customer_name_${phone}`)
         router.replace('/customer/login')
     }
 
@@ -255,7 +257,6 @@ export default function CustomerWalletPage() {
         return matchesSearch
     })
 
-    // AUTH CHECKING LOADING SCREEN (Prevents UI Flash)
     if (isCheckingAuth) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
@@ -285,8 +286,15 @@ export default function CustomerWalletPage() {
                                     </div>
                                     <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider pt-2">WELCOME BACK</p>
                                     
+                                    {/* FIX FOR NAME/PHONE GLITCH */}
                                     <h1 className="text-xl font-black text-[#0F172A]">
-                                        {customerName ? customerName : formatPhoneNumber(phone)}
+                                        {customerName ? (
+                                            customerName
+                                        ) : loading ? (
+                                            <span className="inline-block w-36 h-6 bg-slate-200 animate-pulse rounded-md mt-1"></span>
+                                        ) : (
+                                            formatPhoneNumber(phone)
+                                        )}
                                     </h1>
                                 </div>
                             </div>
@@ -325,7 +333,6 @@ export default function CustomerWalletPage() {
                             </span>
                         </div>
 
-                        {/* SMOOTH SKELETON LOADING (Prevents UI Glitch) */}
                         {loading && stores.length === 0 ? (
                             <div className="space-y-4">
                                 {[1, 2].map((i) => (
