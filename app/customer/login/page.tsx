@@ -66,8 +66,10 @@ export default function CustomerLoginPage() {
                 return;
             }
 
-            // 3. Success Log In
+            // 3. Success Log In - Set exact session key expected by Wallet Page
+            localStorage.setItem(`retcash_wallet_session_${dbPhone}`, 'true');
             localStorage.setItem(`retcash_wallet_auth_${dbPhone}`, 'true');
+
             router.push(`/wallet/${dbPhone}`);
 
         } catch (err) {
