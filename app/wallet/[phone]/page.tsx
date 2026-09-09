@@ -284,11 +284,10 @@ export default function CustomerWalletPage() {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans selection:bg-[#00875A] selection:text-white antialiased">
-            {/* Bottom Padding pb-44 என அதிகரிக்கப்பட்டுள்ளது */}
             <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5 pb-44">
                 {activeTab === 'wallet' && (
                     <>
-                        {/* Header Profile Section - New Logo Integrated */}
+                        {/* Header Profile Section */}
                         <div className="flex items-center justify-between pt-2 px-1">
                             <div className="flex items-center space-x-3">
                                 <img
@@ -309,7 +308,6 @@ export default function CustomerWalletPage() {
                                     </h1>
                                 </div>
                             </div>
-                            {/* ஒரே ஒரு பிரதான QR பொத்தான் */}
                             <button 
                                 onClick={() => setShowQrModal(true)}
                                 className="p-2.5 bg-white border border-slate-200/80 rounded-2xl shadow-xs hover:border-[#00875A] transition text-slate-700 active:scale-95 flex items-center space-x-1"
@@ -319,7 +317,7 @@ export default function CustomerWalletPage() {
                             </button>
                         </div>
 
-                        {/* Banner - Extra QR Button Removed for Clean UI */}
+                        {/* Banner */}
                         <div className="bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#00875A] text-white rounded-3xl p-5 shadow-xl relative overflow-hidden space-y-2">
                             <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
                             <div className="flex justify-between items-center relative z-10">
@@ -366,9 +364,9 @@ export default function CustomerWalletPage() {
                             </div>
                         </form>
 
-                        {/* Category Filter Pills */}
+                        {/* Category Filter Pills (Others அகற்றப்பட்டுள்ளது) */}
                         <div className="flex items-center space-x-2 overflow-x-auto pb-1 pt-1 scrollbar-none">
-                            {['All Stores', 'Food', 'Retail', 'Others'].map((category) => (
+                            {['All Stores', 'Food', 'Retail'].map((category) => (
                                 <button
                                     key={category}
                                     onClick={() => setSelectedCategory(category)}
@@ -433,9 +431,10 @@ export default function CustomerWalletPage() {
                                 const visits = store.visits || 0;
                                 const isThisNavigating = navigatingStoreId === store.id;
 
-                                const displayCategory = (store.category && store.category.toLowerCase() !== 'others')
+                                // Partner Store மற்றும் Others அகற்றப்பட்டு, Category இருந்தால் மட்டுமே காட்டப்படும்
+                                const displayCategory = (store.category && store.category.trim() !== '' && store.category.toLowerCase() !== 'others')
                                     ? store.category
-                                    : 'Partner Store';
+                                    : null;
 
                                 return (
                                     <div
@@ -466,9 +465,11 @@ export default function CustomerWalletPage() {
                                                     <h3 className="text-sm font-extrabold text-[#0F172A] group-hover:text-[#00875A] transition leading-tight">
                                                         {store.store_name} {isThisNavigating && '(Opening...)'}
                                                     </h3>
-                                                    <p className="text-[11px] text-slate-400 font-semibold capitalize pt-0.5">
-                                                        {displayCategory}
-                                                    </p>
+                                                    {displayCategory && (
+                                                        <p className="text-[11px] text-slate-400 font-semibold capitalize pt-0.5">
+                                                            {displayCategory}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 group-hover:bg-emerald-50 transition">
@@ -495,7 +496,6 @@ export default function CustomerWalletPage() {
                                                 )}
                                             </div>
 
-                                            {/* Visit Dots Alignment Cleaned */}
                                             <div className="text-right space-y-1">
                                                 <p className="text-[10px] font-extrabold text-slate-400 tracking-wider">{visits}/{target} VISITS</p>
                                                 <div className="flex space-x-1 justify-end items-center pt-0.5">
@@ -580,7 +580,7 @@ export default function CustomerWalletPage() {
                                         {offer.stores?.id && (
                                             <button
                                                 onClick={() => handleStoreClick(offer.stores.id)}
-                                                className="text-xs font-bold text-[#00875A] hover:underline flex items-center space-x-1 cursor-pointer"
+                                                className="text-xs font-bold text-[#00805A] hover:underline flex items-center space-x-1 cursor-pointer"
                                             >
                                                 <span>View Store Card</span>
                                                 <ChevronRight className="w-3.5 h-3.5" />
@@ -692,7 +692,7 @@ export default function CustomerWalletPage() {
                 </div>
             )}
 
-            {/* Bottom Navigation Bar - Removed My QR tab, Added History Tab */}
+            {/* Bottom Navigation Bar */}
             <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2.5 px-6 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-2xl">
                 <button
                     onClick={() => setActiveTab('wallet')}
