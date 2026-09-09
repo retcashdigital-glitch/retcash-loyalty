@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Wallet, Tag, User, Search, QrCode, ChevronRight, X, LogOut, Megaphone, Maximize2 } from 'lucide-react'
+import { Wallet, Tag, User, Search, QrCode, ChevronRight, X, LogOut, Megaphone, Maximize2, Sparkles, Store } from 'lucide-react'
 
 export default function CustomerWalletPage() {
     const params = useParams()
@@ -200,7 +200,8 @@ export default function CustomerWalletPage() {
                     stores:store_id (
                         id,
                         store_name,
-                        logo_url
+                        logo_url,
+                        category
                     )
                 `)
                 .gte('expires_at', new Date().toISOString())
@@ -246,8 +247,13 @@ export default function CustomerWalletPage() {
     }
 
     const filteredStores = stores.filter(store => {
-        return store.store_name?.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchesSearch = store.store_name?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCategory = selectedCategory === 'All Stores' || 
+            (store.category && store.category.toLowerCase() === selectedCategory.toLowerCase());
+        return matchesSearch && matchesCategory;
     })
+
+    const totalWalletBalance = stores.reduce((acc, store) => acc + (store.isRedeemed ? 0 : Number(store.balance || 0)), 0);
 
     if (isCheckingAuth) {
         return (
@@ -258,54 +264,79 @@ export default function CustomerWalletPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] flex flex-col pb-24 font-sans selection:bg-[#00875A] selection:text-white">
-            <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5">
+        <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] flex flex-col font-sans selection:bg-[#00875A] selection:text-white antialiased">
+            <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5 pb-32">
                 {activeTab === 'wallet' && (
                     <>
-                        <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs space-y-4 mt-2">
-                            <div className="flex justify-between items-start">
-                                <div className="space-y-1">
-                                    <div className="flex items-center space-x-2.5">
-                                        <img
-                                            src="/logo.jpeg"
-                                            alt="Retcash Logo"
-                                            className="w-8 h-8 rounded-xl object-cover shadow-xs border border-emerald-100"
-                                        />
-                                        <span className="font-black text-lg tracking-wider text-[#1E293B]">RET<span className="text-[#00875A]">CASH</span></span>
-                                    </div>
-                                    <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider pt-2">WELCOME BACK</p>
-                                    <h1 className="text-xl font-black text-[#1E293B]">
+                        {/* Header Profile Section */}
+                        <div className="flex items-center justify-between pt-2 px-1">
+                            <div className="flex items-center space-x-3">
+                                <img
+                                    src="/logo.jpeg"
+                                    alt="Retcash Logo"
+                                    className="w-10 h-10 rounded-2xl object-cover shadow-sm border border-emerald-100"
+                                />
+                                <div>
+                                    <p className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider">WELCOME BACK</p>
+                                    <h1 className="text-lg font-black text-[#1E293B] tracking-tight">
                                         {customerName ? (
                                             customerName
                                         ) : loading ? (
-                                            <span className="inline-block w-36 h-6 bg-slate-200 animate-pulse rounded-md mt-1"></span>
+                                            <span className="inline-block w-28 h-5 bg-slate-200 animate-pulse rounded-md mt-0.5"></span>
                                         ) : (
                                             formatPhoneNumber(phone)
                                         )}
                                     </h1>
                                 </div>
                             </div>
+                            <button 
+                                onClick={() => setShowQrModal(true)}
+                                className="p-2.5 bg-white border border-slate-200 rounded-2xl shadow-xs hover:border-[#00875A] transition text-slate-700 active:scale-95"
+                            >
+                                <QrCode className="w-5 h-5 text-[#00875A]" />
+                            </button>
+                        </div>
 
-                            <div className="relative pt-1">
-                                <Search className="absolute left-3.5 top-4.5 w-4 h-4 text-slate-400" />
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search stores..."
-                                    className="w-full bg-slate-50/80 border border-slate-200 focus:border-[#00875A] focus:bg-white rounded-2xl pl-10 pr-4 py-3 text-sm text-[#1E293B] outline-none transition shadow-inner"
-                                />
+                        {/* Total Rewards Gradient Card */}
+                        <div className="bg-gradient-to-br from-[#004D40] via-[#00695C] to-[#00875A] text-white rounded-3xl p-6 shadow-xl shadow-emerald-950/15 relative overflow-hidden space-y-4">
+                            <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+                            <div className="flex justify-between items-start relative z-10">
+                                <div>
+                                    <span className="text-xs font-semibold text-emerald-100/90 tracking-wide flex items-center gap-1.5">
+                                        <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+                                        Total Rewards Balance
+                                    </span>
+                                    <h2 className="text-3xl font-black mt-1 tracking-tight">
+                                        Rs. {totalWalletBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </h2>
+                                </div>
+                                <span className="bg-white/15 backdrop-blur-md text-emerald-50 text-[10px] font-bold px-3 py-1 rounded-full border border-white/20 uppercase tracking-wider">
+                                    {stores.length} {stores.length === 1 ? 'Store' : 'Stores'}
+                                </span>
                             </div>
                         </div>
 
-                        <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none">
+                        {/* Search Bar */}
+                        <div className="relative">
+                            <Search className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search stores..."
+                                className="w-full bg-white border border-slate-200/90 focus:border-[#00875A] focus:ring-2 focus:ring-[#00875A]/10 rounded-2xl pl-11 pr-4 py-3 text-sm text-[#1E293B] outline-none transition shadow-xs placeholder:text-slate-400 font-medium"
+                            />
+                        </div>
+
+                        {/* Category Filter Pills */}
+                        <div className="flex items-center space-x-2 overflow-x-auto pb-1 pt-1 scrollbar-none">
                             {['All Stores', 'Food', 'Retail', 'Others'].map((category) => (
                                 <button
                                     key={category}
                                     onClick={() => setSelectedCategory(category)}
-                                    className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer ${selectedCategory === category
+                                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer active:scale-95 ${selectedCategory === category
                                         ? 'bg-[#00875A] text-white font-extrabold shadow-md shadow-emerald-600/20'
-                                        : 'bg-white text-slate-500 border border-slate-200 hover:text-[#1E293B]'
+                                        : 'bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50'
                                         }`}
                                 >
                                     {category}
@@ -313,19 +344,21 @@ export default function CustomerWalletPage() {
                             ))}
                         </div>
 
+                        {/* Stores Section Header */}
                         <div className="flex items-center justify-between pt-1">
-                            <h2 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">YOUR STORES & LOYALTY CARDS</h2>
-                            <span className="text-xs font-bold bg-white text-[#00875A] px-2.5 py-1 rounded-full border border-slate-200 shadow-xs">
-                                {filteredStores.length} stores
+                            <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">YOUR STORES</h2>
+                            <span className="text-[11px] font-bold text-slate-400">
+                                {filteredStores.length} Active
                             </span>
                         </div>
 
+                        {/* Store Cards Listing */}
                         {loading && stores.length === 0 ? (
                             <div className="space-y-4">
                                 {[1, 2].map((i) => (
-                                    <div key={i} className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 animate-pulse">
+                                    <div key={i} className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 animate-pulse shadow-xs">
                                         <div className="flex items-center space-x-3.5">
-                                            <div className="w-11 h-11 bg-slate-200 rounded-2xl"></div>
+                                            <div className="w-12 h-12 bg-slate-200 rounded-2xl"></div>
                                             <div className="space-y-2 flex-1">
                                                 <div className="h-4 bg-slate-200 rounded w-1/3"></div>
                                                 <div className="h-3 bg-slate-100 rounded w-1/4"></div>
@@ -340,7 +373,8 @@ export default function CustomerWalletPage() {
                             </div>
                         ) : filteredStores.length === 0 ? (
                             <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-xs">
-                                <p className="text-xs text-slate-500 font-medium">No active store cards found in your wallet.</p>
+                                <Store className="w-8 h-8 text-slate-300 mx-auto" />
+                                <p className="text-xs text-slate-600 font-semibold">No active store cards found in your wallet.</p>
                                 <p className="text-[11px] text-slate-400">Scan a store QR code to get your first loyalty card.</p>
                             </div>
                         ) : (
@@ -354,23 +388,33 @@ export default function CustomerWalletPage() {
                                         key={index}
                                         onClick={() => handleStoreClick(store.id)}
                                         onMouseEnter={() => router.prefetch(`/card/${store.id}?phone=${phone}`)}
-                                        className={`bg-white border rounded-3xl p-5 space-y-4 transition cursor-pointer shadow-xs group ${isThisNavigating
+                                        className={`bg-white border rounded-3xl p-5 space-y-4 transition cursor-pointer shadow-xs group active:scale-[0.99] ${isThisNavigating
                                             ? 'border-[#00875A] bg-emerald-50/20 opacity-80'
-                                            : 'border-slate-200/80 hover:border-[#00875A] hover:shadow-sm'
+                                            : 'border-slate-200/90 hover:border-[#00875A] hover:shadow-md'
                                             }`}
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center space-x-3.5">
-                                                <div className="w-11 h-11 rounded-2xl bg-emerald-50 overflow-hidden flex items-center justify-center border border-emerald-100 group-hover:scale-105 transition">
-                                                    <span className="text-sm font-black text-[#00875A]">
-                                                        {store.store_name?.[0] || 'S'}
-                                                    </span>
-                                                </div>
+                                                {store.logo_url ? (
+                                                    <img 
+                                                        src={store.logo_url} 
+                                                        alt={store.store_name} 
+                                                        className="w-12 h-12 rounded-2xl object-cover border border-slate-100 group-hover:scale-105 transition"
+                                                    />
+                                                ) : (
+                                                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 overflow-hidden flex items-center justify-center border border-emerald-100 group-hover:scale-105 transition">
+                                                        <span className="text-base font-black text-[#00875A]">
+                                                            {store.store_name?.[0] || 'S'}
+                                                        </span>
+                                                    </div>
+                                                )}
                                                 <div>
-                                                    <h3 className="text-sm font-bold text-[#1E293B] group-hover:text-[#00875A] transition">
+                                                    <h3 className="text-sm font-extrabold text-[#1E293B] group-hover:text-[#00875A] transition">
                                                         {store.store_name} {isThisNavigating && '(Opening...)'}
                                                     </h3>
-                                                    <p className="text-[11px] text-slate-400 font-medium">Partner Store</p>
+                                                    <p className="text-[11px] text-slate-500 font-medium">
+                                                        {store.category || 'Store'}
+                                                    </p>
                                                 </div>
                                             </div>
                                             <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 group-hover:bg-emerald-50 transition">
@@ -380,7 +424,7 @@ export default function CustomerWalletPage() {
 
                                         <div className="pt-3 border-t border-slate-100 flex items-end justify-between">
                                             <div>
-                                                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">CASHBACK BALANCE</p>
+                                                <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">CASHBACK BALANCE</p>
                                                 {store.isRedeemed ? (
                                                     <div className="flex items-center space-x-2 mt-1">
                                                         <span className="text-base font-bold text-slate-400 line-through">
@@ -398,8 +442,8 @@ export default function CustomerWalletPage() {
                                             </div>
 
                                             <div className="text-right space-y-1.5">
-                                                <p className="text-[10px] font-extrabold text-slate-400">{visits}/{target} VISITS</p>
-                                                <div className="flex space-x-1">
+                                                <p className="text-[10px] font-extrabold text-slate-500">{visits}/{target} VISITS</p>
+                                                <div className="flex space-x-1 justify-end">
                                                     {Array.from({ length: target }, (_, i) => i + 1).map((v) => (
                                                         <div
                                                             key={v}
@@ -423,7 +467,7 @@ export default function CustomerWalletPage() {
                                 <Megaphone className="w-5 h-5 text-[#00875A]" />
                                 <h1 className="text-xl font-black text-[#1E293B]">Store Offers & Deals</h1>
                             </div>
-                            <p className="text-xs text-slate-500">Exclusive active offers posted by our partner stores.</p>
+                            <p className="text-xs text-slate-500">Exclusive active offers posted by stores.</p>
                         </div>
 
                         {offersLoading ? (
@@ -431,7 +475,7 @@ export default function CustomerWalletPage() {
                         ) : activeOffers.length === 0 ? (
                             <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-xs">
                                 <Megaphone className="w-8 h-8 text-slate-300 mx-auto" />
-                                <p className="text-xs text-slate-500 font-medium">No active store offers available right now.</p>
+                                <p className="text-xs text-slate-600 font-semibold">No active store offers available right now.</p>
                             </div>
                         ) : (
                             activeOffers.map((offer) => (
@@ -442,8 +486,8 @@ export default function CustomerWalletPage() {
                                                 {offer.stores?.store_name?.[0] || 'S'}
                                             </div>
                                             <div>
-                                                <h3 className="text-xs font-bold text-[#1E293B]">{offer.stores?.store_name || 'Partner Store'}</h3>
-                                                <p className="text-[10px] text-slate-400 font-medium">Active Promotion</p>
+                                                <h3 className="text-xs font-bold text-[#1E293B]">{offer.stores?.store_name || 'Store'}</h3>
+                                                <p className="text-[10px] text-slate-500 font-medium">Active Promotion</p>
                                             </div>
                                         </div>
                                         <span className="text-[10px] bg-emerald-50 text-[#00875A] px-2.5 py-1 rounded-full font-bold border border-emerald-100 uppercase tracking-wider">
@@ -475,7 +519,7 @@ export default function CustomerWalletPage() {
                                     </div>
 
                                     <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                                             Ends: {new Date(offer.expires_at).toLocaleDateString()}
                                         </span>
                                         {offer.stores?.id && (
@@ -510,7 +554,7 @@ export default function CustomerWalletPage() {
                                     <h3 className="text-base font-extrabold text-[#1E293B]">
                                         {customerName || 'Customer'}
                                     </h3>
-                                    <p className="text-xs text-slate-400 font-medium">{formatPhoneNumber(phone)}</p>
+                                    <p className="text-xs text-slate-500 font-medium">{formatPhoneNumber(phone)}</p>
                                     {customerEmail && (
                                         <p className="text-[11px] text-slate-400 font-normal pt-0.5">{customerEmail}</p>
                                     )}
@@ -520,7 +564,7 @@ export default function CustomerWalletPage() {
                             <div className="space-y-2">
                                 <button
                                     onClick={handleLogout}
-                                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3.5 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition outline-none cursor-pointer shadow-xs"
+                                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3.5 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition outline-none cursor-pointer shadow-xs active:scale-95"
                                 >
                                     <LogOut className="w-4 h-4" />
                                     <span>Logout / Switch Account</span>
@@ -531,6 +575,7 @@ export default function CustomerWalletPage() {
                 )}
             </main>
 
+            {/* Image Modal */}
             {selectedImage && (
                 <div 
                     onClick={() => setSelectedImage(null)}
@@ -552,8 +597,9 @@ export default function CustomerWalletPage() {
                 </div>
             )}
 
+            {/* QR Code Modal */}
             {showQrModal && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
                     <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-xl relative animate-in fade-in zoom-in duration-200">
                         <button
                             onClick={() => setShowQrModal(false)}
@@ -578,37 +624,38 @@ export default function CustomerWalletPage() {
                 </div>
             )}
 
-            <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2 px-6 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-lg">
+            {/* Bottom Navigation Bar */}
+            <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2.5 px-6 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-2xl">
                 <button
                     onClick={() => setActiveTab('wallet')}
-                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'wallet' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#1E293B]'}`}
+                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 active:scale-90 ${activeTab === 'wallet' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#1E293B]'}`}
                 >
                     <Wallet className="w-5 h-5" />
-                    <span className="text-[10px] font-bold">Wallet</span>
+                    <span className="text-[10px] font-extrabold">Wallet</span>
                 </button>
 
                 <button
                     onClick={() => setActiveTab('offers')}
-                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'offers' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#1E293B]'}`}
+                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 active:scale-90 ${activeTab === 'offers' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#1E293B]'}`}
                 >
                     <Tag className="w-5 h-5" />
-                    <span className="text-[10px] font-bold">Offers</span>
+                    <span className="text-[10px] font-extrabold">Offers</span>
                 </button>
 
                 <button
                     onClick={() => setShowQrModal(true)}
-                    className="flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 text-slate-400 hover:text-[#1E293B]"
+                    className="flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 text-slate-400 hover:text-[#1E293B] active:scale-90"
                 >
                     <QrCode className="w-5 h-5" />
-                    <span className="text-[10px] font-bold">My QR</span>
+                    <span className="text-[10px] font-extrabold">My QR</span>
                 </button>
 
                 <button
                     onClick={() => setActiveTab('profile')}
-                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'profile' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#1E293B]'}`}
+                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 active:scale-90 ${activeTab === 'profile' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#1E293B]'}`}
                 >
                     <User className="w-5 h-5" />
-                    <span className="text-[10px] font-bold">Profile</span>
+                    <span className="text-[10px] font-extrabold">Profile</span>
                 </button>
             </nav>
         </div>
