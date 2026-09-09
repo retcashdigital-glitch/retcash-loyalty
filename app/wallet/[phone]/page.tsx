@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Wallet, Tag, User, Search, QrCode, ChevronRight, X, LogOut, Megaphone, Maximize2, Sparkles, Store, History, Clock, ArrowDownLeft, ArrowUpRight } from 'lucide-react'
+import { Wallet, Tag, User, Search, QrCode, ChevronRight, X, LogOut, Megaphone, Maximize2, Sparkles, Store } from 'lucide-react'
 
 export default function CustomerWalletPage() {
     const params = useParams()
@@ -15,12 +15,10 @@ export default function CustomerWalletPage() {
 
     const [customerName, setCustomerName] = useState<string>('')
     const [customerEmail, setCustomerEmail] = useState<string>('')
-    const [activeTab, setActiveTab] = useState<'wallet' | 'offers' | 'history' | 'profile'>('wallet')
+    const [activeTab, setActiveTab] = useState<'wallet' | 'offers' | 'profile'>('wallet')
     const [loading, setLoading] = useState(true)
     const [stores, setStores] = useState<any[]>([])
     const [activeOffers, setActiveOffers] = useState<any[]>([])
-    const [historyClaims, setHistoryClaims] = useState<any[]>([])
-    const [historyLoading, setHistoryLoading] = useState(false)
     const [offersLoading, setOffersLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('All Stores')
@@ -69,7 +67,6 @@ export default function CustomerWalletPage() {
         fetchCustomerDetails()
         fetchWalletAndClaimsData()
         fetchActiveOffers()
-        fetchHistoryLogs()
 
         // Realtime listener
         const cleanPhone = phone.replace(/\D/g, '')
@@ -88,7 +85,6 @@ export default function CustomerWalletPage() {
                     const updatedPhone = payload.new?.customer_phone || payload.old?.customer_phone
                     if (updatedPhone === phone || updatedPhone === phoneWithZero) {
                         fetchWalletAndClaimsData()
-                        fetchHistoryLogs()
                     }
                 }
             )
@@ -208,66 +204,6 @@ export default function CustomerWalletPage() {
         }
     }
 
-    // SAFE FETCH FOR HISTORY LOGS (FIXED JOIN ISSUE)
-    const fetchHistoryLogs = async () => {
-        try {
-            setHistoryLoading(true)
-            
-            const cleanPhone = phone.replace(/\D/g, '')
-            const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
-
-            // 1. Direct fetch from cashback_claims
-            const { data: claimsData, error: claimsError } = await supabase
-                .from('cashback_claims')
-                .select('*')
-                .or(`customer_phone.eq.${phone},customer_phone.eq.${phoneWithZero}`)
-                .order('created_at', { ascending: false })
-
-            if (claimsError) {
-                console.error('Error fetching claims history:', claimsError)
-                setHistoryClaims([])
-                return
-            }
-
-            if (!claimsData || claimsData.length === 0) {
-                setHistoryClaims([])
-                return
-            }
-
-            // 2. Fetch associated stores data separately to avoid foreign key schema conflicts
-            const storeIds = Array.from(new Set(claimsData.map((c: any) => c.store_id).filter(Boolean)))
-            
-            let storesMap: Record<string, any> = {}
-            if (storeIds.length > 0) {
-                const { data: storesData } = await supabase
-                    .from('stores')
-                    .select('id, store_name, logo_url')
-                    .in('id', storeIds)
-
-                if (storesData) {
-                    storesMap = storesData.reduce((acc: any, store: any) => {
-                        acc[store.id] = store
-                        return acc
-                    }, {})
-                }
-            }
-
-            // 3. Merge store details into claims
-            const formattedHistory = claimsData.map((claim: any) => ({
-                ...claim,
-                stores: storesMap[claim.store_id] || { store_name: 'Partner Store' }
-            }))
-
-            setHistoryClaims(formattedHistory)
-
-        } catch (err) {
-            console.error('Unexpected error fetching history logs:', err)
-            setHistoryClaims([])
-        } finally {
-            setHistoryLoading(false)
-        }
-    }
-
     const fetchActiveOffers = async () => {
         try {
             setOffersLoading(true)
@@ -337,18 +273,6 @@ export default function CustomerWalletPage() {
         return `+${num}`
     }
 
-    const formatDate = (isoString: string) => {
-        if (!isoString) return ''
-        const d = new Date(isoString)
-        return d.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        })
-    }
-
     const filteredStores = stores.filter(store => {
         const query = searchQuery.toLowerCase().trim();
         const matchesSearch = !query || 
@@ -371,7 +295,7 @@ export default function CustomerWalletPage() {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans selection:bg-[#00875A] selection:text-white antialiased">
-            <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5 pb-44">
+            <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5 pb-36">
                 {activeTab === 'wallet' && (
                     <>
                         {/* Header Profile Section */}
@@ -680,69 +604,6 @@ export default function CustomerWalletPage() {
                     </div>
                 )}
 
-                {/* History Section Connected with Dynamic Supabase Logs */}
-                {activeTab === 'history' && (
-                    <div className="space-y-4 animate-in fade-in duration-200 pt-2">
-                        <div className="space-y-1">
-                            <h1 className="text-xl font-black text-[#0F172A]">Activity History</h1>
-                            <p className="text-xs text-slate-500">Live logs of your store purchases, visits & cashback claims.</p>
-                        </div>
-
-                        {historyLoading ? (
-                            <div className="text-center py-12 text-slate-400 text-xs font-medium">Fetching transaction history...</div>
-                        ) : historyClaims.length === 0 ? (
-                            <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-xs">
-                                <History className="w-8 h-8 text-slate-300 mx-auto" />
-                                <p className="text-xs text-slate-600 font-semibold">No activity logs found.</p>
-                                <p className="text-[11px] text-slate-400">Transactions will appear here once you visit stores.</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {historyClaims.map((claim) => {
-                                    const isRedeemed = claim.status === 'REDEEMED'
-                                    const storeName = claim.stores?.store_name || 'Partner Store'
-
-                                    return (
-                                        <div 
-                                            key={claim.id} 
-                                            className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs space-y-3 hover:border-slate-300 transition"
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center space-x-3">
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${isRedeemed ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-[#00875A] border-emerald-100'}`}>
-                                                        {isRedeemed ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownLeft className="w-5 h-5" />}
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="text-xs font-black text-[#0F172A]">{storeName}</h4>
-                                                        <p className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
-                                                            <Clock className="w-3 h-3 text-slate-300" />
-                                                            {formatDate(claim.created_at)}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="text-right">
-                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider ${isRedeemed ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-[#00875A] border-emerald-200'}`}>
-                                                        {claim.status || 'PENDING'}
-                                                    </span>
-                                                    <p className="text-xs font-black text-[#0F172A] mt-1">
-                                                        Bill: Rs. {Number(claim.bill_amount || 0).toFixed(2)}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-slate-50 rounded-xl p-2.5 flex items-center justify-between border border-slate-100 text-[11px]">
-                                                <span className="font-semibold text-slate-500">Cashback Earned</span>
-                                                <span className="font-extrabold text-[#00875A]">+ Rs. {Number(claim.cashback_amount || 0).toFixed(2)}</span>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        )}
-                    </div>
-                )}
-
                 {activeTab === 'profile' && (
                     <div className="space-y-5 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
@@ -829,39 +690,48 @@ export default function CustomerWalletPage() {
                 </div>
             )}
 
-            {/* Bottom Navigation Bar */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2.5 px-6 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-2xl">
+            {/* Bottom Navigation Bar - Optimized 3-Tab Active Highlight Layout */}
+            <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-3 px-8 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-2xl">
+                
+                {/* 1. Wallet Tab */}
                 <button
                     onClick={() => setActiveTab('wallet')}
-                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 active:scale-90 ${activeTab === 'wallet' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#0F172A]'}`}
+                    className="flex flex-col items-center space-y-1 outline-none transition cursor-pointer group active:scale-90"
                 >
-                    <Wallet className="w-5 h-5" />
-                    <span className="text-[10px] font-extrabold">Wallet</span>
+                    <div className={`p-1.5 rounded-full transition-all ${activeTab === 'wallet' ? 'bg-emerald-100/80 text-[#00875A]' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                        <Wallet className="w-5 h-5" />
+                    </div>
+                    <span className={`text-[10px] font-extrabold transition-colors ${activeTab === 'wallet' ? 'text-[#00875A]' : 'text-slate-400'}`}>
+                        Wallet
+                    </span>
                 </button>
 
+                {/*!-- 2. Offers Tab --*/}
                 <button
                     onClick={() => setActiveTab('offers')}
-                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 active:scale-90 ${activeTab === 'offers' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#0F172A]'}`}
+                    className="flex flex-col items-center space-y-1 outline-none transition cursor-pointer group active:scale-90"
                 >
-                    <Tag className="w-5 h-5" />
-                    <span className="text-[10px] font-extrabold">Offers</span>
+                    <div className={`p-1.5 rounded-full transition-all ${activeTab === 'offers' ? 'bg-emerald-100/80 text-[#00875A]' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                        <Tag className="w-5 h-5" />
+                    </div>
+                    <span className={`text-[10px] font-extrabold transition-colors ${activeTab === 'offers' ? 'text-[#00875A]' : 'text-slate-400'}`}>
+                        Offers
+                    </span>
                 </button>
 
-                <button
-                    onClick={() => setActiveTab('history')}
-                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 active:scale-90 ${activeTab === 'history' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#0F172A]'}`}
-                >
-                    <History className="w-5 h-5" />
-                    <span className="text-[10px] font-extrabold">History</span>
-                </button>
-
+                {/* 3. Profile Tab */}
                 <button
                     onClick={() => setActiveTab('profile')}
-                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 active:scale-90 ${activeTab === 'profile' ? 'text-[#00875A]' : 'text-slate-[#0F172A]'}`}
+                    className="flex flex-col items-center space-y-1 outline-none transition cursor-pointer group active:scale-90"
                 >
-                    <User className="w-5 h-5" />
-                    <span className="text-[10px] font-extrabold">Profile</span>
+                    <div className={`p-1.5 rounded-full transition-all ${activeTab === 'profile' ? 'bg-emerald-100/80 text-[#00875A]' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                        <User className="w-5 h-5" />
+                    </div>
+                    <span className={`text-[10px] font-extrabold transition-colors ${activeTab === 'profile' ? 'text-[#00875A]' : 'text-slate-400'}`}>
+                        Profile
+                    </span>
                 </button>
+
             </nav>
         </div>
     )
