@@ -47,16 +47,16 @@ function getCategoryColor(category?: string) {
 function VisitCapsules({ visits, maxVisits, color }: { visits: number; maxVisits: number; color: string }) {
   const capped = Math.min(maxVisits, 10)
   return (
-    <div className="flex gap-1 flex-wrap items-center">
+    <div className="flex gap-1 items-center flex-1 justify-end max-w-[180px]">
       {Array.from({ length: capped }).map((_, i) => (
         <div
           key={i}
-          className="w-4 h-1.5 rounded-full transition-all duration-300"
+          className="h-1.5 flex-1 max-w-[16px] rounded-full transition-all duration-300 flex-shrink-0"
           style={{ background: i < visits ? color : '#E2E8F0' }}
         />
       ))}
       {maxVisits > 10 && (
-        <span className="text-[10px] text-slate-400 font-semibold ml-1">+{maxVisits - 10}</span>
+        <span className="text-[10px] text-slate-400 font-semibold ml-1 flex-shrink-0">+{maxVisits - 10}</span>
       )}
     </div>
   )
@@ -361,7 +361,7 @@ export default function CustomerWalletPage() {
       <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen">
         
         {/* ── Fixed Header ──────────────────────────────────────────────── */}
-        <header className="flex-shrink-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 pt-6 pb-4 shadow-xs">
+        <header className="sticky top-0 z-40 flex-shrink-0 bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 pt-6 pb-4 shadow-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
@@ -486,7 +486,7 @@ export default function CustomerWalletPage() {
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value)
-                      setActiveSearch('') // Clear manual search state on type to keep real-time filtering smooth
+                      setActiveSearch('')
                     }}
                     className="w-full bg-white rounded-2xl pl-11 pr-10 py-3.5 text-sm text-slate-700 placeholder-slate-400 shadow-xs border border-slate-100 outline-none focus:ring-2 focus:ring-[#00875A]/20 transition"
                   />
@@ -580,7 +580,6 @@ export default function CustomerWalletPage() {
                     const targetVisits = store.targetVisits || 6
                     const isThisNavigating = navigatingStoreId === store.id
 
-                    // Check if category is dynamic and valid (Hide if empty or 'others')
                     const hasValidCategory =
                       store.category &&
                       store.category.trim() !== '' &&
@@ -644,8 +643,8 @@ export default function CustomerWalletPage() {
                             </div>
 
                             {/* Capsule Progress Bar Component */}
-                            <div className="mt-3.5 pt-2.5 border-t border-slate-100/80 flex items-center justify-between">
-                              <span className="text-[11px] font-semibold text-slate-500">
+                            <div className="mt-3.5 pt-2.5 border-t border-slate-100/80 flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-semibold text-slate-500 flex-shrink-0 whitespace-nowrap">
                                 {visits} / {targetVisits} visits
                               </span>
                               <VisitCapsules
