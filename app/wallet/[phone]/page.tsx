@@ -42,16 +42,16 @@ function getCategoryColor(category?: string) {
   return { color: '#00875A', bgColor: '#ECFDF5' }
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// ─── Capsule Progress Bar Sub-component ─────────────────────────────────────
 
-function VisitDots({ visits, maxVisits, color }: { visits: number; maxVisits: number; color: string }) {
+function VisitCapsules({ visits, maxVisits, color }: { visits: number; maxVisits: number; color: string }) {
   const capped = Math.min(maxVisits, 10)
   return (
     <div className="flex gap-1 flex-wrap items-center">
       {Array.from({ length: capped }).map((_, i) => (
         <div
           key={i}
-          className="w-2.5 h-2.5 rounded-full transition-colors duration-500"
+          className="w-4 h-1.5 rounded-full transition-all duration-300"
           style={{ background: i < visits ? color : '#E2E8F0' }}
         />
       ))}
@@ -80,6 +80,7 @@ export default function CustomerWalletPage() {
   const [activeOffers, setActiveOffers] = useState<any[]>([])
   const [offersLoading, setOffersLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeSearch, setActiveSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [showQrModal, setShowQrModal] = useState(false)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
@@ -322,16 +323,25 @@ export default function CustomerWalletPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setActiveSearch(searchQuery)
+  }
+
   const totalCashback = stores.reduce((sum, store) => sum + (store.isRedeemed ? 0 : Number(store.balance || 0)), 0)
 
+  // Real-time & Explicit Submit Search Filter Logic
   const filteredStores = stores.filter(store => {
-    const query = searchQuery.toLowerCase().trim()
-    const matchesSearch = !query ||
-      store.store_name?.toLowerCase().includes(query) ||
-      (store.category && store.category.toLowerCase().includes(query))
+    const effectiveQuery = (activeSearch || searchQuery).toLowerCase().trim()
+    const storeName = store.store_name?.toLowerCase() || ''
+    const storeCat = store.category?.toLowerCase() || ''
+
+    const matchesSearch = !effectiveQuery ||
+      storeName.includes(effectiveQuery) ||
+      storeCat.includes(effectiveQuery)
 
     const matchesCategory = selectedCategory === 'All' ||
-      (store.category && store.category.toLowerCase() === selectedCategory.toLowerCase())
+      storeCat === selectedCategory.toLowerCase()
 
     return matchesSearch && matchesCategory
   })
@@ -384,7 +394,7 @@ export default function CustomerWalletPage() {
         <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28 space-y-4">
           {activeTab === 'wallet' && (
             <>
-              {/* Promo Banner (Professional UX Upgrade) */}
+              {/* Promo Banner */}
               <div
                 className="relative rounded-3xl overflow-hidden p-5 text-white shadow-lg"
                 style={{
@@ -447,7 +457,6 @@ export default function CustomerWalletPage() {
                       )}
                     </div>
 
-                    {/* Masked Member ID instead of QR Scanner */}
                     <button
                       onClick={handleCopyPhone}
                       className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 px-2.5 py-1 rounded-lg transition text-[11px] font-semibold text-white cursor-pointer"
@@ -460,30 +469,40 @@ export default function CustomerWalletPage() {
                 </div>
               </div>
 
-              {/* Search + Filters */}
+              {/* Enhanced Interactive Search Bar */}
               <div className="space-y-3">
-                <div className="relative">
-                  <Search
-                    size={15}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                  />
+                <form onSubmit={handleSearchSubmit} className="relative">
+                  <button
+                    type="submit"
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#00875A] transition-colors cursor-pointer p-1"
+                    title="Search"
+                  >
+                    <Search size={16} />
+                  </button>
                   <input
                     ref={searchInputRef}
                     type="text"
                     placeholder="Search stores…"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-white rounded-2xl pl-10 pr-10 py-3.5 text-sm text-slate-700 placeholder-slate-400 shadow-xs border border-slate-100 outline-none focus:ring-2 focus:ring-[#00875A]/20 transition"
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value)
+                      setActiveSearch('') // Clear manual search state on type to keep real-time filtering smooth
+                    }}
+                    className="w-full bg-white rounded-2xl pl-11 pr-10 py-3.5 text-sm text-slate-700 placeholder-slate-400 shadow-xs border border-slate-100 outline-none focus:ring-2 focus:ring-[#00875A]/20 transition"
                   />
                   {searchQuery && (
                     <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('')
+                        setActiveSearch('')
+                      }}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors p-1"
                     >
                       <X size={14} />
                     </button>
                   )}
-                </div>
+                </form>
 
                 {/* Category Pills */}
                 <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
@@ -561,6 +580,12 @@ export default function CustomerWalletPage() {
                     const targetVisits = store.targetVisits || 6
                     const isThisNavigating = navigatingStoreId === store.id
 
+                    // Check if category is dynamic and valid (Hide if empty or 'others')
+                    const hasValidCategory =
+                      store.category &&
+                      store.category.trim() !== '' &&
+                      store.category.toLowerCase() !== 'others'
+
                     return (
                       <div
                         key={store.id}
@@ -583,21 +608,25 @@ export default function CustomerWalletPage() {
                             )}
                           </div>
 
-                          {/* Main content */}
+                          {/* Main Content */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div>
                                 <h3 className="text-sm font-bold text-slate-800 leading-snug">
                                   {store.store_name} {isThisNavigating && '(Opening...)'}
                                 </h3>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <span
-                                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize"
-                                    style={{ background: style.bgColor, color: style.color }}
-                                  >
-                                    {store.category || 'General'}
-                                  </span>
-                                </div>
+
+                                {/* Conditional Category Tag */}
+                                {hasValidCategory && (
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span
+                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize"
+                                      style={{ background: style.bgColor, color: style.color }}
+                                    >
+                                      {store.category}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
 
                               <div className="text-right flex-shrink-0">
@@ -614,12 +643,12 @@ export default function CustomerWalletPage() {
                               </div>
                             </div>
 
-                            {/* Clean Compact Visit Progress (Without Bar) */}
+                            {/* Capsule Progress Bar Component */}
                             <div className="mt-3.5 pt-2.5 border-t border-slate-100/80 flex items-center justify-between">
                               <span className="text-[11px] font-semibold text-slate-500">
                                 {visits} / {targetVisits} visits
                               </span>
-                              <VisitDots
+                              <VisitCapsules
                                 visits={visits}
                                 maxVisits={targetVisits}
                                 color={style.color}
@@ -750,7 +779,7 @@ export default function CustomerWalletPage() {
           )}
         </main>
 
-        {/* ── Fixed Bottom Nav (Higher Contrast Fix) ───────────────────── */}
+        {/* ── Fixed Bottom Nav ───────────────────── */}
         <nav
           className="fixed bottom-0 max-w-[430px] w-full z-30 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
