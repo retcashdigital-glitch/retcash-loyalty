@@ -14,14 +14,13 @@ import {
   LogOut,
   Megaphone,
   Maximize2,
-  Sparkles,
   Store as StoreIcon,
   Utensils,
   ShoppingBag,
   Coffee,
-  Shirt,
-  Star,
-  TrendingUp
+  TrendingUp,
+  Copy,
+  Check
 } from 'lucide-react'
 
 // ─── Types & Dynamic Helper Visuals ───────────────────────────────────────────
@@ -48,50 +47,17 @@ function getCategoryColor(category?: string) {
 function VisitDots({ visits, maxVisits, color }: { visits: number; maxVisits: number; color: string }) {
   const capped = Math.min(maxVisits, 10)
   return (
-    <div className="flex gap-[3px] flex-wrap">
+    <div className="flex gap-1 flex-wrap items-center">
       {Array.from({ length: capped }).map((_, i) => (
         <div
           key={i}
-          className="w-2 h-2 rounded-full transition-colors duration-500"
+          className="w-2.5 h-2.5 rounded-full transition-colors duration-500"
           style={{ background: i < visits ? color : '#E2E8F0' }}
         />
       ))}
       {maxVisits > 10 && (
-        <span className="text-[9px] text-slate-400 font-medium ml-0.5">+{maxVisits - 10}</span>
+        <span className="text-[10px] text-slate-400 font-semibold ml-1">+{maxVisits - 10}</span>
       )}
-    </div>
-  )
-}
-
-function ProgressBar({ visits, maxVisits, color }: { visits: number; maxVisits: number; color: string }) {
-  const pct = Math.min((visits / maxVisits) * 100, 100)
-  const nearDone = pct >= 75
-
-  return (
-    <div className="mt-3 space-y-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-medium text-slate-400">
-          {visits} / {maxVisits} visits
-        </span>
-        <span
-          className="text-[11px] font-semibold"
-          style={{ color: nearDone ? '#00875A' : '#94A3B8' }}
-        >
-          {nearDone ? '🎯 Almost there!' : `${maxVisits - visits} more to unlock`}
-        </span>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{
-            width: `${pct}%`,
-            background: nearDone
-              ? `linear-gradient(90deg, ${color}, #34d399)`
-              : `linear-gradient(90deg, ${color}99, ${color})`
-          }}
-        />
-      </div>
-      <VisitDots visits={visits} maxVisits={maxVisits} color={color} />
     </div>
   )
 }
@@ -118,6 +84,7 @@ export default function CustomerWalletPage() {
   const [showQrModal, setShowQrModal] = useState(false)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [navigatingStoreId, setNavigatingStoreId] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
   const [, startTransition] = useTransition()
 
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -347,6 +314,14 @@ export default function CustomerWalletPage() {
     return `+${num}`
   }
 
+  const handleCopyPhone = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!phone) return
+    navigator.clipboard.writeText(phone)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   const totalCashback = stores.reduce((sum, store) => sum + (store.isRedeemed ? 0 : Number(store.balance || 0)), 0)
 
   const filteredStores = stores.filter(store => {
@@ -398,7 +373,7 @@ export default function CustomerWalletPage() {
             <button
               onClick={() => setShowQrModal(true)}
               className="w-10 h-10 rounded-2xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 transition-colors flex items-center justify-center cursor-pointer"
-              title="Show QR Code"
+              title="Show Digital Loyalty Pass"
             >
               <QrCode size={18} className="text-slate-600" />
             </button>
@@ -409,45 +384,45 @@ export default function CustomerWalletPage() {
         <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28 space-y-4">
           {activeTab === 'wallet' && (
             <>
-              {/* Promo Banner */}
+              {/* Promo Banner (Professional UX Upgrade) */}
               <div
                 className="relative rounded-3xl overflow-hidden p-5 text-white shadow-lg"
                 style={{
                   background: "linear-gradient(135deg, #00875A 0%, #059669 45%, #0d9488 100%)",
-                  boxShadow: "0 8px 32px rgba(0,135,90,0.35)",
+                  boxShadow: "0 8px 32px rgba(0,135,90,0.30)",
                 }}
               >
                 <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full bg-white/10 pointer-events-none" />
                 <div className="absolute right-4 top-14 w-20 h-20 rounded-full bg-white/8 pointer-events-none" />
 
                 <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center gap-2 mb-3">
                     <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
                       <TrendingUp size={13} className="text-white" />
                     </div>
-                    <span className="text-[11px] font-bold text-emerald-100 uppercase tracking-[0.14em]">
-                      Active Loyalty Cards
+                    <span className="text-[11px] font-bold text-white/90 uppercase tracking-[0.14em]">
+                      ACTIVE LOYALTY CARDS
                     </span>
                   </div>
 
                   <div className="flex items-end justify-between">
                     <div>
-                      <p className="text-[28px] font-bold leading-none">
+                      <p className="text-[26px] font-extrabold leading-none tracking-tight">
                         Rs. {totalCashback.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
-                      <p className="text-[13px] text-emerald-100 mt-1 font-medium">
-                        Total cashback balance
+                      <p className="text-[12px] text-white/90 mt-1.5 font-medium">
+                        Combined store savings
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[28px] font-bold leading-none">{stores.length}</p>
-                      <p className="text-[13px] text-emerald-100 mt-1 font-medium">
+                      <p className="text-[26px] font-extrabold leading-none">{stores.length}</p>
+                      <p className="text-[12px] text-white/90 mt-1.5 font-medium">
                         Connected stores
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-4 border-t border-white/20 flex items-center justify-between">
+                  <div className="mt-4 pt-3.5 border-t border-white/20 flex items-center justify-between">
                     <div className="flex -space-x-2">
                       {stores.slice(0, 4).map((s, idx) => {
                         const style = getCategoryColor(s.category)
@@ -471,9 +446,16 @@ export default function CustomerWalletPage() {
                         </div>
                       )}
                     </div>
-                    <span className="text-[11px] font-medium text-emerald-100">
-                      Scan QR at checkout
-                    </span>
+
+                    {/* Masked Member ID instead of QR Scanner */}
+                    <button
+                      onClick={handleCopyPhone}
+                      className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 px-2.5 py-1 rounded-lg transition text-[11px] font-semibold text-white cursor-pointer"
+                      title="Click to copy member ID"
+                    >
+                      <span>ID: {formatPhoneNumber(phone)}</span>
+                      {copied ? <Check size={12} className="text-emerald-200" /> : <Copy size={12} className="text-white/80" />}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -568,7 +550,7 @@ export default function CustomerWalletPage() {
                     <ShoppingBag size={28} className="text-slate-300" />
                   </div>
                   <p className="text-sm font-semibold text-slate-500">No store cards found</p>
-                  <p className="text-xs text-slate-400 mt-1">Scan a store QR code to connect</p>
+                  <p className="text-xs text-slate-400 mt-1">Share member ID at store checkout</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -588,7 +570,7 @@ export default function CustomerWalletPage() {
                           isThisNavigating ? 'opacity-70' : ''
                         }`}
                       >
-                        <div className="flex items-start gap-3.5">
+                        <div className="flex items-center gap-3.5">
                           {/* Store Icon / Logo */}
                           <div
                             className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden"
@@ -605,15 +587,15 @@ export default function CustomerWalletPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <h3 className="text-sm font-semibold text-slate-800 leading-snug">
+                                <h3 className="text-sm font-bold text-slate-800 leading-snug">
                                   {store.store_name} {isThisNavigating && '(Opening...)'}
                                 </h3>
-                                <div className="flex items-center gap-1.5 mt-1">
+                                <div className="flex items-center gap-1.5 mt-0.5">
                                   <span
                                     className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize"
                                     style={{ background: style.bgColor, color: style.color }}
                                   >
-                                    {store.category || 'Store'}
+                                    {store.category || 'General'}
                                   </span>
                                 </div>
                               </div>
@@ -625,21 +607,27 @@ export default function CustomerWalletPage() {
                                     Rs. {Number(store.cashbackAmount).toFixed(2)}
                                   </span>
                                 ) : (
-                                  <p className="text-base font-bold text-slate-800 leading-tight">
+                                  <p className="text-sm font-extrabold text-slate-800 leading-tight">
                                     Rs. {Number(store.balance).toFixed(2)}
                                   </p>
                                 )}
                               </div>
                             </div>
 
-                            <ProgressBar
-                              visits={visits}
-                              maxVisits={targetVisits}
-                              color={style.color}
-                            />
+                            {/* Clean Compact Visit Progress (Without Bar) */}
+                            <div className="mt-3.5 pt-2.5 border-t border-slate-100/80 flex items-center justify-between">
+                              <span className="text-[11px] font-semibold text-slate-500">
+                                {visits} / {targetVisits} visits
+                              </span>
+                              <VisitDots
+                                visits={visits}
+                                maxVisits={targetVisits}
+                                color={style.color}
+                              />
+                            </div>
                           </div>
 
-                          <ChevronRight size={15} className="text-slate-300 flex-shrink-0 mt-4" />
+                          <ChevronRight size={15} className="text-slate-300 flex-shrink-0" />
                         </div>
                       </div>
                     )
@@ -762,7 +750,7 @@ export default function CustomerWalletPage() {
           )}
         </main>
 
-        {/* ── Fixed Bottom Nav ───────────────────────────────────────────── */}
+        {/* ── Fixed Bottom Nav (Higher Contrast Fix) ───────────────────── */}
         <nav
           className="fixed bottom-0 max-w-[430px] w-full z-30 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
@@ -786,13 +774,13 @@ export default function CustomerWalletPage() {
                   >
                     <Icon
                       size={21}
-                      style={{ color: active ? "#00875A" : "#CBD5E1" }}
+                      style={{ color: active ? "#00875A" : "#64748B" }}
                       strokeWidth={active ? 2.2 : 1.8}
                     />
                   </div>
                   <span
-                    className="text-[10px] font-semibold leading-none transition-colors duration-200"
-                    style={{ color: active ? "#00875A" : "#CBD5E1" }}
+                    className="text-[10px] font-bold leading-none transition-colors duration-200"
+                    style={{ color: active ? "#00875A" : "#64748B" }}
                   >
                     {label}
                   </span>
@@ -824,7 +812,7 @@ export default function CustomerWalletPage() {
           </div>
         )}
 
-        {/* QR Code Modal */}
+        {/* QR Code / Digital Pass Modal */}
         {showQrModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-xl relative">
@@ -837,15 +825,21 @@ export default function CustomerWalletPage() {
 
               <div className="space-y-1 pt-2">
                 <h3 className="text-sm font-black text-[#0F172A] uppercase tracking-wider">My Digital Loyalty Pass</h3>
-                <p className="text-[11px] text-slate-500 font-medium">Show this QR code at store cashier</p>
+                <p className="text-[11px] text-slate-500 font-medium">Show phone number or QR at store checkout</p>
               </div>
 
               <div className="bg-slate-50 p-4 rounded-2xl inline-block border border-slate-100 shadow-inner">
                 <img src={qrCodeUrl} alt="Customer QR Code" className="w-48 h-48 mx-auto rounded-xl" />
               </div>
 
-              <div className="bg-emerald-50 border border-emerald-100 py-2.5 px-4 rounded-xl">
+              <div className="bg-emerald-50 border border-emerald-100 py-2.5 px-4 rounded-xl flex items-center justify-between">
                 <p className="text-xs font-bold text-[#00875A]">{formatPhoneNumber(phone)}</p>
+                <button
+                  onClick={handleCopyPhone}
+                  className="text-[10px] bg-[#00875A] text-white px-2 py-1 rounded-md font-semibold cursor-pointer"
+                >
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
               </div>
             </div>
           </div>
