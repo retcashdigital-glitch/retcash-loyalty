@@ -162,12 +162,12 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
         : 'RC'
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col items-center p-4 font-sans selection:bg-[#EE8838]">
-            <div className="w-full max-w-sm flex items-center justify-between pt-3 pb-3 border-b border-slate-200 mb-4">
+        <div className="min-h-screen bg-[#0F172A] text-[#F8FAFC] flex flex-col items-center p-4 font-sans selection:bg-[#00875A]">
+            <div className="w-full max-w-sm flex items-center justify-between pt-3 pb-3 border-b border-slate-800 mb-4">
                 {customerPhone ? (
                     <button
                         onClick={() => router.push(`/wallet/${customerPhone}`)}
-                        className="flex items-center gap-2 text-xs font-bold text-[#EE8838] bg-[#EE8838]/10 border border-[#EE8838]/20 px-3 py-1.5 rounded-xl hover:bg-[#EE8838]/20 transition active:scale-95 cursor-pointer"
+                        className="flex items-center gap-2 text-xs font-bold text-[#00875A] bg-[#00875A]/10 border border-[#00875A]/30 px-3 py-1.5 rounded-xl hover:bg-[#00875A]/20 transition active:scale-95 cursor-pointer"
                     >
                         <IconWallet />
                         <span>My All Stores Wallet</span>
@@ -179,21 +179,21 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
             </div>
 
             <div className="w-full max-w-sm space-y-4">
-                {/* Store Loyalty Card Header */}
+                {/* Store Loyalty Card Header - Charcoal Black Theme */}
                 <div
-                    className="relative rounded-3xl p-6 shadow-xl overflow-hidden text-white"
+                    className="relative rounded-3xl p-6 shadow-2xl overflow-hidden text-white border border-slate-700/50"
                     style={{
                         background: "linear-gradient(135deg, #1E293B 0%, #0F172A 100%)",
-                        boxShadow: "0 20px 30px -10px rgba(15, 23, 42, 0.15)"
+                        boxShadow: "0 20px 30px -10px rgba(0, 0, 0, 0.5)"
                     }}
                 >
                     <div className="flex justify-between items-start mb-6">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center font-bold text-[#EE8838] text-sm">
+                            <div className="w-10 h-10 rounded-xl bg-[#00875A]/20 border border-[#00875A]/40 flex items-center justify-center font-bold text-[#00875A] text-sm">
                                 {storeInitials}
                             </div>
                             <div>
-                                <span className="text-[9px] font-bold text-[#EE8838] uppercase tracking-widest block">RETCASH PARTNER</span>
+                                <span className="text-[9px] font-bold text-[#00875A] uppercase tracking-widest block">RETCASH PARTNER</span>
                                 <h1 className="text-lg font-black text-white leading-tight">{store?.store_name || 'PARTNER STORE'}</h1>
                             </div>
                         </div>
@@ -202,12 +202,12 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
 
                     <div className="mb-6">
                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">STORE CREDIT BALANCE</span>
-                        <div className="text-3xl font-black text-white tracking-tight">
+                        <div className="text-3xl font-black text-[#00875A] tracking-tight">
                             Rs. {Number(claimData?.claimable_amount || 0).toFixed(2)}
                         </div>
                     </div>
 
-                    <div className="pt-4 border-t border-white/10 flex items-center justify-between text-[11px]">
+                    <div className="pt-4 border-t border-slate-700/60 flex items-center justify-between text-[11px]">
                         <div>
                             <span className="text-[9px] text-slate-400 block font-semibold uppercase tracking-wider">MEMBER PASS</span>
                             <span className="text-white font-medium">VIP MEMBER</span>
@@ -219,23 +219,23 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                     </div>
                 </div>
 
-                {/* Main Card View Section */}
-                <div className="bg-white border border-slate-200/80 rounded-3xl p-6 text-center relative overflow-hidden shadow-sm">
+                {/* Main Card View Section - Slate Dark Theme */}
+                <div className="bg-[#1E293B] border border-slate-700/80 rounded-3xl p-6 text-center relative overflow-hidden shadow-lg">
                     
                     {/* Latest Cashback Display */}
-                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl mb-5 flex justify-between items-center text-xs">
-                        <span className="text-slate-500 font-medium">LATEST CASHBACK</span>
+                    <div className="bg-[#0F172A] border border-slate-700 p-3 rounded-2xl mb-5 flex justify-between items-center text-xs">
+                        <span className="text-slate-400 font-medium">LATEST CASHBACK</span>
                         {isRedeemed ? (
                             <div className="flex items-center gap-1.5">
-                                <span className="text-slate-400 line-through text-[11px]">
+                                <span className="text-slate-500 line-through text-[11px]">
                                     Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
                                 </span>
-                                <span className="bg-slate-200 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                <span className="bg-slate-800 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-slate-700">
                                     REDEEMED
                                 </span>
                             </div>
                         ) : (
-                            <span className="text-[#EE8838] font-black">
+                            <span className="text-[#00875A] font-black">
                                 + Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
                             </span>
                         )}
@@ -244,8 +244,8 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                     {/* Visit Challenge Grid */}
                     <div className="mb-6">
                         <div className="flex justify-between text-[11px] font-bold tracking-wider uppercase mb-3">
-                            <span className="text-slate-500">{totalVisits} Visit Challenge</span>
-                            <span className="text-[#EE8838]">{currentVisits} / {totalVisits} Visits</span>
+                            <span className="text-slate-400">{totalVisits} Visit Challenge</span>
+                            <span className="text-[#00875A]">{currentVisits} / {totalVisits} Visits</span>
                         </div>
 
                         <div
@@ -261,11 +261,11 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                     <div
                                         key={step}
                                         className={`h-9 rounded-xl flex items-center justify-center font-bold text-xs transition-all duration-300 ${done
-                                            ? 'bg-[#EE8838] text-white shadow-md shadow-orange-500/20'
-                                            : 'bg-slate-100 border border-slate-200 text-slate-400'
+                                            ? 'bg-[#00875A] text-white shadow-md shadow-[#00875A]/30'
+                                            : 'bg-[#0F172A] border border-slate-700 text-slate-500'
                                             }`}
                                     >
-                                        {done ? <IconCheck /> : <span className="scale-75"><IconLock /></span>}
+                                        {done ? <IconCheck /> : <span className="scale-75 text-slate-500"><IconLock /></span>}
                                     </div>
                                 );
                             })}
@@ -275,11 +275,11 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                     {/* QR Code / Reward Section */}
                     <div className="relative min-h-[210px] flex items-center justify-center">
                         <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-out transform ${isRedeemed ? 'opacity-100 scale-100 translate-y-0 blur-0' : 'opacity-0 scale-90 translate-y-6 blur-md pointer-events-none'}`}>
-                            <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl mb-3 animate-bounce shadow-sm">
+                            <div className="w-14 h-14 bg-[#00875A]/20 border border-[#00875A]/40 text-[#00875A] rounded-full flex items-center justify-center mx-auto text-3xl mb-3 animate-bounce shadow-sm">
                                 🎉
                             </div>
-                            <h3 className="text-xs font-black text-emerald-600 uppercase tracking-wider mb-1">REWARD SUCCESSFULLY REDEEMED!</h3>
-                            <p className="text-[11px] text-slate-500 px-2 font-medium">
+                            <h3 className="text-xs font-black text-[#00875A] uppercase tracking-wider mb-1">REWARD SUCCESSFULLY REDEEMED!</h3>
+                            <p className="text-[11px] text-slate-400 px-2 font-medium">
                                 Your reward has been claimed successfully. Thank you for visiting!
                             </p>
                         </div>
@@ -287,10 +287,10 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                         <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-in transform ${isRedeemed ? 'opacity-0 scale-125 -translate-y-8 blur-lg pointer-events-none' : 'opacity-100 scale-100 translate-y-0 blur-0'}`}>
                             {isRewardReady ? (
                                 <div className="w-full">
-                                    <div className="bg-[#EE8838]/10 border border-[#EE8838]/30 text-[#EE8838] text-xs font-bold py-2 px-3 rounded-xl mb-3">
+                                    <div className="bg-[#00875A]/15 border border-[#00875A]/40 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3">
                                         🎉 Congratulations! Your {totalVisits}th Visit Reward is ready!
                                     </div>
-                                    <p className="text-[11px] text-slate-500 mb-2 font-semibold">Show QR code at billing counter:</p>
+                                    <p className="text-[11px] text-slate-400 mb-2 font-semibold">Show QR code at billing counter:</p>
                                     <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-200">
                                         <img
                                             src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${id}`}
@@ -300,14 +300,14 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                     </div>
                                 </div>
                             ) : (
-                                <div className="py-5 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50 w-full">
-                                    <div className="w-10 h-10 bg-[#EE8838]/10 border border-[#EE8838]/30 text-[#EE8838] rounded-full flex items-center justify-center mx-auto mb-2 text-base">
+                                <div className="py-5 px-4 border border-dashed border-slate-700 rounded-2xl bg-[#0F172A] w-full">
+                                    <div className="w-10 h-10 bg-[#00875A]/20 border border-[#00875A]/40 text-[#00875A] rounded-full flex items-center justify-center mx-auto mb-2 text-base">
                                         <IconGift />
                                     </div>
-                                    <h3 className="text-xs font-bold text-[#0F172A] mb-1">
+                                    <h3 className="text-xs font-bold text-white mb-1">
                                         {totalVisits - currentVisits} More {totalVisits - currentVisits === 1 ? 'Visit' : 'Visits'} Needed!
                                     </h3>
-                                    <p className="text-[11px] text-slate-500">
+                                    <p className="text-[11px] text-slate-400">
                                         Redemption QR code will appear automatically on your {totalVisits}th visit.
                                     </p>
                                 </div>
@@ -317,16 +317,16 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
 
                     {/* STORE OFFERS SECTION */}
                     {offers.length > 0 && (
-                        <div className="mt-6 pt-5 border-t border-slate-100 text-left">
-                            <div className="flex items-center gap-1.5 text-[#EE8838] font-bold text-xs uppercase tracking-wider mb-3">
+                        <div className="mt-6 pt-5 border-t border-slate-700/60 text-left">
+                            <div className="flex items-center gap-1.5 text-[#00875A] font-bold text-xs uppercase tracking-wider mb-3">
                                 <IconMegaphone />
                                 <span>STORE OFFERS & DEALS</span>
                             </div>
                             <div className="space-y-3">
                                 {offers.map((offer) => (
-                                    <div key={offer.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-3 shadow-xs overflow-hidden">
+                                    <div key={offer.id} className="bg-[#0F172A] border border-slate-700 rounded-2xl p-3 shadow-xs overflow-hidden">
                                         {offer.image_url && (
-                                            <div className="w-full h-40 bg-slate-200 rounded-xl overflow-hidden mb-3">
+                                            <div className="w-full h-40 bg-slate-800 rounded-xl overflow-hidden mb-3">
                                                 <img 
                                                     src={offer.image_url} 
                                                     alt={offer.title} 
@@ -334,12 +334,12 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                                 />
                                             </div>
                                         )}
-                                        <h4 className="font-bold text-xs text-[#0F172A] leading-snug">{offer.title}</h4>
+                                        <h4 className="font-bold text-xs text-white leading-snug">{offer.title}</h4>
                                         {offer.description && (
-                                            <p className="text-[11px] text-slate-500 mt-1 leading-normal">{offer.description}</p>
+                                            <p className="text-[11px] text-slate-400 mt-1 leading-normal">{offer.description}</p>
                                         )}
                                         {offer.expires_at && (
-                                            <div className="mt-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                                            <div className="mt-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
                                                 Ends: {new Date(offer.expires_at).toLocaleDateString()}
                                             </div>
                                         )}
@@ -350,19 +350,19 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                     )}
 
                     {/* Location & Review Action Buttons */}
-                    <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100 mt-4">
+                    <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-700/60 mt-4">
                         {store?.location_url ? (
                             <a
                                 href={store.location_url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-[#0F172A] font-bold hover:border-[#EE8838] transition flex items-center justify-center gap-2"
+                                className="py-3 px-3 bg-[#0F172A] border border-slate-700 rounded-xl text-center text-xs text-white font-bold hover:border-[#00875A] transition flex items-center justify-center gap-2"
                             >
                                 <IconLocation />
                                 <span>LOCATION</span>
                             </a>
                         ) : (
-                            <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200 rounded-xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                            <button disabled className="py-3 px-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-center text-xs text-slate-500 font-bold flex items-center justify-center gap-2 cursor-not-allowed">
                                 <IconLocation />
                                 <span>LOCATION</span>
                             </button>
@@ -373,13 +373,13 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                 href={store.review_url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-[#EE8838] font-bold hover:border-[#EE8838] transition flex items-center justify-center gap-2"
+                                className="py-3 px-3 bg-[#0F172A] border border-slate-700 rounded-xl text-center text-xs text-[#00875A] font-bold hover:border-[#00875A] transition flex items-center justify-center gap-2"
                             >
                                 <IconStar />
                                 <span>REVIEW</span>
                             </a>
                         ) : (
-                            <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200 rounded-xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                            <button disabled className="py-3 px-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-center text-xs text-slate-500 font-bold flex items-center justify-center gap-2 cursor-not-allowed">
                                 <IconStar />
                                 <span>REVIEW</span>
                             </button>
@@ -388,7 +388,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                 </div>
             </div>
 
-            <div className="py-8 text-center text-[10px] text-slate-400 tracking-wider uppercase font-semibold">
+            <div className="py-8 text-center text-[10px] text-slate-500 tracking-wider uppercase font-semibold">
                 <p>©️ RETCASH DIGITAL LOYALTY PLATFORM</p>
             </div>
         </div>
