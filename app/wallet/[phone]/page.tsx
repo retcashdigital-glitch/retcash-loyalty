@@ -323,22 +323,28 @@ export default function CustomerWalletPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  // Keyboard 'Go' அல்லது 'Search' பொத்தானை அழுத்தும்போது Keyboard-ஐ கீழே இறக்க (Blur)
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setActiveSearch(searchQuery)
+    if (searchInputRef.current) {
+      searchInputRef.current.blur()
+    }
   }
 
   const totalCashback = stores.reduce((sum, store) => sum + (store.isRedeemed ? 0 : Number(store.balance || 0)), 0)
 
-  // Real-time & Explicit Submit Search Filter Logic
+  // Expanded Deep Search Filter Logic (கடையின் பெயர், வகை, விவரணம் எதுவாக இருந்தாலும் தேடும்)
   const filteredStores = stores.filter(store => {
     const effectiveQuery = (activeSearch || searchQuery).toLowerCase().trim()
     const storeName = store.store_name?.toLowerCase() || ''
     const storeCat = store.category?.toLowerCase() || ''
+    const storeDesc = store.description?.toLowerCase() || ''
 
     const matchesSearch = !effectiveQuery ||
       storeName.includes(effectiveQuery) ||
-      storeCat.includes(effectiveQuery)
+      storeCat.includes(effectiveQuery) ||
+      storeDesc.includes(effectiveQuery)
 
     const matchesCategory = selectedCategory === 'All' ||
       storeCat === selectedCategory.toLowerCase()
@@ -469,7 +475,7 @@ export default function CustomerWalletPage() {
                 </div>
               </div>
 
-              {/* Enhanced Interactive Search Bar */}
+              {/* Enhanced Interactive Search Bar with Keyboard Go Action */}
               <div className="space-y-3">
                 <form onSubmit={handleSearchSubmit} className="relative">
                   <button
@@ -481,8 +487,9 @@ export default function CustomerWalletPage() {
                   </button>
                   <input
                     ref={searchInputRef}
-                    type="text"
-                    placeholder="Search stores…"
+                    type="search"
+                    enterKeyHint="search"
+                    placeholder="Search any store or category…"
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value)
