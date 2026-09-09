@@ -42,7 +42,7 @@ export default function CustomerWalletPage() {
 
         setIsCheckingAuth(false)
 
-        // Cache-இல் இருந்து பெயர் மற்றும் கார்டுகளை எடுத்தல்
+        // Cache verification
         const cachedName = localStorage.getItem(`customer_name_${phone}`)
         if (cachedName) {
             setCustomerName(cachedName)
@@ -459,7 +459,6 @@ export default function CustomerWalletPage() {
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center space-x-3.5">
-                                                {/* Store Logo Container */}
                                                 <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs group-hover:scale-105 transition">
                                                     {store.logo_url ? (
                                                         <img 
