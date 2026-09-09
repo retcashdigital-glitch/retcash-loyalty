@@ -178,7 +178,6 @@ export default function CustomerWalletPage() {
                 }
             }) || []
 
-            // கிளிச்சைத் தவிர்த்து தரவு மாறியிருந்தால் மட்டும் Update செய்தல்
             if (JSON.stringify(mergedStores) !== cachedData) {
                 setStores(mergedStores)
                 localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(mergedStores))
@@ -253,13 +252,13 @@ export default function CustomerWalletPage() {
     if (isCheckingAuth) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
-                <div className="w-10 h-10 border-3 border-slate-200 border-t-[#EE8838] rounded-full animate-spin"></div>
+                <div className="w-10 h-10 border-3 border-slate-200 border-t-[#00875A] rounded-full animate-spin"></div>
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col pb-24 font-sans selection:bg-[#EE8838]">
+        <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] flex flex-col pb-24 font-sans selection:bg-[#00875A] selection:text-white">
             <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5">
                 {activeTab === 'wallet' && (
                     <>
@@ -270,12 +269,12 @@ export default function CustomerWalletPage() {
                                         <img
                                             src="/logo.jpeg"
                                             alt="Retcash Logo"
-                                            className="w-8 h-8 rounded-xl object-cover shadow-xs border border-orange-200"
+                                            className="w-8 h-8 rounded-xl object-cover shadow-xs border border-emerald-100"
                                         />
-                                        <span className="font-black text-lg tracking-wider text-[#0F172A]">RET<span className="text-[#EE8838]">CASH</span></span>
+                                        <span className="font-black text-lg tracking-wider text-[#1E293B]">RET<span className="text-[#00875A]">CASH</span></span>
                                     </div>
                                     <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider pt-2">WELCOME BACK</p>
-                                    <h1 className="text-xl font-black text-[#0F172A]">
+                                    <h1 className="text-xl font-black text-[#1E293B]">
                                         {customerName ? (
                                             customerName
                                         ) : loading ? (
@@ -294,7 +293,7 @@ export default function CustomerWalletPage() {
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder="Search stores..."
-                                    className="w-full bg-slate-50/80 border border-slate-200 focus:border-[#EE8838] focus:bg-white rounded-2xl pl-10 pr-4 py-3 text-sm text-[#0F172A] outline-none transition shadow-inner"
+                                    className="w-full bg-slate-50/80 border border-slate-200 focus:border-[#00875A] focus:bg-white rounded-2xl pl-10 pr-4 py-3 text-sm text-[#1E293B] outline-none transition shadow-inner"
                                 />
                             </div>
                         </div>
@@ -305,8 +304,8 @@ export default function CustomerWalletPage() {
                                     key={category}
                                     onClick={() => setSelectedCategory(category)}
                                     className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer ${selectedCategory === category
-                                        ? 'bg-[#EE8838] text-[#0F172A] font-extrabold shadow-md shadow-orange-500/20'
-                                        : 'bg-white text-slate-500 border border-slate-200 hover:text-[#0F172A]'
+                                        ? 'bg-[#00875A] text-white font-extrabold shadow-md shadow-emerald-600/20'
+                                        : 'bg-white text-slate-500 border border-slate-200 hover:text-[#1E293B]'
                                         }`}
                                 >
                                     {category}
@@ -316,7 +315,7 @@ export default function CustomerWalletPage() {
 
                         <div className="flex items-center justify-between pt-1">
                             <h2 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">YOUR STORES & LOYALTY CARDS</h2>
-                            <span className="text-xs font-bold bg-white text-[#EE8838] px-2.5 py-1 rounded-full border border-slate-200 shadow-xs">
+                            <span className="text-xs font-bold bg-white text-[#00875A] px-2.5 py-1 rounded-full border border-slate-200 shadow-xs">
                                 {filteredStores.length} stores
                             </span>
                         </div>
@@ -356,26 +355,26 @@ export default function CustomerWalletPage() {
                                         onClick={() => handleStoreClick(store.id)}
                                         onMouseEnter={() => router.prefetch(`/card/${store.id}?phone=${phone}`)}
                                         className={`bg-white border rounded-3xl p-5 space-y-4 transition cursor-pointer shadow-xs group ${isThisNavigating
-                                            ? 'border-[#EE8838] bg-orange-50/20 opacity-80'
-                                            : 'border-slate-200/80 hover:border-[#EE8838] hover:shadow-sm'
+                                            ? 'border-[#00875A] bg-emerald-50/20 opacity-80'
+                                            : 'border-slate-200/80 hover:border-[#00875A] hover:shadow-sm'
                                             }`}
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center space-x-3.5">
-                                                <div className="w-11 h-11 rounded-2xl bg-orange-50 overflow-hidden flex items-center justify-center border border-orange-100 group-hover:scale-105 transition">
-                                                    <span className="text-sm font-black text-[#EE8838]">
+                                                <div className="w-11 h-11 rounded-2xl bg-emerald-50 overflow-hidden flex items-center justify-center border border-emerald-100 group-hover:scale-105 transition">
+                                                    <span className="text-sm font-black text-[#00875A]">
                                                         {store.store_name?.[0] || 'S'}
                                                     </span>
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-sm font-bold text-[#0F172A] group-hover:text-[#EE8838] transition">
+                                                    <h3 className="text-sm font-bold text-[#1E293B] group-hover:text-[#00875A] transition">
                                                         {store.store_name} {isThisNavigating && '(Opening...)'}
                                                     </h3>
                                                     <p className="text-[11px] text-slate-400 font-medium">Partner Store</p>
                                                 </div>
                                             </div>
-                                            <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 group-hover:bg-orange-50 transition">
-                                                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#EE8838]" />
+                                            <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 group-hover:bg-emerald-50 transition">
+                                                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#00875A]" />
                                             </div>
                                         </div>
 
@@ -392,7 +391,7 @@ export default function CustomerWalletPage() {
                                                         </span>
                                                     </div>
                                                 ) : (
-                                                    <p className="text-lg font-black text-[#0F172A] mt-0.5">
+                                                    <p className="text-lg font-black text-[#00875A] mt-0.5">
                                                         Rs. {Number(store.balance).toFixed(2)}
                                                     </p>
                                                 )}
@@ -404,7 +403,7 @@ export default function CustomerWalletPage() {
                                                     {Array.from({ length: target }, (_, i) => i + 1).map((v) => (
                                                         <div
                                                             key={v}
-                                                            className={`w-2.5 h-2.5 rounded-full transition ${v <= visits ? 'bg-[#EE8838]' : 'bg-slate-200'}`}
+                                                            className={`w-2.5 h-2.5 rounded-full transition ${v <= visits ? 'bg-[#00875A]' : 'bg-slate-200'}`}
                                                         ></div>
                                                     ))}
                                                 </div>
@@ -421,8 +420,8 @@ export default function CustomerWalletPage() {
                     <div className="space-y-4 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
                             <div className="flex items-center space-x-2">
-                                <Megaphone className="w-5 h-5 text-[#EE8838]" />
-                                <h1 className="text-xl font-black text-[#0F172A]">Store Offers & Deals</h1>
+                                <Megaphone className="w-5 h-5 text-[#00875A]" />
+                                <h1 className="text-xl font-black text-[#1E293B]">Store Offers & Deals</h1>
                             </div>
                             <p className="text-xs text-slate-500">Exclusive active offers posted by our partner stores.</p>
                         </div>
@@ -436,18 +435,18 @@ export default function CustomerWalletPage() {
                             </div>
                         ) : (
                             activeOffers.map((offer) => (
-                                <div key={offer.id} className="bg-white border border-slate-200 rounded-3xl p-5 space-y-3 shadow-xs hover:border-[#EE8838] transition">
+                                <div key={offer.id} className="bg-white border border-slate-200 rounded-3xl p-5 space-y-3 shadow-xs hover:border-[#00875A] transition">
                                     <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                                         <div className="flex items-center space-x-2.5">
-                                            <div className="w-8 h-8 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center font-bold text-xs text-[#EE8838]">
+                                            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-xs text-[#00875A]">
                                                 {offer.stores?.store_name?.[0] || 'S'}
                                             </div>
                                             <div>
-                                                <h3 className="text-xs font-bold text-[#0F172A]">{offer.stores?.store_name || 'Partner Store'}</h3>
+                                                <h3 className="text-xs font-bold text-[#1E293B]">{offer.stores?.store_name || 'Partner Store'}</h3>
                                                 <p className="text-[10px] text-slate-400 font-medium">Active Promotion</p>
                                             </div>
                                         </div>
-                                        <span className="text-[10px] bg-orange-50 text-[#EE8838] px-2.5 py-1 rounded-full font-bold border border-orange-100 uppercase tracking-wider">
+                                        <span className="text-[10px] bg-emerald-50 text-[#00875A] px-2.5 py-1 rounded-full font-bold border border-emerald-100 uppercase tracking-wider">
                                             Special Deal
                                         </span>
                                     </div>
@@ -462,14 +461,14 @@ export default function CustomerWalletPage() {
                                                 alt={offer.title} 
                                                 className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                                             />
-                                            <div className="absolute bottom-2 right-2 bg-slate-900/60 text-white p-1.5 rounded-lg backdrop-blur-xs group-hover:bg-[#EE8838] transition">
+                                            <div className="absolute bottom-2 right-2 bg-slate-900/60 text-white p-1.5 rounded-lg backdrop-blur-xs group-hover:bg-[#00875A] transition">
                                                 <Maximize2 className="w-3.5 h-3.5" />
                                             </div>
                                         </div>
                                     )}
 
                                     <div className="space-y-1">
-                                        <h4 className="font-extrabold text-sm text-[#0F172A]">{offer.title}</h4>
+                                        <h4 className="font-extrabold text-sm text-[#1E293B]">{offer.title}</h4>
                                         {offer.description && (
                                             <p className="text-xs text-slate-500 leading-relaxed">{offer.description}</p>
                                         )}
@@ -482,7 +481,7 @@ export default function CustomerWalletPage() {
                                         {offer.stores?.id && (
                                             <button
                                                 onClick={() => handleStoreClick(offer.stores.id)}
-                                                className="text-xs font-bold text-[#EE8838] hover:underline flex items-center space-x-1 cursor-pointer"
+                                                className="text-xs font-bold text-[#00875A] hover:underline flex items-center space-x-1 cursor-pointer"
                                             >
                                                 <span>View Store Card</span>
                                                 <ChevronRight className="w-3.5 h-3.5" />
@@ -498,17 +497,17 @@ export default function CustomerWalletPage() {
                 {activeTab === 'profile' && (
                     <div className="space-y-5 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
-                            <h1 className="text-xl font-black text-[#0F172A]">My Profile</h1>
+                            <h1 className="text-xl font-black text-[#1E293B]">My Profile</h1>
                             <p className="text-xs text-slate-500">Manage your account details and session.</p>
                         </div>
 
                         <div className="bg-white border border-slate-200 rounded-3xl p-5 space-y-4 shadow-xs">
                             <div className="flex items-center space-x-3.5 pb-4 border-b border-slate-100">
-                                <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#EE8838] flex items-center justify-center font-black text-lg border border-orange-100 shadow-xs">
+                                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#00875A] flex items-center justify-center font-black text-lg border border-emerald-100 shadow-xs">
                                     <User className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h3 className="text-base font-extrabold text-[#0F172A]">
+                                    <h3 className="text-base font-extrabold text-[#1E293B]">
                                         {customerName || 'Customer'}
                                     </h3>
                                     <p className="text-xs text-slate-400 font-medium">{formatPhoneNumber(phone)}</p>
@@ -558,13 +557,13 @@ export default function CustomerWalletPage() {
                     <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-xl relative animate-in fade-in zoom-in duration-200">
                         <button
                             onClick={() => setShowQrModal(false)}
-                            className="absolute top-4 right-4 text-slate-400 hover:text-[#0F172A] bg-slate-100 p-1.5 rounded-full outline-none cursor-pointer transition"
+                            className="absolute top-4 right-4 text-slate-400 hover:text-[#1E293B] bg-slate-100 p-1.5 rounded-full outline-none cursor-pointer transition"
                         >
                             <X className="w-4 h-4" />
                         </button>
 
                         <div className="space-y-1 pt-2">
-                            <h3 className="text-sm font-black text-[#0F172A] uppercase tracking-wider">My Wallet QR</h3>
+                            <h3 className="text-sm font-black text-[#1E293B] uppercase tracking-wider">My Wallet QR</h3>
                             <p className="text-[11px] text-slate-500">Scan this QR to get your phone number</p>
                         </div>
 
@@ -572,8 +571,8 @@ export default function CustomerWalletPage() {
                             <img src={qrCodeUrl} alt="Customer QR Code" className="w-48 h-48 mx-auto rounded-xl" />
                         </div>
 
-                        <div className="bg-orange-50 border border-orange-100 py-2.5 px-4 rounded-xl">
-                            <p className="text-xs font-extrabold text-[#EE8838]">{formatPhoneNumber(phone)}</p>
+                        <div className="bg-emerald-50 border border-emerald-100 py-2.5 px-4 rounded-xl">
+                            <p className="text-xs font-extrabold text-[#00875A]">{formatPhoneNumber(phone)}</p>
                         </div>
                     </div>
                 </div>
@@ -582,7 +581,7 @@ export default function CustomerWalletPage() {
             <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2 px-6 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-lg">
                 <button
                     onClick={() => setActiveTab('wallet')}
-                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'wallet' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
+                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'wallet' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#1E293B]'}`}
                 >
                     <Wallet className="w-5 h-5" />
                     <span className="text-[10px] font-bold">Wallet</span>
@@ -590,7 +589,7 @@ export default function CustomerWalletPage() {
 
                 <button
                     onClick={() => setActiveTab('offers')}
-                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'offers' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
+                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'offers' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#1E293B]'}`}
                 >
                     <Tag className="w-5 h-5" />
                     <span className="text-[10px] font-bold">Offers</span>
@@ -598,7 +597,7 @@ export default function CustomerWalletPage() {
 
                 <button
                     onClick={() => setShowQrModal(true)}
-                    className="flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 text-slate-400 hover:text-[#0F172A]"
+                    className="flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 text-slate-400 hover:text-[#1E293B]"
                 >
                     <QrCode className="w-5 h-5" />
                     <span className="text-[10px] font-bold">My QR</span>
@@ -606,7 +605,7 @@ export default function CustomerWalletPage() {
 
                 <button
                     onClick={() => setActiveTab('profile')}
-                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'profile' ? 'text-[#EE8838]' : 'text-slate-400 hover:text-[#0F172A]'}`}
+                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 ${activeTab === 'profile' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#1E293B]'}`}
                 >
                     <User className="w-5 h-5" />
                     <span className="text-[10px] font-bold">Profile</span>
