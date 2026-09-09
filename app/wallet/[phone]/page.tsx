@@ -72,6 +72,9 @@ export default function CustomerWalletPage() {
         fetchHistoryLogs()
 
         // Realtime listener
+        const cleanPhone = phone.replace(/\D/g, '')
+        const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
+
         const channel = supabase
             .channel(`wallet_realtime_${phone}`)
             .on(
@@ -79,12 +82,14 @@ export default function CustomerWalletPage() {
                 {
                     event: '*',
                     schema: 'public',
-                    table: 'cashback_claims',
-                    filter: `customer_phone=eq.${phone}`
+                    table: 'cashback_claims'
                 },
-                () => {
-                    fetchWalletAndClaimsData()
-                    fetchHistoryLogs()
+                (payload: any) => {
+                    const updatedPhone = payload.new?.customer_phone || payload.old?.customer_phone
+                    if (updatedPhone === phone || updatedPhone === phoneWithZero) {
+                        fetchWalletAndClaimsData()
+                        fetchHistoryLogs()
+                    }
                 }
             )
             .subscribe()
@@ -96,10 +101,13 @@ export default function CustomerWalletPage() {
 
     const fetchCustomerDetails = async () => {
         try {
+            const cleanPhone = phone.replace(/\D/g, '')
+            const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
+
             const { data } = await supabase
                 .from('customers')
                 .select('full_name, email')
-                .or(`phone_number.eq.${phone},phone_number.eq.${phone.replace(/^94/, '0')}`)
+                .or(`phone_number.eq.${phone},phone_number.eq.${phoneWithZero}`)
                 .maybeSingle()
 
             if (data) {
@@ -121,10 +129,13 @@ export default function CustomerWalletPage() {
                 setLoading(true)
             }
 
+            const cleanPhone = phone.replace(/\D/g, '')
+            const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
+
             const { data: claimsData, error: claimsError } = await supabase
                 .from('cashback_claims')
                 .select('*')
-                .or(`customer_phone.eq.${phone},customer_phone.eq.${phone.replace(/^94/, '0')}`)
+                .or(`customer_phone.eq.${phone},customer_phone.eq.${phoneWithZero}`)
                 .order('updated_at', { ascending: false })
 
             if (claimsError) throw claimsError
@@ -197,27 +208,61 @@ export default function CustomerWalletPage() {
         }
     }
 
+    // SAFE FETCH FOR HISTORY LOGS (FIXED JOIN ISSUE)
     const fetchHistoryLogs = async () => {
         try {
             setHistoryLoading(true)
-            const { data, error } = await supabase
+            
+            const cleanPhone = phone.replace(/\D/g, '')
+            const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
+
+            // 1. Direct fetch from cashback_claims
+            const { data: claimsData, error: claimsError } = await supabase
                 .from('cashback_claims')
-                .select(`
-                    *,
-                    stores:store_id (
-                        id,
-                        store_name,
-                        logo_url
-                    )
-                `)
-                .or(`customer_phone.eq.${phone},customer_phone.eq.${phone.replace(/^94/, '0')}`)
+                .select('*')
+                .or(`customer_phone.eq.${phone},customer_phone.eq.${phoneWithZero}`)
                 .order('created_at', { ascending: false })
 
-            if (!error && data) {
-                setHistoryClaims(data)
+            if (claimsError) {
+                console.error('Error fetching claims history:', claimsError)
+                setHistoryClaims([])
+                return
             }
+
+            if (!claimsData || claimsData.length === 0) {
+                setHistoryClaims([])
+                return
+            }
+
+            // 2. Fetch associated stores data separately to avoid foreign key schema conflicts
+            const storeIds = Array.from(new Set(claimsData.map((c: any) => c.store_id).filter(Boolean)))
+            
+            let storesMap: Record<string, any> = {}
+            if (storeIds.length > 0) {
+                const { data: storesData } = await supabase
+                    .from('stores')
+                    .select('id, store_name, logo_url')
+                    .in('id', storeIds)
+
+                if (storesData) {
+                    storesMap = storesData.reduce((acc: any, store: any) => {
+                        acc[store.id] = store
+                        return acc
+                    }, {})
+                }
+            }
+
+            // 3. Merge store details into claims
+            const formattedHistory = claimsData.map((claim: any) => ({
+                ...claim,
+                stores: storesMap[claim.store_id] || { store_name: 'Partner Store' }
+            }))
+
+            setHistoryClaims(formattedHistory)
+
         } catch (err) {
-            console.error('Error fetching history logs:', err)
+            console.error('Unexpected error fetching history logs:', err)
+            setHistoryClaims([])
         } finally {
             setHistoryLoading(false)
         }
@@ -329,7 +374,7 @@ export default function CustomerWalletPage() {
             <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5 pb-44">
                 {activeTab === 'wallet' && (
                     <>
-                        {/* Header Profile Section - Improved Logo Display */}
+                        {/* Header Profile Section */}
                         <div className="flex items-center justify-between pt-2 px-1">
                             <div className="flex items-center space-x-3">
                                 <img
