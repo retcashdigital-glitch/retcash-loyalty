@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Wallet, Tag, User, Search, QrCode, ChevronRight, X, LogOut, Megaphone, Maximize2, Sparkles, Store } from 'lucide-react'
+import { Wallet, Tag, User, Search, QrCode, ChevronRight, X, LogOut, Megaphone, Maximize2, Sparkles, Store, History } from 'lucide-react'
 
 export default function CustomerWalletPage() {
     const params = useParams()
@@ -15,7 +15,7 @@ export default function CustomerWalletPage() {
 
     const [customerName, setCustomerName] = useState<string>('')
     const [customerEmail, setCustomerEmail] = useState<string>('')
-    const [activeTab, setActiveTab] = useState<'wallet' | 'offers' | 'profile'>('wallet')
+    const [activeTab, setActiveTab] = useState<'wallet' | 'offers' | 'history' | 'profile'>('wallet')
     const [loading, setLoading] = useState(true)
     const [stores, setStores] = useState<any[]>([])
     const [activeOffers, setActiveOffers] = useState<any[]>([])
@@ -238,7 +238,7 @@ export default function CustomerWalletPage() {
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         if (searchInputRef.current) {
-            searchInputRef.current.blur() // keyboard-ஐ தானாக மூடும்
+            searchInputRef.current.blur()
         }
         setIsSearchSubmitted(true)
     }
@@ -248,7 +248,7 @@ export default function CustomerWalletPage() {
         setIsSearchSubmitted(false)
     }
 
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${phone}`;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${phone}`;
 
     const formatPhoneNumber = (num: string) => {
         if (!num) return ''
@@ -284,20 +284,21 @@ export default function CustomerWalletPage() {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans selection:bg-[#00875A] selection:text-white antialiased">
-            <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5 pb-36">
+            {/* Bottom Padding pb-44 என அதிகரிக்கப்பட்டுள்ளது */}
+            <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5 pb-44">
                 {activeTab === 'wallet' && (
                     <>
-                        {/* Header Profile Section */}
+                        {/* Header Profile Section - New Logo Integrated */}
                         <div className="flex items-center justify-between pt-2 px-1">
                             <div className="flex items-center space-x-3">
                                 <img
-                                    src="/logo.jpeg"
+                                    src="/logo.png"
                                     alt="Retcash Logo"
-                                    className="w-10 h-10 rounded-2xl object-cover shadow-xs border border-slate-100"
+                                    className="w-10 h-10 rounded-2xl object-contain bg-white p-1 shadow-xs border border-slate-200"
                                 />
                                 <div>
                                     <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">WELCOME BACK</p>
-                                    <h1 className="text-lg font-black text-[#0F172A] tracking-tight">
+                                    <h1 className="text-base font-black text-[#0F172A] tracking-tight">
                                         {customerName ? (
                                             customerName
                                         ) : loading ? (
@@ -308,40 +309,36 @@ export default function CustomerWalletPage() {
                                     </h1>
                                 </div>
                             </div>
+                            {/* ஒரே ஒரு பிரதான QR பொத்தான் */}
                             <button 
                                 onClick={() => setShowQrModal(true)}
-                                className="p-2.5 bg-white border border-slate-200/80 rounded-2xl shadow-xs hover:border-[#00875A] transition text-slate-700 active:scale-95"
+                                className="p-2.5 bg-white border border-slate-200/80 rounded-2xl shadow-xs hover:border-[#00875A] transition text-slate-700 active:scale-95 flex items-center space-x-1"
+                                title="Show My QR"
                             >
                                 <QrCode className="w-5 h-5 text-[#00875A]" />
                             </button>
                         </div>
 
-                        {/* Top Active Cards Banner */}
-                        <div className="bg-gradient-to-br from-[#004D40] via-[#00695C] to-[#00875A] text-white rounded-3xl p-6 shadow-xl shadow-emerald-950/15 relative overflow-hidden space-y-3">
+                        {/* Banner - Extra QR Button Removed for Clean UI */}
+                        <div className="bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#00875A] text-white rounded-3xl p-5 shadow-xl relative overflow-hidden space-y-2">
                             <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
                             <div className="flex justify-between items-center relative z-10">
                                 <div>
-                                    <span className="text-xs font-semibold text-emerald-100/90 tracking-wide flex items-center gap-1.5">
+                                    <span className="text-xs font-semibold text-emerald-300 tracking-wide flex items-center gap-1.5">
                                         <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
                                         Active Loyalty Cards
                                     </span>
-                                    <h2 className="text-3xl font-black mt-0.5 tracking-tight">
-                                        {stores.length} {stores.length === 1 ? 'Store' : 'Stores'}
+                                    <h2 className="text-2xl font-black mt-1 tracking-tight">
+                                        {stores.length} {stores.length === 1 ? 'Store Connected' : 'Stores Connected'}
                                     </h2>
                                 </div>
-                                <button
-                                    onClick={() => setShowQrModal(true)}
-                                    className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-extrabold px-3.5 py-2 rounded-2xl border border-white/20 transition active:scale-95 cursor-pointer"
-                                >
-                                    My QR
-                                </button>
                             </div>
-                            <p className="text-[11px] text-emerald-100/80 font-medium pt-1 border-t border-white/10">
+                            <p className="text-[11px] text-slate-300 font-medium pt-1 border-t border-white/10">
                                 Show your QR code at store checkout to earn cashback.
                             </p>
                         </div>
 
-                        {/* Full Search Bar with Keyboard Go Action */}
+                        {/* Search Bar */}
                         <form onSubmit={handleSearchSubmit} action="." className="relative">
                             <div className="relative flex items-center">
                                 <input
@@ -436,7 +433,6 @@ export default function CustomerWalletPage() {
                                 const visits = store.visits || 0;
                                 const isThisNavigating = navigatingStoreId === store.id;
 
-                                // Category text cleanup ('others' -> 'Partner Store')
                                 const displayCategory = (store.category && store.category.toLowerCase() !== 'others')
                                     ? store.category
                                     : 'Partner Store';
@@ -499,13 +495,14 @@ export default function CustomerWalletPage() {
                                                 )}
                                             </div>
 
-                                            <div className="text-right space-y-1.5">
-                                                <p className="text-[10px] font-extrabold text-slate-400">{visits}/{target} VISITS</p>
-                                                <div className="flex space-x-1 justify-end">
+                                            {/* Visit Dots Alignment Cleaned */}
+                                            <div className="text-right space-y-1">
+                                                <p className="text-[10px] font-extrabold text-slate-400 tracking-wider">{visits}/{target} VISITS</p>
+                                                <div className="flex space-x-1 justify-end items-center pt-0.5">
                                                     {Array.from({ length: target }, (_, i) => i + 1).map((v) => (
                                                         <div
                                                             key={v}
-                                                            className={`w-2.5 h-2.5 rounded-full transition ${v <= visits ? 'bg-[#00875A]' : 'bg-slate-200'}`}
+                                                            className={`w-2 h-2 rounded-full transition-all ${v <= visits ? 'bg-[#00875A]' : 'bg-slate-200'}`}
                                                         ></div>
                                                     ))}
                                                 </div>
@@ -596,6 +593,19 @@ export default function CustomerWalletPage() {
                     </div>
                 )}
 
+                {activeTab === 'history' && (
+                    <div className="space-y-4 animate-in fade-in duration-200 pt-2">
+                        <div className="space-y-1">
+                            <h1 className="text-xl font-black text-[#0F172A]">Activity History</h1>
+                            <p className="text-xs text-slate-500">Your recent cashback and visit logs.</p>
+                        </div>
+                        <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-xs">
+                            <History className="w-8 h-8 text-slate-300 mx-auto" />
+                            <p className="text-xs text-slate-600 font-semibold">No transaction history found yet.</p>
+                        </div>
+                    </div>
+                )}
+
                 {activeTab === 'profile' && (
                     <div className="space-y-5 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
@@ -667,8 +677,8 @@ export default function CustomerWalletPage() {
                         </button>
 
                         <div className="space-y-1 pt-2">
-                            <h3 className="text-sm font-black text-[#0F172A] uppercase tracking-wider">My Wallet QR</h3>
-                            <p className="text-[11px] text-slate-500">Scan this QR to get your phone number</p>
+                            <h3 className="text-sm font-black text-[#0F172A] uppercase tracking-wider">My Digital Loyalty Pass</h3>
+                            <p className="text-[11px] text-slate-500">Show this QR code at store cashier</p>
                         </div>
 
                         <div className="bg-slate-50 p-4 rounded-2xl inline-block border border-slate-200/80 shadow-inner">
@@ -682,7 +692,7 @@ export default function CustomerWalletPage() {
                 </div>
             )}
 
-            {/* Bottom Navigation Bar */}
+            {/* Bottom Navigation Bar - Removed My QR tab, Added History Tab */}
             <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2.5 px-6 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-2xl">
                 <button
                     onClick={() => setActiveTab('wallet')}
@@ -701,11 +711,11 @@ export default function CustomerWalletPage() {
                 </button>
 
                 <button
-                    onClick={() => setShowQrModal(true)}
-                    className="flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 text-slate-400 hover:text-[#0F172A] active:scale-90"
+                    onClick={() => setActiveTab('history')}
+                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 active:scale-90 ${activeTab === 'history' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#0F172A]'}`}
                 >
-                    <QrCode className="w-5 h-5" />
-                    <span className="text-[10px] font-extrabold">My QR</span>
+                    <History className="w-5 h-5" />
+                    <span className="text-[10px] font-extrabold">History</span>
                 </button>
 
                 <button
