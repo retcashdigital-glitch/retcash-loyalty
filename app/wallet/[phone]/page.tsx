@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Wallet, Tag, User, Search, QrCode, ChevronRight, X, LogOut, Megaphone, Maximize2, Sparkles, Store, History } from 'lucide-react'
+import { Wallet, Tag, User, Search, QrCode, ChevronRight, X, LogOut, Megaphone, Maximize2, Sparkles, Store, History, Clock, ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 
 export default function CustomerWalletPage() {
     const params = useParams()
@@ -19,6 +19,8 @@ export default function CustomerWalletPage() {
     const [loading, setLoading] = useState(true)
     const [stores, setStores] = useState<any[]>([])
     const [activeOffers, setActiveOffers] = useState<any[]>([])
+    const [historyClaims, setHistoryClaims] = useState<any[]>([])
+    const [historyLoading, setHistoryLoading] = useState(false)
     const [offersLoading, setOffersLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('All Stores')
@@ -67,6 +69,7 @@ export default function CustomerWalletPage() {
         fetchCustomerDetails()
         fetchWalletAndClaimsData()
         fetchActiveOffers()
+        fetchHistoryLogs()
 
         // Realtime listener
         const channel = supabase
@@ -81,6 +84,7 @@ export default function CustomerWalletPage() {
                 },
                 () => {
                     fetchWalletAndClaimsData()
+                    fetchHistoryLogs()
                 }
             )
             .subscribe()
@@ -193,6 +197,32 @@ export default function CustomerWalletPage() {
         }
     }
 
+    const fetchHistoryLogs = async () => {
+        try {
+            setHistoryLoading(true)
+            const { data, error } = await supabase
+                .from('cashback_claims')
+                .select(`
+                    *,
+                    stores:store_id (
+                        id,
+                        store_name,
+                        logo_url
+                    )
+                `)
+                .or(`customer_phone.eq.${phone},customer_phone.eq.${phone.replace(/^94/, '0')}`)
+                .order('created_at', { ascending: false })
+
+            if (!error && data) {
+                setHistoryClaims(data)
+            }
+        } catch (err) {
+            console.error('Error fetching history logs:', err)
+        } finally {
+            setHistoryLoading(false)
+        }
+    }
+
     const fetchActiveOffers = async () => {
         try {
             setOffersLoading(true)
@@ -262,6 +292,18 @@ export default function CustomerWalletPage() {
         return `+${num}`
     }
 
+    const formatDate = (isoString: string) => {
+        if (!isoString) return ''
+        const d = new Date(isoString)
+        return d.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        })
+    }
+
     const filteredStores = stores.filter(store => {
         const query = searchQuery.toLowerCase().trim();
         const matchesSearch = !query || 
@@ -287,17 +329,18 @@ export default function CustomerWalletPage() {
             <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-5 pb-44">
                 {activeTab === 'wallet' && (
                     <>
-                        {/* Header Profile Section */}
+                        {/* Header Profile Section - Improved Logo Display */}
                         <div className="flex items-center justify-between pt-2 px-1">
                             <div className="flex items-center space-x-3">
                                 <img
                                     src="/logo.png"
                                     alt="Retcash Logo"
-                                    className="w-10 h-10 rounded-2xl object-contain bg-white p-1 shadow-xs border border-slate-200"
+                                    className="h-10 w-auto object-contain drop-shadow-xs"
                                 />
+                                <div className="h-6 w-[1px] bg-slate-200"></div>
                                 <div>
-                                    <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">WELCOME BACK</p>
-                                    <h1 className="text-base font-black text-[#0F172A] tracking-tight">
+                                    <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest">WELCOME BACK</p>
+                                    <h1 className="text-sm font-black text-[#0F172A] tracking-tight">
                                         {customerName ? (
                                             customerName
                                         ) : loading ? (
@@ -310,7 +353,7 @@ export default function CustomerWalletPage() {
                             </div>
                             <button 
                                 onClick={() => setShowQrModal(true)}
-                                className="p-2.5 bg-white border border-slate-200/80 rounded-2xl shadow-xs hover:border-[#00875A] transition text-slate-700 active:scale-95 flex items-center space-x-1"
+                                className="p-2.5 bg-white border border-slate-200/80 rounded-2xl shadow-xs hover:border-[#00875A] transition text-slate-700 active:scale-95 flex items-center space-x-1 cursor-pointer"
                                 title="Show My QR"
                             >
                                 <QrCode className="w-5 h-5 text-[#00875A]" />
@@ -364,7 +407,7 @@ export default function CustomerWalletPage() {
                             </div>
                         </form>
 
-                        {/* Category Filter Pills (Others அகற்றப்பட்டுள்ளது) */}
+                        {/* Category Filter Pills */}
                         <div className="flex items-center space-x-2 overflow-x-auto pb-1 pt-1 scrollbar-none">
                             {['All Stores', 'Food', 'Retail'].map((category) => (
                                 <button
@@ -431,7 +474,6 @@ export default function CustomerWalletPage() {
                                 const visits = store.visits || 0;
                                 const isThisNavigating = navigatingStoreId === store.id;
 
-                                // Partner Store மற்றும் Others அகற்றப்பட்டு, Category இருந்தால் மட்டுமே காட்டப்படும்
                                 const displayCategory = (store.category && store.category.trim() !== '' && store.category.toLowerCase() !== 'others')
                                     ? store.category
                                     : null;
@@ -580,7 +622,7 @@ export default function CustomerWalletPage() {
                                         {offer.stores?.id && (
                                             <button
                                                 onClick={() => handleStoreClick(offer.stores.id)}
-                                                className="text-xs font-bold text-[#00805A] hover:underline flex items-center space-x-1 cursor-pointer"
+                                                className="text-xs font-bold text-[#00875A] hover:underline flex items-center space-x-1 cursor-pointer"
                                             >
                                                 <span>View Store Card</span>
                                                 <ChevronRight className="w-3.5 h-3.5" />
@@ -593,16 +635,66 @@ export default function CustomerWalletPage() {
                     </div>
                 )}
 
+                {/* History Section Connected with Dynamic Supabase Logs */}
                 {activeTab === 'history' && (
                     <div className="space-y-4 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
                             <h1 className="text-xl font-black text-[#0F172A]">Activity History</h1>
-                            <p className="text-xs text-slate-500">Your recent cashback and visit logs.</p>
+                            <p className="text-xs text-slate-500">Live logs of your store purchases, visits & cashback claims.</p>
                         </div>
-                        <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-xs">
-                            <History className="w-8 h-8 text-slate-300 mx-auto" />
-                            <p className="text-xs text-slate-600 font-semibold">No transaction history found yet.</p>
-                        </div>
+
+                        {historyLoading ? (
+                            <div className="text-center py-12 text-slate-400 text-xs font-medium">Fetching transaction history...</div>
+                        ) : historyClaims.length === 0 ? (
+                            <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-xs">
+                                <History className="w-8 h-8 text-slate-300 mx-auto" />
+                                <p className="text-xs text-slate-600 font-semibold">No activity logs found.</p>
+                                <p className="text-[11px] text-slate-400">Transactions will appear here once you visit stores.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {historyClaims.map((claim) => {
+                                    const isRedeemed = claim.status === 'REDEEMED'
+                                    const storeName = claim.stores?.store_name || 'Partner Store'
+
+                                    return (
+                                        <div 
+                                            key={claim.id} 
+                                            className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs space-y-3 hover:border-slate-300 transition"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center space-x-3">
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${isRedeemed ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-[#00875A] border-emerald-100'}`}>
+                                                        {isRedeemed ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownLeft className="w-5 h-5" />}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="text-xs font-black text-[#0F172A]">{storeName}</h4>
+                                                        <p className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
+                                                            <Clock className="w-3 h-3 text-slate-300" />
+                                                            {formatDate(claim.created_at)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="text-right">
+                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider ${isRedeemed ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-[#00875A] border-emerald-200'}`}>
+                                                        {claim.status || 'PENDING'}
+                                                    </span>
+                                                    <p className="text-xs font-black text-[#0F172A] mt-1">
+                                                        Bill: Rs. {Number(claim.bill_amount || 0).toFixed(2)}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-slate-50 rounded-xl p-2.5 flex items-center justify-between border border-slate-100 text-[11px]">
+                                                <span className="font-semibold text-slate-500">Cashback Earned</span>
+                                                <span className="font-extrabold text-[#00875A]">+ Rs. {Number(claim.cashback_amount || 0).toFixed(2)}</span>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -720,7 +812,7 @@ export default function CustomerWalletPage() {
 
                 <button
                     onClick={() => setActiveTab('profile')}
-                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 active:scale-90 ${activeTab === 'profile' ? 'text-[#00875A]' : 'text-slate-400 hover:text-[#0F172A]'}`}
+                    className={`flex flex-col items-center space-y-1 outline-none transition cursor-pointer p-1 active:scale-90 ${activeTab === 'profile' ? 'text-[#00875A]' : 'text-slate-[#0F172A]'}`}
                 >
                     <User className="w-5 h-5" />
                     <span className="text-[10px] font-extrabold">Profile</span>
