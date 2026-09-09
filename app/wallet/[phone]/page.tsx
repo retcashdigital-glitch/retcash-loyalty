@@ -308,7 +308,7 @@ export default function CustomerWalletPage() {
                                 />
                                 <div className="h-6 w-[1px] bg-slate-200"></div>
                                 <div>
-                                    <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest">WELCOME BACK</p>
+                                    <p className="text-[9px] text-slate-700 font-bold uppercase tracking-widest">WELCOME BACK</p>
                                     <h1 className="text-sm font-black text-[#0F172A] tracking-tight">
                                         {customerName ? (
                                             customerName
@@ -329,7 +329,7 @@ export default function CustomerWalletPage() {
                             </button>
                         </div>
 
-                        {/* Lighter Vibrant Gradient Banner */}
+                        {/* Banner */}
                         <div className="bg-gradient-to-br from-[#00875A] via-[#006B46] to-[#0A2540] text-white rounded-3xl p-5 shadow-xl relative overflow-hidden space-y-2">
                             <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
                             <div className="flex justify-between items-center relative z-10">
@@ -382,9 +382,9 @@ export default function CustomerWalletPage() {
                                 <button
                                     key={category}
                                     onClick={() => setSelectedCategory(category)}
-                                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer active:scale-95 ${selectedCategory === category
-                                        ? 'bg-[#00875A] text-white font-extrabold shadow-md shadow-emerald-600/20'
-                                        : 'bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50'
+                                    className={`px-4 py-2 rounded-xl text-xs whitespace-nowrap transition cursor-pointer active:scale-95 ${selectedCategory === category
+                                        ? 'bg-[#00875A] text-white font-black shadow-md shadow-emerald-600/20'
+                                        : 'bg-white text-slate-700 font-bold border border-slate-200/80 hover:bg-slate-50'
                                         }`}
                                 >
                                     {category}
@@ -395,10 +395,10 @@ export default function CustomerWalletPage() {
                         {/* Search Feedback Info */}
                         {searchQuery && isSearchSubmitted && (
                             <div className="flex justify-between items-center px-1 pt-1">
-                                <p className="text-xs font-bold text-slate-500">
+                                <p className="text-xs font-bold text-slate-700">
                                     Results for <span className="text-[#00875A]">"{searchQuery}"</span>
                                 </p>
-                                <span className="text-[11px] font-extrabold text-slate-400 uppercase">
+                                <span className="text-[11px] font-bold text-slate-700 uppercase">
                                     {filteredStores.length} Found
                                 </span>
                             </div>
@@ -406,8 +406,8 @@ export default function CustomerWalletPage() {
 
                         {/* Stores Section Header */}
                         <div className="flex items-center justify-between pt-1">
-                            <h2 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">YOUR STORES</h2>
-                            <span className="text-[11px] font-bold text-slate-400">
+                            <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">YOUR STORES</h2>
+                            <span className="text-[11px] font-bold text-slate-700">
                                 {filteredStores.length} Active
                             </span>
                         </div>
@@ -433,9 +433,9 @@ export default function CustomerWalletPage() {
                             </div>
                         ) : filteredStores.length === 0 ? (
                             <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-xs">
-                                <Store className="w-8 h-8 text-slate-300 mx-auto" />
-                                <p className="text-xs text-slate-600 font-semibold">No active store cards found.</p>
-                                <p className="text-[11px] text-slate-400">Scan a store QR code to get your first loyalty card.</p>
+                                <Store className="w-8 h-8 text-slate-400 mx-auto" />
+                                <p className="text-xs text-slate-700 font-bold">No active store cards found.</p>
+                                <p className="text-[11px] text-slate-500 font-medium">Scan a store QR code to get your first loyalty card.</p>
                             </div>
                         ) : (
                             filteredStores.map((store, index) => {
@@ -459,7 +459,7 @@ export default function CustomerWalletPage() {
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center space-x-3.5">
-                                                {/* Optimized Squircle Store Logo Container */}
+                                                {/* Store Logo Container */}
                                                 <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs group-hover:scale-105 transition">
                                                     {store.logo_url ? (
                                                         <img 
@@ -478,26 +478,26 @@ export default function CustomerWalletPage() {
                                                         {store.store_name} {isThisNavigating && '(Opening...)'}
                                                     </h3>
                                                     {displayCategory && (
-                                                        <p className="text-[11px] text-slate-400 font-semibold capitalize pt-0.5">
+                                                        <p className="text-[11px] text-slate-700 font-bold capitalize pt-0.5">
                                                             {displayCategory}
                                                         </p>
                                                     )}
                                                 </div>
                                             </div>
                                             <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 group-hover:bg-emerald-50 transition">
-                                                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#00875A]" />
+                                                <ChevronRight className="w-4 h-4 text-slate-700 group-hover:text-[#00875A]" />
                                             </div>
                                         </div>
 
                                         <div className="pt-3 border-t border-slate-100 flex items-end justify-between">
                                             <div>
-                                                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">CASHBACK BALANCE</p>
+                                                <p className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">CASHBACK BALANCE</p>
                                                 {store.isRedeemed ? (
                                                     <div className="flex items-center space-x-2 mt-1">
                                                         <span className="text-base font-bold text-slate-400 line-through">
                                                             Rs. {Number(store.cashbackAmount).toFixed(2)}
                                                         </span>
-                                                        <span className="text-[10px] font-black bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                                        <span className="text-[10px] font-black bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
                                                             REDEEMED
                                                         </span>
                                                     </div>
@@ -509,7 +509,7 @@ export default function CustomerWalletPage() {
                                             </div>
 
                                             <div className="text-right space-y-1">
-                                                <p className="text-[10px] font-extrabold text-slate-400 tracking-wider">{visits}/{target} VISITS</p>
+                                                <p className="text-[10px] font-bold text-slate-700 tracking-wider">{visits}/{target} VISITS</p>
                                                 <div className="flex space-x-1 justify-end items-center pt-0.5">
                                                     {Array.from({ length: target }, (_, i) => i + 1).map((v) => (
                                                         <div
@@ -534,15 +534,15 @@ export default function CustomerWalletPage() {
                                 <Megaphone className="w-5 h-5 text-[#00875A]" />
                                 <h1 className="text-xl font-black text-[#0F172A]">Store Offers & Deals</h1>
                             </div>
-                            <p className="text-xs text-slate-500">Exclusive active offers posted by stores.</p>
+                            <p className="text-xs text-slate-700 font-medium">Exclusive active offers posted by stores.</p>
                         </div>
 
                         {offersLoading ? (
-                            <div className="text-center py-12 text-slate-400 text-xs font-medium">Loading store offers...</div>
+                            <div className="text-center py-12 text-slate-700 text-xs font-bold">Loading store offers...</div>
                         ) : activeOffers.length === 0 ? (
                             <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-2 shadow-xs">
-                                <Megaphone className="w-8 h-8 text-slate-300 mx-auto" />
-                                <p className="text-xs text-slate-600 font-semibold">No active store offers available right now.</p>
+                                <Megaphone className="w-8 h-8 text-slate-400 mx-auto" />
+                                <p className="text-xs text-slate-700 font-bold">No active store offers available right now.</p>
                             </div>
                         ) : (
                             activeOffers.map((offer) => (
@@ -554,7 +554,7 @@ export default function CustomerWalletPage() {
                                             </div>
                                             <div>
                                                 <h3 className="text-xs font-bold text-[#0F172A]">{offer.stores?.store_name || 'Store'}</h3>
-                                                <p className="text-[10px] text-slate-400 font-medium">Active Promotion</p>
+                                                <p className="text-[10px] text-slate-700 font-bold">Active Promotion</p>
                                             </div>
                                         </div>
                                         <span className="text-[10px] bg-emerald-50 text-[#00875A] px-2.5 py-1 rounded-full font-bold border border-emerald-100 uppercase tracking-wider">
@@ -581,12 +581,12 @@ export default function CustomerWalletPage() {
                                     <div className="space-y-1">
                                         <h4 className="font-extrabold text-sm text-[#0F172A]">{offer.title}</h4>
                                         {offer.description && (
-                                            <p className="text-xs text-slate-500 leading-relaxed">{offer.description}</p>
+                                            <p className="text-xs text-slate-700 font-medium leading-relaxed">{offer.description}</p>
                                         )}
                                     </div>
 
                                     <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">
                                             Ends: {new Date(offer.expires_at).toLocaleDateString()}
                                         </span>
                                         {offer.stores?.id && (
@@ -609,7 +609,7 @@ export default function CustomerWalletPage() {
                     <div className="space-y-5 animate-in fade-in duration-200 pt-2">
                         <div className="space-y-1">
                             <h1 className="text-xl font-black text-[#0F172A]">My Profile</h1>
-                            <p className="text-xs text-slate-500">Manage your account details and session.</p>
+                            <p className="text-xs text-slate-700 font-medium">Manage your account details and session.</p>
                         </div>
 
                         <div className="bg-white border border-slate-200 rounded-3xl p-5 space-y-4 shadow-xs">
@@ -621,9 +621,9 @@ export default function CustomerWalletPage() {
                                     <h3 className="text-base font-extrabold text-[#0F172A]">
                                         {customerName || 'Customer'}
                                     </h3>
-                                    <p className="text-xs text-slate-500 font-medium">{formatPhoneNumber(phone)}</p>
+                                    <p className="text-xs text-slate-700 font-bold">{formatPhoneNumber(phone)}</p>
                                     {customerEmail && (
-                                        <p className="text-[11px] text-slate-400 font-normal pt-0.5">{customerEmail}</p>
+                                        <p className="text-[11px] text-slate-700 font-medium pt-0.5">{customerEmail}</p>
                                     )}
                                 </div>
                             </div>
@@ -670,14 +670,14 @@ export default function CustomerWalletPage() {
                     <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-xl relative animate-in fade-in zoom-in duration-200">
                         <button
                             onClick={() => setShowQrModal(false)}
-                            className="absolute top-4 right-4 text-slate-400 hover:text-[#0F172A] bg-slate-100 p-1.5 rounded-full outline-none cursor-pointer transition"
+                            className="absolute top-4 right-4 text-slate-700 hover:text-[#0F172A] bg-slate-100 p-1.5 rounded-full outline-none cursor-pointer transition"
                         >
                             <X className="w-4 h-4" />
                         </button>
 
                         <div className="space-y-1 pt-2">
                             <h3 className="text-sm font-black text-[#0F172A] uppercase tracking-wider">My Digital Loyalty Pass</h3>
-                            <p className="text-[11px] text-slate-500">Show this QR code at store cashier</p>
+                            <p className="text-[11px] text-slate-700 font-bold">Show this QR code at store cashier</p>
                         </div>
 
                         <div className="bg-slate-50 p-4 rounded-2xl inline-block border border-slate-200/80 shadow-inner">
@@ -691,7 +691,7 @@ export default function CustomerWalletPage() {
                 </div>
             )}
 
-            {/* Bottom Navigation Bar - Mobile Safe Area Padding */}
+            {/* Bottom Navigation Bar */}
             <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] px-8 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-3xl shadow-2xl">
                 
                 {/* 1. Wallet Tab */}
@@ -699,10 +699,10 @@ export default function CustomerWalletPage() {
                     onClick={() => setActiveTab('wallet')}
                     className="flex flex-col items-center space-y-1 outline-none transition cursor-pointer group active:scale-90"
                 >
-                    <div className={`p-1.5 rounded-full transition-all ${activeTab === 'wallet' ? 'bg-emerald-100/80 text-[#00875A]' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                    <div className={`p-1.5 rounded-full transition-all ${activeTab === 'wallet' ? 'bg-emerald-100/80 text-[#00875A]' : 'text-slate-700 group-hover:text-slate-900'}`}>
                         <Wallet className="w-5 h-5" />
                     </div>
-                    <span className={`text-[10px] font-extrabold transition-colors ${activeTab === 'wallet' ? 'text-[#00875A]' : 'text-slate-400'}`}>
+                    <span className={`text-[10px] font-bold transition-colors ${activeTab === 'wallet' ? 'text-[#00875A] font-black' : 'text-slate-700'}`}>
                         Wallet
                     </span>
                 </button>
@@ -712,10 +712,10 @@ export default function CustomerWalletPage() {
                     onClick={() => setActiveTab('offers')}
                     className="flex flex-col items-center space-y-1 outline-none transition cursor-pointer group active:scale-90"
                 >
-                    <div className={`p-1.5 rounded-full transition-all ${activeTab === 'offers' ? 'bg-emerald-100/80 text-[#00875A]' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                    <div className={`p-1.5 rounded-full transition-all ${activeTab === 'offers' ? 'bg-emerald-100/80 text-[#00875A]' : 'text-slate-700 group-hover:text-slate-900'}`}>
                         <Tag className="w-5 h-5" />
                     </div>
-                    <span className={`text-[10px] font-extrabold transition-colors ${activeTab === 'offers' ? 'text-[#00875A]' : 'text-slate-400'}`}>
+                    <span className={`text-[10px] font-bold transition-colors ${activeTab === 'offers' ? 'text-[#00875A] font-black' : 'text-slate-700'}`}>
                         Offers
                     </span>
                 </button>
@@ -725,10 +725,10 @@ export default function CustomerWalletPage() {
                     onClick={() => setActiveTab('profile')}
                     className="flex flex-col items-center space-y-1 outline-none transition cursor-pointer group active:scale-90"
                 >
-                    <div className={`p-1.5 rounded-full transition-all ${activeTab === 'profile' ? 'bg-emerald-100/80 text-[#00875A]' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                    <div className={`p-1.5 rounded-full transition-all ${activeTab === 'profile' ? 'bg-emerald-100/80 text-[#00875A]' : 'text-slate-700 group-hover:text-slate-900'}`}>
                         <User className="w-5 h-5" />
                     </div>
-                    <span className={`text-[10px] font-extrabold transition-colors ${activeTab === 'profile' ? 'text-[#00875A]' : 'text-slate-400'}`}>
+                    <span className={`text-[10px] font-bold transition-colors ${activeTab === 'profile' ? 'text-[#00875A] font-black' : 'text-slate-700'}`}>
                         Profile
                     </span>
                 </button>
