@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Eye, EyeOff, Wallet } from 'lucide-react';
 import Link from 'next/link';
+import bcrypt from 'bcryptjs';
 
 export default function CustomerLoginPage() {
     const [phone, setPhone] = useState('');
@@ -26,6 +27,15 @@ export default function CustomerLoginPage() {
         return cleaned.slice(0, 9);
     };
 
+    // Unicode safe Base64 helper (பழைய கணக்குகளின் இணக்கத்தன்மைக்காக)
+    const safeBtoa = (str: string) => {
+        try {
+            return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode(parseInt(p1, 16))));
+        } catch {
+            return str;
+        }
+    };
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -39,16 +49,16 @@ export default function CustomerLoginPage() {
         }
 
         const dbPhone = `94${formattedPhone}`;
+        const phoneWithZero = `0${formattedPhone}`;
         const inputPass = password.trim();
-        const base64Pass = btoa(inputPass);
 
         try {
-            // 1. First search by phone number only
+            // 1. தேடலில் +94 மற்றும் 07X என இரண்டு வடிவங்களையும் சரிபார்க்கும் நெகிழ்வுத்தன்மை
             const { data: customer, error: fetchError } = await supabase
                 .from('customers')
                 .select('*')
-                .eq('phone_number', dbPhone)
-                .single();
+                .or(`phone_number.eq.${dbPhone},phone_number.eq.${phoneWithZero}`)
+                .maybeSingle();
 
             if (fetchError || !customer) {
                 setMessage('Invalid phone number or password.');
@@ -56,9 +66,18 @@ export default function CustomerLoginPage() {
                 return;
             }
 
-            // 2. Flexible Password Comparison (Plain Text OR Base64 Encoded)
-            const storedPass = customer.password;
-            const isPasswordCorrect = storedPass === inputPass || storedPass === base64Pass;
+            // 2. பாஸ்வேர்ட் சரிபார்த்தல் (Bcrypt Hash, Plain Text, மற்றும் பழைய Base64)
+            const storedPass = customer.password ? customer.password.trim() : '';
+            let isPasswordCorrect = false;
+
+            // அ) Bcrypt Hash ஒப்பீடு
+            if (storedPass.startsWith('$2a$') || storedPass.startsWith('$2b$')) {
+                isPasswordCorrect = await bcrypt.compare(inputPass, storedPass);
+            } else {
+                // ஆ) பழைய முறையில் சேமிக்கப்பட்ட Plain Text / Base64 ஒப்பீடு
+                const base64Pass = safeBtoa(inputPass);
+                isPasswordCorrect = storedPass === inputPass || storedPass === base64Pass;
+            }
 
             if (!isPasswordCorrect) {
                 setMessage('Invalid phone number or password.');
@@ -66,14 +85,16 @@ export default function CustomerLoginPage() {
                 return;
             }
 
-            // 3. Success Log In - Set exact session key expected by Wallet Page
+            // 3. Success Log In - Set exact session keys
             localStorage.setItem(`retcash_wallet_session_${dbPhone}`, 'true');
             localStorage.setItem(`retcash_wallet_auth_${dbPhone}`, 'true');
+            localStorage.setItem(`customer_name_${dbPhone}`, customer.full_name || '');
 
-            router.push(`/wallet/${dbPhone}`);
+            // Redirecting to wallet route
+            router.push(`/customer/wallet/${dbPhone}`);
 
         } catch (err) {
-            console.error(err);
+            console.error("Login Error:", err);
             setMessage('Invalid phone number or password.');
         } finally {
             setLoading(false);
