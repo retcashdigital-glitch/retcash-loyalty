@@ -17,7 +17,6 @@ import {
   Store as StoreIcon,
   Utensils,
   ShoppingBag,
-  Coffee,
   Copy,
   Check,
   Sparkles
@@ -25,12 +24,11 @@ import {
 
 // ─── Types & Dynamic Helper Visuals ───────────────────────────────────────────
 
-type Category = 'All' | 'Food' | 'Retail' | 'Cafe'
+type Category = 'All' | 'Food' | 'Retail'
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   Food: Utensils,
   Retail: ShoppingBag,
-  Cafe: Coffee,
   Default: StoreIcon
 }
 
@@ -38,7 +36,6 @@ function getCategoryColor(category?: string) {
   const cat = category?.toLowerCase() || ''
   if (cat.includes('food')) return { color: '#FF6B35', bgColor: '#FFF3ED' }
   if (cat.includes('retail')) return { color: '#6366F1', bgColor: '#EEF2FF' }
-  if (cat.includes('cafe') || cat.includes('coffee')) return { color: '#92400E', bgColor: '#FEF3C7' }
   return { color: '#00875A', bgColor: '#ECFDF5' }
 }
 
@@ -494,9 +491,9 @@ export default function CustomerWalletPage() {
                   )}
                 </form>
 
-                {/* Category Pills */}
+                {/* Category Pills (Cafe Removed) */}
                 <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
-                  {['All', 'Food', 'Retail', 'Cafe'].map((cat) => {
+                  {['All', 'Food', 'Retail'].map((cat) => {
                     const active = selectedCategory === cat
                     const CatIcon = cat !== 'All' ? CATEGORY_ICONS[cat] || StoreIcon : null
                     return (
@@ -617,15 +614,22 @@ export default function CustomerWalletPage() {
                                 )}
                               </div>
 
-                              {/* Cashback Label */}
+                              {/* Updated Cashback Label & Strikethrough Amount Display */}
                               <div className="text-right flex-shrink-0">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Cashback</p>
+                                <p className="text-[10px] text-slate-700 font-black uppercase tracking-wider">
+                                  CASHBACK
+                                </p>
                                 {store.isRedeemed ? (
-                                  <span className="inline-block bg-slate-100 text-slate-500 text-[11px] font-bold px-2 py-0.5 rounded-md mt-0.5 border border-slate-200">
-                                    Redeemed
-                                  </span>
+                                  <div className="flex flex-col items-end mt-0.5">
+                                    <span className="text-sm font-bold text-slate-400 line-through leading-tight">
+                                      Rs. {Number(store.cashbackAmount || 0).toFixed(2)}
+                                    </span>
+                                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-tight">
+                                      Redeemed
+                                    </span>
+                                  </div>
                                 ) : (
-                                  <p className="text-sm font-extrabold text-slate-800 leading-tight">
+                                  <p className="text-sm font-extrabold text-[#00875A] leading-tight mt-0.5">
                                     Rs. {Number(store.balance).toFixed(2)}
                                   </p>
                                 )}
