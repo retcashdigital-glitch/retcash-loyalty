@@ -4,6 +4,35 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
+interface Store {
+    id: string
+    store_name: string
+    store_slug?: string
+    logo_url?: string
+    location_url?: string
+    review_url?: string
+    target_visits?: number
+}
+
+interface ClaimData {
+    id: string
+    store_id: string
+    customer_phone: string
+    visit_count: number
+    claimable_amount: number
+    cashback_amount: number
+    status: string
+    stores?: Store
+}
+
+interface Offer {
+    id: string
+    title: string
+    description?: string
+    image_url?: string
+    expires_at?: string
+}
+
 function IconCheck() {
     return (
         <svg width="13" height="10" viewBox="0 0 13 10" fill="none" aria-hidden="true">
@@ -79,10 +108,10 @@ function IconHistory() {
     );
 }
 
-export default function ClientCardView({ initialClaim, id }: { initialClaim: any, id: string }) {
+export default function ClientCardView({ initialClaim, id }: { initialClaim: ClaimData, id: string }) {
     const router = useRouter()
-    const [claimData, setClaimData] = useState<any>(initialClaim)
-    const [offers, setOffers] = useState<any[]>([])
+    const [claimData, setClaimData] = useState<ClaimData>(initialClaim)
+    const [offers, setOffers] = useState<Offer[]>([])
     const [history, setHistory] = useState<any[]>([])
     const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false)
     const [loadingHistory, setLoadingHistory] = useState<boolean>(false)
@@ -240,7 +269,6 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                 </div>
                             </div>
 
-                            {/* Card ID நீக்கப்பட்டு, "More Visits" தகவல் Green Card-க்குள் சேர்க்கப்பட்டது */}
                             <div className="pt-3 border-t border-white/20 flex items-center justify-between text-[11px]">
                                 <span className="text-[10px] text-emerald-100 font-semibold uppercase tracking-wider">REWARD PROGRESS</span>
                                 <span className="text-white font-bold bg-white/20 px-2.5 py-0.5 rounded-full text-[10px] backdrop-blur-xs">
@@ -430,7 +458,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                 </div>
 
                 <div className="py-6 text-center text-[10px] text-slate-400 tracking-wider uppercase font-extrabold">
-                    <p>© RETCASH DIGITAL LOYALTY PLATFORM</p>
+                    <p>©️ RETCASH DIGITAL LOYALTY PLATFORM</p>
                 </div>
             </div>
 
