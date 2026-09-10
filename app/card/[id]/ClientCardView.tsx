@@ -69,18 +69,6 @@ function IconMegaphone() {
     );
 }
 
-function Chip() {
-    return (
-        <div
-            className="w-[34px] h-[25px] rounded-[6px]"
-            style={{
-                background: "linear-gradient(145deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 100%)",
-                border: "1px solid rgba(255,255,255,0.5)",
-            }}
-        />
-    );
-}
-
 export default function ClientCardView({ initialClaim, id }: { initialClaim: any, id: string }) {
     const router = useRouter()
     const [claimData, setClaimData] = useState<any>(initialClaim)
@@ -176,9 +164,10 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                             <span>My Wallet</span>
                         </button>
                     ) : (
-                        <div className="text-xs text-slate-500 font-bold tracking-wider">RETCASH PASS</div>
+                        <div className="text-xs text-slate-500 font-bold tracking-wider">RETCASH CARD</div>
                     )}
-                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Digital Loyalty Pass</span>
+                    {/* மாற்றப்பட்ட தலைப்பு: PASS -> CARD */}
+                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Digital Loyalty Card</span>
                 </div>
 
                 <div className="w-full space-y-4 flex-1">
@@ -194,6 +183,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                         <div className="absolute right-4 top-14 w-20 h-20 rounded-full bg-white/8 pointer-events-none" />
 
                         <div className="relative z-10">
+                            {/* Chip நீக்கப்பட்டு Clean-ஆக மாற்றப்பட்டது */}
                             <div className="flex justify-between items-start mb-6">
                                 <div className="flex items-center gap-3">
                                     <div className="w-11 h-11 rounded-2xl bg-white/20 border border-white/30 backdrop-blur-xs flex items-center justify-center font-extrabold text-white text-sm shadow-xs overflow-hidden">
@@ -208,7 +198,6 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                         <h1 className="text-lg font-black text-white leading-tight">{store?.store_name || 'PARTNER STORE'}</h1>
                                     </div>
                                 </div>
-                                <Chip />
                             </div>
 
                             <div className="mb-6">
@@ -218,13 +207,10 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                 </div>
                             </div>
 
-                            <div className="pt-4 border-t border-white/20 flex items-center justify-between text-[11px]">
-                                <div>
-                                    <span className="text-[9px] text-white/80 block font-semibold uppercase tracking-wider">MEMBER PASS</span>
-                                    <span className="text-white font-bold">VIP MEMBER</span>
-                                </div>
+                            {/* VIP Member நீக்கப்பட்டு Pass ID மட்டும் சீராக வைக்கப்பட்டது */}
+                            <div className="pt-4 border-t border-white/20 flex items-center justify-end text-[11px]">
                                 <div className="text-right">
-                                    <span className="text-[9px] text-white/80 block font-semibold uppercase tracking-wider">PASS ID</span>
+                                    <span className="text-[9px] text-white/80 block font-semibold uppercase tracking-wider">CARD ID</span>
                                     <span className="text-white font-mono font-medium">•••• {customerPhone ? customerPhone.slice(-4) : '0000'}</span>
                                 </div>
                             </div>
@@ -234,27 +220,8 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                     {/* Main Card View Section - Light Clean Theme */}
                     <div className="bg-white border border-slate-100 rounded-3xl p-5 text-center relative overflow-hidden shadow-xs">
                         
-                        {/* Latest Cashback Display */}
-                        <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl mb-5 flex justify-between items-center text-xs">
-                            <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">LATEST CASHBACK</span>
-                            {isRedeemed ? (
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-slate-400 line-through text-[11px]">
-                                        Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
-                                    </span>
-                                    <span className="bg-slate-200 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                        REDEEMED
-                                    </span>
-                                </div>
-                            ) : (
-                                <span className="text-[#00875A] font-extrabold text-sm">
-                                    + Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
-                                </span>
-                            )}
-                        </div>
-
-                        {/* Visit Challenge Grid */}
-                        <div className="mb-6">
+                        {/* 1. Visit Challenge Grid (நீங்கள் கேட்டபடி மேலே கொண்டுவரப்பட்டது) */}
+                        <div className="mb-6 bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
                             <div className="flex justify-between text-[11px] font-bold tracking-wider uppercase mb-3">
                                 <span className="text-slate-600">{totalVisits} Visit Challenge</span>
                                 <span className="text-[#00875A] font-extrabold">{currentVisits} / {totalVisits} Visits</span>
@@ -274,18 +241,43 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                             key={step}
                                             className={`h-9 rounded-xl flex items-center justify-center font-bold text-xs transition-all duration-300 ${done
                                                 ? 'bg-[#00875A] text-white shadow-md shadow-[#00875A]/25'
-                                                : 'bg-slate-100 border border-slate-200/60 text-slate-400'
+                                                : 'bg-white border border-slate-200/80 text-slate-300'
                                                 }`}
                                         >
-                                            {done ? <IconCheck /> : <span className="scale-75 text-slate-400"><IconLock /></span>}
+                                            {done ? <IconCheck /> : <span className="scale-75 text-slate-300"><IconLock /></span>}
                                         </div>
                                     );
                                 })}
                             </div>
+
+                            {!isRewardReady && !isRedeemed && (
+                                <p className="text-[10px] text-slate-400 font-semibold mt-3 text-center">
+                                    🎁 {totalVisits - currentVisits} More {totalVisits - currentVisits === 1 ? 'visit' : 'visits'} needed to unlock reward!
+                                </p>
+                            )}
                         </div>
 
-                        {/* QR Code / Reward Section */}
-                        <div className="relative min-h-[210px] flex items-center justify-center">
+                        {/* 2. Latest Cashback Display (Visit Grid-க்கு கீழே வைக்கப்பட்டது) */}
+                        <div className="bg-emerald-50/50 border border-emerald-100/80 p-3 rounded-2xl mb-6 flex justify-between items-center text-xs">
+                            <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">LATEST CASHBACK</span>
+                            {isRedeemed ? (
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-slate-400 line-through text-[11px]">
+                                        Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
+                                    </span>
+                                    <span className="bg-slate-200 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                        REDEEMED
+                                    </span>
+                                </div>
+                            ) : (
+                                <span className="text-[#00875A] font-extrabold text-sm">
+                                    + Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* 3. QR Code / Reward Section */}
+                        <div className="relative min-h-[200px] flex items-center justify-center mb-4">
                             <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-out transform ${isRedeemed ? 'opacity-100 scale-100 translate-y-0 blur-0' : 'opacity-0 scale-90 translate-y-6 blur-md pointer-events-none'}`}>
                                 <div className="w-14 h-14 bg-emerald-50 border border-emerald-100 text-[#00875A] rounded-full flex items-center justify-center mx-auto text-3xl mb-3 animate-bounce shadow-xs">
                                     🎉
@@ -312,14 +304,14 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="py-5 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50 w-full">
+                                    <div className="py-5 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 w-full text-center">
                                         <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 text-[#00875A] rounded-full flex items-center justify-center mx-auto mb-2 text-base">
                                             <IconGift />
                                         </div>
-                                        <h3 className="text-xs font-bold text-slate-800 mb-1">
-                                            {totalVisits - currentVisits} More {totalVisits - currentVisits === 1 ? 'Visit' : 'Visits'} Needed!
+                                        <h3 className="text-xs font-bold text-slate-700 mb-1">
+                                            Reward Locked
                                         </h3>
-                                        <p className="text-[11px] text-slate-500">
+                                        <p className="text-[11px] text-slate-400">
                                             Redemption QR code will appear automatically on your {totalVisits}th visit.
                                         </p>
                                     </div>
@@ -361,20 +353,20 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                             </div>
                         )}
 
-                        {/* Location & Review Action Buttons */}
+                        {/* Location & Review Action Buttons (Active/Disabled நிலைகளுக்கிடையே தெளிவான UI Contrast) */}
                         <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100 mt-4">
                             {store?.location_url ? (
                                 <a
                                     href={store.location_url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="py-3 px-3 bg-slate-50 border border-slate-200/80 rounded-xl text-center text-xs text-slate-700 font-bold hover:border-[#00875A] hover:text-[#00875A] transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                                    className="py-3 px-3 bg-white border border-emerald-600 text-emerald-700 font-bold rounded-xl text-center text-xs hover:bg-emerald-50 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
                                 >
                                     <IconLocation />
                                     <span>LOCATION</span>
                                 </a>
                             ) : (
-                                <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200/50 rounded-xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                                <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200/60 rounded-xl text-center text-xs text-slate-300 font-bold flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">
                                     <IconLocation />
                                     <span>LOCATION</span>
                                 </button>
@@ -385,13 +377,13 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                     href={store.review_url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="py-3 px-3 bg-emerald-50 border border-emerald-200/80 rounded-xl text-center text-xs text-[#00875A] font-bold hover:bg-emerald-100/80 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                                    className="py-3 px-3 bg-[#00875A] text-white font-bold rounded-xl text-center text-xs hover:bg-[#00704a] transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
                                 >
                                     <IconStar />
                                     <span>REVIEW</span>
                                 </a>
                             ) : (
-                                <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200/50 rounded-xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                                <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200/60 rounded-xl text-center text-xs text-slate-300 font-bold flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">
                                     <IconStar />
                                     <span>REVIEW</span>
                                 </button>
@@ -401,7 +393,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                 </div>
 
                 <div className="py-6 text-center text-[10px] text-slate-400 tracking-wider uppercase font-extrabold">
-                    <p>©️ RETCASH DIGITAL LOYALTY PLATFORM</p>
+                    <p>© RETCASH DIGITAL LOYALTY PLATFORM</p>
                 </div>
             </div>
         </div>
