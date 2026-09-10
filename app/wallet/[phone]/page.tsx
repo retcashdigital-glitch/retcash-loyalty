@@ -91,41 +91,79 @@ export default function CustomerWalletPage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!phone) return
-
-    const session = localStorage.getItem(`retcash_wallet_session_${phone}`)
-    if (!session) {
+    if (!phone) {
       router.replace('/customer/login')
       return
     }
 
-    setIsCheckingAuth(false)
-
-    const cachedName = localStorage.getItem(`customer_name_${phone}`)
-    if (cachedName) {
-      setCustomerName(cachedName)
-    }
-
-    const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
-    if (cachedData) {
+    const checkAuthAndInit = async () => {
       try {
-        const parsed = JSON.parse(cachedData)
-        if (Array.isArray(parsed)) {
-          setStores(parsed)
-          setLoading(false)
-          parsed.forEach((s: any) => {
-            router.prefetch(`/card/${s.id}?phone=${phone}`)
-          })
+        // 1. Check LocalStorage Session
+        const session = localStorage.getItem(`retcash_wallet_session_${phone}`)
+        const authKey = localStorage.getItem(`retcash_wallet_auth_${phone}`)
+
+        if (!session || !authKey) {
+          router.replace('/customer/login')
+          return
         }
-      } catch (e) {
-        console.error('Error parsing wallet cache:', e)
+
+        // 2. Direct Supabase Verification: Database-இல் இந்த வாடிக்கையாளர் உள்ளாரா எனச் சரிபார்த்தல்
+        const cleanPhone = phone.replace(/\D/g, '')
+        const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
+
+        const { data: customer, error } = await supabase
+          .from('customers')
+          .select('full_name, email')
+          .or(`phone_number.eq.${phone},phone_number.eq.${phoneWithZero}`)
+          .maybeSingle()
+
+        if (error || !customer) {
+          // Supabase-இல் பயனர் பதிவு பெறப்படவில்லை என்றால் லாகின் பக்கத்திற்கு Redirect செய்தல்
+          localStorage.removeItem(`retcash_wallet_session_${phone}`)
+          localStorage.removeItem(`retcash_wallet_auth_${phone}`)
+          router.replace('/customer/login')
+          return
+        }
+
+        // 3. வாடிக்கையாளர் விவரங்களை அமைத்தல்
+        if (customer.full_name) {
+          setCustomerName(customer.full_name)
+          localStorage.setItem(`customer_name_${phone}`, customer.full_name)
+        }
+        if (customer.email) setCustomerEmail(customer.email)
+
+        setIsCheckingAuth(false)
+
+        // 4. Cache-இல் உள்ள வாலட் தரவுகளை ஏற்றுதல்
+        const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
+        if (cachedData) {
+          try {
+            const parsed = JSON.parse(cachedData)
+            if (Array.isArray(parsed)) {
+              setStores(parsed)
+              setLoading(false)
+              parsed.forEach((s: any) => {
+                router.prefetch(`/card/${s.id}?phone=${phone}`)
+              })
+            }
+          } catch (e) {
+            console.error('Error parsing wallet cache:', e)
+          }
+        }
+
+        // 5. வாலட் & ஆஃபர் தரவுகளைப் பெறுதல்
+        fetchWalletAndClaimsData()
+        fetchActiveOffers()
+
+      } catch (err) {
+        console.error('Authentication verification error:', err)
+        router.replace('/customer/login')
       }
     }
 
-    fetchCustomerDetails()
-    fetchWalletAndClaimsData()
-    fetchActiveOffers()
+    checkAuthAndInit()
 
+    // Realtime changes listener
     const cleanPhone = phone.replace(/\D/g, '')
     const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
@@ -151,29 +189,6 @@ export default function CustomerWalletPage() {
       supabase.removeChannel(channel)
     }
   }, [phone, router])
-
-  const fetchCustomerDetails = async () => {
-    try {
-      const cleanPhone = phone.replace(/\D/g, '')
-      const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
-
-      const { data } = await supabase
-        .from('customers')
-        .select('full_name, email')
-        .or(`phone_number.eq.${phone},phone_number.eq.${phoneWithZero}`)
-        .maybeSingle()
-
-      if (data) {
-        if (data.full_name) {
-          setCustomerName(data.full_name)
-          localStorage.setItem(`customer_name_${phone}`, data.full_name)
-        }
-        if (data.email) setCustomerEmail(data.email)
-      }
-    } catch (err) {
-      console.error('Error fetching customer profile:', err)
-    }
-  }
 
   const fetchWalletAndClaimsData = async () => {
     try {
@@ -299,6 +314,7 @@ export default function CustomerWalletPage() {
   const handleLogout = () => {
     localStorage.removeItem(`wallet_cache_${phone}`)
     localStorage.removeItem(`retcash_wallet_session_${phone}`)
+    localStorage.removeItem(`retcash_wallet_auth_${phone}`)
     localStorage.removeItem(`customer_name_${phone}`)
     router.replace('/customer/login')
   }
@@ -354,6 +370,7 @@ export default function CustomerWalletPage() {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
         <div className="w-10 h-10 border-3 border-slate-200 border-t-[#00875A] rounded-full animate-spin"></div>
+        <p className="text-xs text-slate-500 font-semibold mt-3">Verifying wallet session...</p>
       </div>
     )
   }
@@ -362,7 +379,7 @@ export default function CustomerWalletPage() {
     <div className="flex justify-center min-h-full bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
       <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen">
         
-        {/* ── Fixed Opaque Header (Fixes Scroll Artifacts) ─────────────────── */}
+        {/* ── Fixed Opaque Header ────────────────────────────────────────── */}
         <header className="sticky top-0 z-50 flex-shrink-0 bg-white border-b border-slate-100 px-5 pt-4 pb-3.5 shadow-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -387,7 +404,7 @@ export default function CustomerWalletPage() {
         <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28 space-y-4">
           {activeTab === 'wallet' && (
             <>
-              {/* Action-Centric Digital Pass Hero Card */}
+              {/* Hero Card */}
               <div
                 className="relative rounded-3xl overflow-hidden p-5 text-white shadow-lg"
                 style={{
@@ -440,7 +457,7 @@ export default function CustomerWalletPage() {
                 </div>
               </div>
 
-              {/* Enhanced Interactive Search Bar */}
+              {/* Interactive Search Bar */}
               <div className="space-y-3">
                 <form onSubmit={handleSearchSubmit} className="relative">
                   <button
@@ -513,7 +530,7 @@ export default function CustomerWalletPage() {
                 </div>
               </div>
 
-              {/* Store Header - Stronger Slate Color */}
+              {/* Store Header */}
               <div className="flex items-center justify-between px-0.5 pt-1">
                 <h2 className="text-[13px] font-bold text-slate-700">
                   {filteredStores.length} {selectedCategory === 'All' ? 'stores' : selectedCategory + ' stores'}
@@ -599,7 +616,7 @@ export default function CustomerWalletPage() {
                                 )}
                               </div>
 
-                              {/* Cashback Label in Dark Slate (text-slate-600) */}
+                              {/* Cashback Label */}
                               <div className="text-right flex-shrink-0">
                                 <p className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider">Cashback</p>
                                 {store.isRedeemed ? (
@@ -614,7 +631,7 @@ export default function CustomerWalletPage() {
                               </div>
                             </div>
 
-                            {/* Visit Counter in Dark Slate (text-slate-700) */}
+                            {/* Visit Counter */}
                             <div className="mt-3.5 pt-2.5 border-t border-slate-100/80 flex items-center justify-between gap-2">
                               <span className="text-[11px] font-bold text-slate-700 flex-shrink-0 whitespace-nowrap">
                                 {visits} / {targetVisits} visits
@@ -750,7 +767,7 @@ export default function CustomerWalletPage() {
           )}
         </main>
 
-        {/* ── Fixed Bottom Nav with Solid Active Pill Style ───────────────── */}
+        {/* ── Fixed Bottom Nav ─────────────────────────────────────────────── */}
         <nav
           className="fixed bottom-0 max-w-[430px] w-full z-30 bg-white border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
