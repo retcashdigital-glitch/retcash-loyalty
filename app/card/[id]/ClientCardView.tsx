@@ -224,7 +224,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                 </div>
 
                 <div className="w-full space-y-4 flex-1">
-                    {/* Store Loyalty Card Header - Hero Gradient Theme */}
+                    {/* 1. Store Loyalty Card Header - Hero Gradient Theme */}
                     <div
                         className="relative rounded-3xl p-6 shadow-lg overflow-hidden text-white"
                         style={{
@@ -276,60 +276,60 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                         </div>
                     </div>
 
-                    {/* Main Card View Section */}
-                    <div className="bg-white border border-slate-100 rounded-3xl p-5 text-center relative overflow-hidden shadow-xs">
-                        
-                        {/* 1. Dynamic Visit Challenge Grid (1 to 10 Visits) */}
-                        <div className="mb-5 bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
-                            <div className="flex justify-between text-[11px] font-bold tracking-wider uppercase mb-3">
-                                <span className="text-slate-600">{totalVisits} Visit Challenge</span>
-                                <span className="text-[#00875A] font-extrabold">{currentVisits} / {totalVisits} Visits</span>
-                            </div>
-
-                            <div className={`grid gap-2 ${getGridColumnsClass(totalVisits)}`}>
-                                {Array.from({ length: totalVisits }).map((_, i) => {
-                                    const step = i + 1;
-                                    const done = step <= currentVisits;
-                                    const isTargetGift = step === totalVisits;
-                                    const isSpanTwo = (totalVisits === 7 && step === 7) || (totalVisits === 9 && step === 9);
-
-                                    return (
-                                        <div
-                                            key={step}
-                                            className={`h-10 rounded-xl flex items-center justify-center font-bold text-xs transition-all duration-300 ${
-                                                isSpanTwo ? 'col-span-2' : ''
-                                            } ${
-                                                done
-                                                    ? 'bg-[#00875A] text-white shadow-md shadow-[#00875A]/25'
-                                                    : isTargetGift
-                                                    ? 'bg-amber-50 border-2 border-dashed border-amber-300 text-amber-500 shadow-xs'
-                                                    : 'bg-white border border-slate-200/80 text-slate-300'
-                                            }`}
-                                        >
-                                            {done ? (
-                                                <IconCheck />
-                                            ) : isTargetGift ? (
-                                                <span className="animate-pulse">
-                                                    <IconGift />
-                                                </span>
-                                            ) : (
-                                                <span className="scale-75 text-slate-300">
-                                                    <IconLock />
-                                                </span>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                    {/* 2. Standalone Visit Challenge Card */}
+                    <div className="bg-white border border-slate-100 rounded-3xl p-5 text-center shadow-xs">
+                        <div className="flex justify-between text-[11px] font-bold tracking-wider uppercase mb-3.5">
+                            <span className="text-slate-600">{totalVisits} Visit Challenge</span>
+                            <span className="text-[#00875A] font-extrabold">{currentVisits} / {totalVisits} Visits</span>
                         </div>
 
-                        {/* 2. Clean Latest Cashback & History Section (No Overlap, No Extra Redeemed Badge) */}
-                        <div className="bg-emerald-50/50 border border-emerald-100/80 p-3 rounded-2xl mb-5 flex justify-between items-center text-xs gap-2">
-                            <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">LATEST CASHBACK</span>
+                        <div className={`grid gap-2.5 ${getGridColumnsClass(totalVisits)}`}>
+                            {Array.from({ length: totalVisits }).map((_, i) => {
+                                const step = i + 1;
+                                const done = step <= currentVisits;
+                                const isTargetGift = step === totalVisits;
+                                const isSpanTwo = (totalVisits === 7 && step === 7) || (totalVisits === 9 && step === 9);
+
+                                return (
+                                    <div
+                                        key={step}
+                                        className={`h-11 rounded-xl flex items-center justify-center font-bold text-xs transition-all duration-300 ${
+                                            isSpanTwo ? 'col-span-2' : ''
+                                        } ${
+                                            done
+                                                ? 'bg-[#00875A] text-white shadow-md shadow-[#00875A]/25'
+                                                : isTargetGift
+                                                ? 'bg-amber-50 border-2 border-dashed border-amber-300 text-amber-500 shadow-xs'
+                                                : 'bg-slate-50 border border-slate-200/80 text-slate-300'
+                                        }`}
+                                    >
+                                        {done ? (
+                                            <IconCheck />
+                                        ) : isTargetGift ? (
+                                            <span className="animate-pulse">
+                                                <IconGift />
+                                            </span>
+                                        ) : (
+                                            <span className="scale-75 text-slate-300">
+                                                <IconLock />
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* 3. Standalone Details & Actions Card */}
+                    <div className="bg-white border border-slate-100 rounded-3xl p-5 relative overflow-hidden shadow-xs space-y-5">
+                        
+                        {/* Latest Cashback & History Section */}
+                        <div className="bg-emerald-50/60 border border-emerald-100 p-3 rounded-2xl flex justify-between items-center text-xs gap-2">
+                            <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-slate-600 font-bold uppercase tracking-wider text-[10px]">LATEST CASHBACK</span>
                                 <button 
                                     onClick={fetchHistory}
-                                    className="text-[10px] font-extrabold text-[#00875A] bg-emerald-100/80 hover:bg-emerald-200 px-2 py-0.5 rounded-md transition flex items-center gap-1 cursor-pointer"
+                                    className="text-[10px] font-extrabold text-[#00875A] bg-emerald-100 hover:bg-emerald-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
                                 >
                                     <IconHistory />
                                     <span>SEE ALL</span>
@@ -338,21 +338,26 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
 
                             <div className="shrink-0 text-right">
                                 {isRedeemed ? (
-                                    <span className="text-slate-400 line-through text-xs font-bold">
-                                        Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
-                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-slate-500 text-xs font-extrabold">
+                                            Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
+                                        </span>
+                                        <span className="text-[9px] font-extrabold text-slate-500 bg-slate-200/80 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                                            Redeemed
+                                        </span>
+                                    </div>
                                 ) : (
-                                    <span className="text-[#00875A] font-extrabold text-sm">
+                                    <span className="text-[#00875A] font-black text-sm">
                                         + Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
                                     </span>
                                 )}
                             </div>
                         </div>
 
-                        {/* 3. QR Code Section (Shown only when Reward is ready) */}
+                        {/* QR Code Section (Shown only when Reward is ready) */}
                         {isRewardReady && (
-                            <div className="mb-5 w-full animate-fade-in">
-                                <div className="bg-emerald-50 border border-emerald-200/80 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
+                            <div className="w-full text-center animate-fade-in pt-1">
+                                <div className="bg-emerald-50 border border-emerald-200 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
                                     Reward Ready! Show QR code at billing counter:
                                 </div>
                                 <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-100">
@@ -367,7 +372,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
 
                         {/* STORE OFFERS SECTION */}
                         {offers.length > 0 && (
-                            <div className="mt-6 pt-5 border-t border-slate-100 text-left">
+                            <div className="pt-2 border-t border-slate-100 text-left">
                                 <div className="flex items-center gap-1.5 text-[#00875A] font-extrabold text-xs uppercase tracking-wider mb-3">
                                     <IconMegaphone />
                                     <span>STORE OFFERS & DEALS</span>
@@ -399,20 +404,20 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                             </div>
                         )}
 
-                        {/* Location & Review Action Buttons */}
-                        <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100 mt-4">
+                        {/* Location & Review Action Buttons - Improved Visual Contrast */}
+                        <div className="grid grid-cols-2 gap-3 pt-2">
                             {store?.location_url ? (
                                 <a
                                     href={store.location_url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="py-3 px-3 bg-emerald-50 border border-emerald-200 text-[#00875A] font-bold rounded-xl text-center text-xs hover:bg-emerald-100 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
+                                    className="py-3 px-3 bg-emerald-50 border border-emerald-300/80 text-[#00875A] font-black rounded-2xl text-center text-xs hover:bg-emerald-100 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
                                 >
                                     <IconLocation />
                                     <span>LOCATION</span>
                                 </a>
                             ) : (
-                                <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200/60 rounded-xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">
+                                <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200 rounded-2xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 opacity-60 cursor-not-allowed">
                                     <IconLocation />
                                     <span>LOCATION</span>
                                 </button>
@@ -423,13 +428,13 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                     href={store.review_url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="py-3 px-3 bg-[#00875A] text-white font-bold rounded-xl text-center text-xs hover:bg-[#00704a] transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
+                                    className="py-3 px-3 bg-[#00875A] text-white font-black rounded-2xl text-center text-xs hover:bg-[#00704a] transition flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-[#00875A]/20 active:scale-95"
                                 >
                                     <IconStar />
                                     <span>REVIEW</span>
                                 </a>
                             ) : (
-                                <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200/60 rounded-xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">
+                                <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200 rounded-2xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 opacity-60 cursor-not-allowed">
                                     <IconStar />
                                     <span>REVIEW</span>
                                 </button>
