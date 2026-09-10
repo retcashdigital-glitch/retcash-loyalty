@@ -10,9 +10,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
         }
 
-        const cleanEmail = email.trim();
+        const cleanEmail = email.trim().toLowerCase();
 
-        // 1. Verify OTP in Database (Case insensitive for email)
+        // 1. Verify OTP in Database
         const { data: otpRecords, error: otpError } = await supabase
             .from('customer_otps')
             .select('*')
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
         // 2. Hash New Password with Bcrypt
         const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
 
-        // 3. Update User Password using ilike for email matching
+        // 3. Update User Password in Database
         const { data: updatedUser, error: updateError } = await supabase
             .from('customers')
             .update({ password: hashedPassword })
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Failed to update password. User not found.' }, { status: 400 });
         }
 
-        // 4. Mark OTP as used only after successful password update
+        // 4. Mark OTP as used AFTER password update success
         await supabase
             .from('customer_otps')
             .update({ is_used: true })
