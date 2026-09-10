@@ -369,7 +369,7 @@ export default function CustomerWalletPage() {
             <div className="flex items-center gap-3">
               {/* RETCASH Official Logo */}
               <img
-                src="/retcash-logo.png"
+                src="/logo.png"
                 alt="RETCASH Logo"
                 className="h-9 w-auto object-contain"
               />
