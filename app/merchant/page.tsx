@@ -126,7 +126,6 @@ export default function GlobalEntryPoint() {
         try {
           const parsed: MerchantSession = JSON.parse(savedMerchant)
           
-          // Verify with database if this merchant store actually exists
           const { data: realStore, error: storeErr } = await supabase
             .from('stores')
             .select('id, store_name, phone_number, default_cashback_percent, target_visits')
@@ -495,7 +494,7 @@ export default function GlobalEntryPoint() {
           status: 'REDEEMED',
         })
         .eq('id', scannedClaimData.id)
-        .eq('store_id', merchantSession!.id) // Strict store lock
+        .eq('store_id', merchantSession!.id)
 
       if (error) throw error
 
@@ -586,6 +585,21 @@ export default function GlobalEntryPoint() {
       if (upsertError) throw upsertError
       if (upsertedData && upsertedData.id) {
         claimId = upsertedData.id
+      }
+
+      // 💥 புதிய மாற்றம்: CASHBACK HISTORY TABLE-ல் புதிய விவரங்களை Insert செய்தல்
+      const { error: historyError } = await supabase
+        .from('cashback_history')
+        .insert({
+          store_id: storeId,
+          customer_phone: cleanCustPhone,
+          bill_amount: billNum,
+          cashback_amount: cashbackAmount,
+          visit_number: newVisitCount
+        })
+
+      if (historyError) {
+        console.error('History logging error:', historyError)
       }
 
       const baseUrl = window.location.origin
@@ -723,7 +737,6 @@ export default function GlobalEntryPoint() {
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
               
-              {/* Profile Header */}
               <div className="bg-[#0F172A] text-white p-5 flex items-center justify-between border-b border-slate-800">
                 <div className="flex items-center gap-3">
                   <div className="flex size-10 items-center justify-center rounded-xl bg-[#EA580C] text-white">
@@ -744,7 +757,6 @@ export default function GlobalEntryPoint() {
 
               <div className="p-5 space-y-6 max-h-[80vh] overflow-y-auto">
                 
-                {/* Account Details */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Account Details</h4>
                   <div className="space-y-2 text-xs">
@@ -761,11 +773,9 @@ export default function GlobalEntryPoint() {
                   </div>
                 </div>
 
-                {/* Cashback Rules Settings */}
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Store Rules & Configuration</h4>
                   
-                  {/* DEFAULT CASHBACK PERCENT FORM */}
                   <form onSubmit={handleUpdateCashbackPercent} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <label htmlFor="cashbackPercentModal" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
@@ -799,7 +809,6 @@ export default function GlobalEntryPoint() {
                     )}
                   </form>
 
-                  {/* TARGET VISITS FORM */}
                   <form onSubmit={handleUpdateTargetVisits} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <label htmlFor="targetModal" className="text-xs font-semibold text-slate-700">Target Visits</label>

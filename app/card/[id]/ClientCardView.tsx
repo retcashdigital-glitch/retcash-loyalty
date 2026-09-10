@@ -149,7 +149,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
         }
     }, [id])
 
-    // Fetch Full Customer Visit & Cashback History
+    // UPDATED: Fetch Full Customer Cashback History from cashback_history table
     const fetchHistory = async () => {
         const storeId = claimData?.stores?.id || claimData?.store_id;
         const phone = claimData?.customer_phone;
@@ -159,7 +159,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
         setShowHistoryModal(true)
 
         const { data, error } = await supabase
-            .from('cashback_claims')
+            .from('cashback_history')
             .select('*')
             .eq('store_id', storeId)
             .eq('customer_phone', phone)
@@ -175,7 +175,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
     const customerPhone = claimData?.customer_phone || ''
     const currentVisits = Number(claimData?.visit_count) || 1
     const rawTotalVisits = Number(store?.target_visits) || 6
-    const totalVisits = Math.min(Math.max(rawTotalVisits, 1), 10) // Restrict between 1 and 10
+    const totalVisits = Math.min(Math.max(rawTotalVisits, 1), 10)
 
     const isRedeemed = claimData?.status === 'REDEEMED' || Number(claimData?.claimable_amount || 0) <= 0;
     const isRewardReady = (currentVisits >= totalVisits) && !isRedeemed;
@@ -186,7 +186,6 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
 
     const visitsLeft = totalVisits - currentVisits;
 
-    // Helper to calculate responsive dynamic CSS Grid columns based on visit count
     const getGridColumnsClass = (count: number) => {
         switch (count) {
             case 1: return 'grid-cols-1 max-w-[120px] mx-auto';
@@ -224,7 +223,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                 </div>
 
                 <div className="w-full space-y-4 flex-1">
-                    {/* 1. Store Loyalty Card Header - Hero Gradient Theme */}
+                    {/* 1. Store Loyalty Card Header */}
                     <div
                         className="relative rounded-3xl p-6 shadow-lg overflow-hidden text-white"
                         style={{
@@ -236,7 +235,6 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                         <div className="absolute right-4 top-14 w-20 h-20 rounded-full bg-white/8 pointer-events-none" />
 
                         <div className="relative z-10">
-                            {/* Store Details Header */}
                             <div className="flex justify-between items-center mb-6">
                                 <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/30 backdrop-blur-xs flex items-center justify-center font-extrabold text-white text-base shadow-xs overflow-hidden shrink-0">
@@ -252,7 +250,6 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                 </div>
                             </div>
 
-                            {/* Store Credit Balance */}
                             <div className="mb-5">
                                 <span className="text-[10px] text-emerald-100 font-bold uppercase tracking-widest block mb-1">STORE CREDIT BALANCE</span>
                                 <div className="text-3xl font-black text-white tracking-tight">
@@ -260,7 +257,6 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                 </div>
                             </div>
 
-                            {/* Refined Unified Progress Badge */}
                             <div className="pt-3 border-t border-white/20 flex items-center justify-center">
                                 <div className="flex items-center gap-2 bg-white/15 border border-white/20 px-3.5 py-1.5 rounded-xl backdrop-blur-md w-full justify-center">
                                     <IconGift />
@@ -354,7 +350,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                             </div>
                         </div>
 
-                        {/* QR Code Section (Shown only when Reward is ready) */}
+                        {/* QR Code Section */}
                         {isRewardReady && (
                             <div className="w-full text-center animate-fade-in pt-1">
                                 <div className="bg-emerald-50 border border-emerald-200 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
@@ -404,7 +400,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                             </div>
                         )}
 
-                        {/* Location & Review Action Buttons - Improved Visual Contrast */}
+                        {/* Location & Review Action Buttons */}
                         <div className="grid grid-cols-2 gap-3 pt-2">
                             {store?.location_url ? (
                                 <a
@@ -448,7 +444,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                 </div>
             </div>
 
-            {/* CASHBACK & VISIT HISTORY MODAL */}
+            {/* UPDATED: CASHBACK & VISIT HISTORY MODAL (Shows actual transaction history from DB) */}
             {showHistoryModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
                     <div className="bg-white w-full max-w-[430px] rounded-t-3xl sm:rounded-3xl max-h-[80vh] flex flex-col p-5 shadow-2xl">
@@ -474,17 +470,22 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                             {loadingHistory ? (
                                 <div className="text-center py-8 text-xs text-slate-400 font-medium">Loading history...</div>
                             ) : history.length === 0 ? (
-                                <div className="text-center py-8 text-xs text-slate-400 font-medium">No prior visits found.</div>
+                                <div className="text-center py-8 text-xs text-slate-400 font-medium">No prior transactions found.</div>
                             ) : (
                                 history.map((item) => (
                                     <div key={item.id} className="bg-slate-50 border border-slate-100/80 rounded-2xl p-3 flex justify-between items-center text-xs">
                                         <div>
-                                            <div className="font-extrabold text-slate-700">Visit #{item.visit_count || 1}</div>
+                                            <div className="font-extrabold text-slate-700">
+                                                Visit #{item.visit_number || 1} 
+                                                <span className="text-[10px] text-slate-400 font-semibold ml-2">(Bill: Rs. {Number(item.bill_amount || 0).toFixed(2)})</span>
+                                            </div>
                                             <div className="text-[10px] text-slate-400 font-medium mt-0.5">
                                                 {new Date(item.created_at).toLocaleDateString('en-US', {
                                                     day: 'numeric',
                                                     month: 'short',
-                                                    year: 'numeric'
+                                                    year: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
                                                 })}
                                             </div>
                                         </div>
@@ -492,10 +493,8 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                             <div className="font-extrabold text-[#00875A]">
                                                 + Rs. {Number(item.cashback_amount || 0).toFixed(2)}
                                             </div>
-                                            <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-0.5 ${
-                                                item.status === 'REDEEMED' ? 'bg-slate-200 text-slate-500' : 'bg-emerald-100 text-[#00875A]'
-                                            }`}>
-                                                {item.status}
+                                            <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-0.5 bg-emerald-100 text-[#00875A]">
+                                                Earned
                                             </span>
                                         </div>
                                     </div>
