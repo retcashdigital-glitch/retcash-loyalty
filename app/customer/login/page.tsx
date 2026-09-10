@@ -91,7 +91,7 @@ export default function CustomerLoginPage() {
             localStorage.setItem(`customer_name_${dbPhone}`, customer.full_name || '');
 
             // Redirecting to valid card route (வொலட் ஃபோல்டருக்கு பதிலாக card ஃபோல்டருக்கு Redirect செய்யப்படுகிறது)
-            router.push(`/customer/card/${dbPhone}`);
+            router.push(`/wallet/${dbPhone}`);
 
         } catch (err) {
             console.error("Login Error:", err);
