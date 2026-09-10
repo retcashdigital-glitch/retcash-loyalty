@@ -4,35 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-interface Store {
-    id: string
-    store_name: string
-    store_slug?: string
-    logo_url?: string
-    location_url?: string
-    review_url?: string
-    target_visits?: number
-}
-
-interface ClaimData {
-    id: string
-    store_id: string
-    customer_phone: string
-    visit_count: number
-    claimable_amount: number
-    cashback_amount: number
-    status: string
-    stores?: Store
-}
-
-interface Offer {
-    id: string
-    title: string
-    description?: string
-    image_url?: string
-    expires_at?: string
-}
-
 function IconCheck() {
     return (
         <svg width="13" height="10" viewBox="0 0 13 10" fill="none" aria-hidden="true">
@@ -79,12 +50,11 @@ function IconStar() {
 
 function IconGift() {
     return (
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-            <rect x="1.5" y="6.5" width="15" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
-            <path d="M1.5 9.5h15" stroke="currentColor" strokeWidth="1.4" />
-            <path d="M9 6.5v10" stroke="currentColor" strokeWidth="1.4" />
-            <path d="M9 6.5c0 0-2-3.5-4-2.5S7 6.5 9 6.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-            <path d="M9 6.5c0 0 2-3.5 4-2.5S11 6.5 9 6.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="8" width="18" height="12" rx="2" />
+            <path d="M12 8v12" />
+            <path d="M12 8H7.5a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8z" />
+            <path d="M12 8h4.5a2.5 2.5 0 0 0 0-5C13 3 12 8 12 8z" />
         </svg>
     );
 }
@@ -108,10 +78,10 @@ function IconHistory() {
     );
 }
 
-export default function ClientCardView({ initialClaim, id }: { initialClaim: ClaimData, id: string }) {
+export default function ClientCardView({ initialClaim, id }: { initialClaim: any, id: string }) {
     const router = useRouter()
-    const [claimData, setClaimData] = useState<ClaimData>(initialClaim)
-    const [offers, setOffers] = useState<Offer[]>([])
+    const [claimData, setClaimData] = useState<any>(initialClaim)
+    const [offers, setOffers] = useState<any[]>([])
     const [history, setHistory] = useState<any[]>([])
     const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false)
     const [loadingHistory, setLoadingHistory] = useState<boolean>(false)
@@ -213,6 +183,8 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: Cla
         ? store.store_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
         : 'RC'
 
+    const visitsLeft = totalVisits - currentVisits;
+
     return (
         <div className="flex justify-center min-h-screen bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
             <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen border-x border-slate-200/50 shadow-2xl p-4 pb-20">
@@ -246,9 +218,10 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: Cla
                         <div className="absolute right-4 top-14 w-20 h-20 rounded-full bg-white/8 pointer-events-none" />
 
                         <div className="relative z-10">
-                            <div className="flex justify-between items-start mb-6">
+                            {/* Store Details Header (RETCASH PARTNER removed) */}
+                            <div className="flex justify-between items-center mb-6">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-11 h-11 rounded-2xl bg-white/20 border border-white/30 backdrop-blur-xs flex items-center justify-center font-extrabold text-white text-sm shadow-xs overflow-hidden">
+                                    <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/30 backdrop-blur-xs flex items-center justify-center font-extrabold text-white text-base shadow-xs overflow-hidden shrink-0">
                                         {store?.logo_url ? (
                                             <img src={store.logo_url} alt={store.store_name} className="w-full h-full object-cover" />
                                         ) : (
@@ -256,28 +229,31 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: Cla
                                         )}
                                     </div>
                                     <div>
-                                        <span className="text-[9px] font-extrabold text-emerald-200 uppercase tracking-widest block">RETCASH PARTNER</span>
-                                        <h1 className="text-lg font-black text-white leading-tight">{store?.store_name || 'PARTNER STORE'}</h1>
+                                        <h1 className="text-xl font-black text-white leading-tight tracking-tight">{store?.store_name || 'PARTNER STORE'}</h1>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="mb-4">
-                                <span className="text-[10px] text-white/80 font-bold uppercase tracking-wider block mb-1">STORE CREDIT BALANCE</span>
+                            {/* Store Credit Balance */}
+                            <div className="mb-5">
+                                <span className="text-[10px] text-emerald-100 font-bold uppercase tracking-widest block mb-1">STORE CREDIT BALANCE</span>
                                 <div className="text-3xl font-black text-white tracking-tight">
                                     Rs. {Number(claimData?.claimable_amount || 0).toFixed(2)}
                                 </div>
                             </div>
 
-                            <div className="pt-3 border-t border-white/20 flex items-center justify-between text-[11px]">
-                                <span className="text-[10px] text-emerald-100 font-semibold uppercase tracking-wider">REWARD PROGRESS</span>
-                                <span className="text-white font-bold bg-white/20 px-2.5 py-0.5 rounded-full text-[10px] backdrop-blur-xs">
-                                    {isRewardReady
-                                        ? '🎉 Reward Ready!'
-                                        : isRedeemed
-                                        ? 'Reward Redeemed'
-                                        : `🎁 ${totalVisits - currentVisits} More ${totalVisits - currentVisits === 1 ? 'visit' : 'visits'} needed`}
-                                </span>
+                            {/* Refined Unified Progress Badge with SVG Icon */}
+                            <div className="pt-3 border-t border-white/20 flex items-center justify-center">
+                                <div className="flex items-center gap-2 bg-white/15 border border-white/20 px-3.5 py-1.5 rounded-xl backdrop-blur-md w-full justify-center">
+                                    <IconGift />
+                                    <span className="text-white font-bold text-[11px] tracking-wide">
+                                        {isRewardReady
+                                            ? 'Reward Unlocked & Ready!'
+                                            : isRedeemed
+                                            ? 'Reward Successfully Redeemed'
+                                            : `${visitsLeft} ${visitsLeft === 1 ? 'Visit' : 'Visits'} Remaining for Reward`}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -348,16 +324,14 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: Cla
                         <div className="mb-4">
                             {isRedeemed ? (
                                 <div className="py-4 px-3 bg-emerald-50/60 border border-emerald-100 rounded-2xl text-center">
-                                    <div className="text-2xl mb-1">🎉</div>
                                     <h3 className="text-xs font-black text-[#00875A] uppercase tracking-wider">REWARD REDEEMED</h3>
                                     <p className="text-[10px] text-slate-500 mt-0.5 font-medium">Thank you for visiting!</p>
                                 </div>
                             ) : isRewardReady ? (
                                 <div className="w-full">
                                     <div className="bg-emerald-50 border border-emerald-200/80 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
-                                        🎉 Congratulations! Your {totalVisits}th Visit Reward is ready!
+                                        Reward Ready! Show QR code at billing counter:
                                     </div>
-                                    <p className="text-[11px] text-slate-500 mb-2 font-semibold">Show QR code at billing counter:</p>
                                     <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-100">
                                         <img
                                             src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${id}`}
@@ -458,7 +432,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: Cla
                 </div>
 
                 <div className="py-6 text-center text-[10px] text-slate-400 tracking-wider uppercase font-extrabold">
-                    <p>©️ RETCASH DIGITAL LOYALTY PLATFORM</p>
+                    <p>© RETCASH DIGITAL LOYALTY PLATFORM</p>
                 </div>
             </div>
 
