@@ -50,7 +50,7 @@ function IconStar() {
 
 function IconGift() {
     return (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="8" width="18" height="12" rx="2" />
             <path d="M12 8v12" />
             <path d="M12 8H7.5a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8z" />
@@ -174,7 +174,8 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
     const store = claimData?.stores
     const customerPhone = claimData?.customer_phone || ''
     const currentVisits = Number(claimData?.visit_count) || 1
-    const totalVisits = Number(store?.target_visits) || 6
+    const rawTotalVisits = Number(store?.target_visits) || 6
+    const totalVisits = Math.min(Math.max(rawTotalVisits, 1), 10) // Restrict between 1 and 10
 
     const isRedeemed = claimData?.status === 'REDEEMED' || Number(claimData?.claimable_amount || 0) <= 0;
     const isRewardReady = (currentVisits >= totalVisits) && !isRedeemed;
@@ -184,6 +185,23 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
         : 'RC'
 
     const visitsLeft = totalVisits - currentVisits;
+
+    // Helper to calculate responsive dynamic CSS Grid columns based on visit count
+    const getGridColumnsClass = (count: number) => {
+        switch (count) {
+            case 1: return 'grid-cols-1 max-w-[120px] mx-auto';
+            case 2: return 'grid-cols-2 max-w-[220px] mx-auto';
+            case 3: return 'grid-cols-3';
+            case 4: return 'grid-cols-4';
+            case 5: return 'grid-cols-5';
+            case 6: return 'grid-cols-3';
+            case 7: return 'grid-cols-4';
+            case 8: return 'grid-cols-4';
+            case 9: return 'grid-cols-5';
+            case 10: return 'grid-cols-5';
+            default: return 'grid-cols-4';
+        }
+    };
 
     return (
         <div className="flex justify-center min-h-screen bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
@@ -218,7 +236,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                         <div className="absolute right-4 top-14 w-20 h-20 rounded-full bg-white/8 pointer-events-none" />
 
                         <div className="relative z-10">
-                            {/* Store Details Header (RETCASH PARTNER removed) */}
+                            {/* Store Details Header */}
                             <div className="flex justify-between items-center mb-6">
                                 <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/30 backdrop-blur-xs flex items-center justify-center font-extrabold text-white text-base shadow-xs overflow-hidden shrink-0">
@@ -242,7 +260,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                 </div>
                             </div>
 
-                            {/* Refined Unified Progress Badge with SVG Icon */}
+                            {/* Refined Unified Progress Badge */}
                             <div className="pt-3 border-t border-white/20 flex items-center justify-center">
                                 <div className="flex items-center gap-2 bg-white/15 border border-white/20 px-3.5 py-1.5 rounded-xl backdrop-blur-md w-full justify-center">
                                     <IconGift />
@@ -258,34 +276,47 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                         </div>
                     </div>
 
-                    {/* Main Card View Section - Light Clean Theme */}
+                    {/* Main Card View Section */}
                     <div className="bg-white border border-slate-100 rounded-3xl p-5 text-center relative overflow-hidden shadow-xs">
                         
-                        {/* 1. Visit Challenge Grid */}
+                        {/* 1. Dynamic Visit Challenge Grid (1 to 10 Visits) */}
                         <div className="mb-5 bg-slate-50/80 border border-slate-100 p-4 rounded-2xl">
                             <div className="flex justify-between text-[11px] font-bold tracking-wider uppercase mb-3">
                                 <span className="text-slate-600">{totalVisits} Visit Challenge</span>
                                 <span className="text-[#00875A] font-extrabold">{currentVisits} / {totalVisits} Visits</span>
                             </div>
 
-                            <div
-                                className="grid gap-2"
-                                style={{
-                                    gridTemplateColumns: `repeat(${totalVisits > 5 ? 5 : totalVisits}, minmax(0, 1fr))`
-                                }}
-                            >
+                            <div className={`grid gap-2 ${getGridColumnsClass(totalVisits)}`}>
                                 {Array.from({ length: totalVisits }).map((_, i) => {
                                     const step = i + 1;
                                     const done = step <= currentVisits;
+                                    const isTargetGift = step === totalVisits;
+                                    const isSpanTwo = (totalVisits === 7 && step === 7) || (totalVisits === 9 && step === 9);
+
                                     return (
                                         <div
                                             key={step}
-                                            className={`h-9 rounded-xl flex items-center justify-center font-bold text-xs transition-all duration-300 ${done
-                                                ? 'bg-[#00875A] text-white shadow-md shadow-[#00875A]/25'
-                                                : 'bg-white border border-slate-200/80 text-slate-300'
-                                                }`}
+                                            className={`h-10 rounded-xl flex items-center justify-center font-bold text-xs transition-all duration-300 ${
+                                                isSpanTwo ? 'col-span-2' : ''
+                                            } ${
+                                                done
+                                                    ? 'bg-[#00875A] text-white shadow-md shadow-[#00875A]/25'
+                                                    : isTargetGift
+                                                    ? 'bg-amber-50 border-2 border-dashed border-amber-300 text-amber-500 shadow-xs'
+                                                    : 'bg-white border border-slate-200/80 text-slate-300'
+                                            }`}
                                         >
-                                            {done ? <IconCheck /> : <span className="scale-75 text-slate-300"><IconLock /></span>}
+                                            {done ? (
+                                                <IconCheck />
+                                            ) : isTargetGift ? (
+                                                <span className="animate-pulse">
+                                                    <IconGift />
+                                                </span>
+                                            ) : (
+                                                <span className="scale-75 text-slate-300">
+                                                    <IconLock />
+                                                </span>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -320,43 +351,28 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                             )}
                         </div>
 
-                        {/* 3. QR Code / Compact Reward Section */}
-                        <div className="mb-4">
-                            {isRedeemed ? (
-                                <div className="py-4 px-3 bg-emerald-50/60 border border-emerald-100 rounded-2xl text-center">
-                                    <h3 className="text-xs font-black text-[#00875A] uppercase tracking-wider">REWARD REDEEMED</h3>
-                                    <p className="text-[10px] text-slate-500 mt-0.5 font-medium">Thank you for visiting!</p>
+                        {/* 3. QR Code Section (Shown only when Reward is ready or Redeemed) */}
+                        {isRewardReady && (
+                            <div className="mb-5 w-full animate-fade-in">
+                                <div className="bg-emerald-50 border border-emerald-200/80 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
+                                    Reward Ready! Show QR code at billing counter:
                                 </div>
-                            ) : isRewardReady ? (
-                                <div className="w-full">
-                                    <div className="bg-emerald-50 border border-emerald-200/80 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
-                                        Reward Ready! Show QR code at billing counter:
-                                    </div>
-                                    <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-100">
-                                        <img
-                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${id}`}
-                                            alt="Redemption QR"
-                                            className="w-36 h-36 object-contain"
-                                        />
-                                    </div>
+                                <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-100">
+                                    <img
+                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${id}`}
+                                        alt="Redemption QR"
+                                        className="w-36 h-36 object-contain"
+                                    />
                                 </div>
-                            ) : (
-                                <div className="py-3 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 w-full flex items-center justify-between">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 bg-emerald-50 border border-emerald-100 text-[#00875A] rounded-full flex items-center justify-center text-sm">
-                                            <IconGift />
-                                        </div>
-                                        <div className="text-left">
-                                            <h3 className="text-xs font-bold text-slate-700">Reward Locked</h3>
-                                            <p className="text-[10px] text-slate-400">QR appears on visit {totalVisits}</p>
-                                        </div>
-                                    </div>
-                                    <span className="text-[10px] font-bold text-slate-400 bg-slate-200/60 px-2 py-0.5 rounded-full uppercase">
-                                        {currentVisits}/{totalVisits}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
+
+                        {isRedeemed && (
+                            <div className="mb-5 py-3 px-3 bg-emerald-50/60 border border-emerald-100 rounded-2xl text-center">
+                                <h3 className="text-xs font-black text-[#00875A] uppercase tracking-wider">REWARD REDEEMED</h3>
+                                <p className="text-[10px] text-slate-500 mt-0.5 font-medium">Thank you for visiting!</p>
+                            </div>
+                        )}
 
                         {/* STORE OFFERS SECTION */}
                         {offers.length > 0 && (
@@ -399,7 +415,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                     href={store.location_url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="py-3 px-3 bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold rounded-xl text-center text-xs hover:bg-emerald-100 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
+                                    className="py-3 px-3 bg-emerald-50 border border-emerald-200 text-[#00875A] font-bold rounded-xl text-center text-xs hover:bg-emerald-100 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
                                 >
                                     <IconLocation />
                                     <span>LOCATION</span>
@@ -432,7 +448,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                 </div>
 
                 <div className="py-6 text-center text-[10px] text-slate-400 tracking-wider uppercase font-extrabold">
-                    <p>© RETCASH DIGITAL LOYALTY PLATFORM</p>
+                    <p>©️ RETCASH DIGITAL LOYALTY PLATFORM</p>
                 </div>
             </div>
 
