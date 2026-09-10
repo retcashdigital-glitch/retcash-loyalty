@@ -491,7 +491,7 @@ export default function CustomerWalletPage() {
                   )}
                 </form>
 
-                {/* Category Pills (Cafe Removed) */}
+                {/* Category Pills */}
                 <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
                   {['All', 'Food', 'Retail'].map((cat) => {
                     const active = selectedCategory === cat
@@ -594,18 +594,20 @@ export default function CustomerWalletPage() {
                             )}
                           </div>
 
-                          {/* Main Content */}
+                          {/* Main Content Area */}
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <h3 className="text-sm font-bold text-slate-800 leading-snug truncate">
+                            <div className="flex items-start justify-between gap-3">
+                              
+                              {/* 1. Store Title & Category with Strict Truncation (Ellipsis) */}
+                              <div className="min-w-0 flex-1">
+                                <h3 className="text-sm font-bold text-slate-800 leading-snug truncate" title={store.store_name}>
                                   {store.store_name} {isThisNavigating && '(Opening...)'}
                                 </h3>
 
                                 {hasValidCategory && (
                                   <div className="flex items-center gap-1.5 mt-0.5">
                                     <span
-                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize"
+                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize inline-block truncate max-w-full"
                                       style={{ background: style.bgColor, color: style.color }}
                                     >
                                       {store.category}
@@ -614,26 +616,29 @@ export default function CustomerWalletPage() {
                                 )}
                               </div>
 
-                              {/* Updated Cashback Label & Strikethrough Amount Display */}
+                              {/* 2. Refined Cashback Label & Strikethrough Amount Display */}
                               <div className="text-right flex-shrink-0">
-                                <p className="text-[10px] text-slate-700 font-black uppercase tracking-wider">
-                                  CASHBACK
-                                </p>
                                 {store.isRedeemed ? (
-                                  <div className="flex flex-col items-end mt-0.5">
-                                    <span className="text-sm font-bold text-slate-400 line-through leading-tight">
+                                  <div>
+                                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">
+                                      REDEEMED
+                                    </p>
+                                    <p className="text-sm font-bold text-slate-400 line-through leading-tight mt-0.5">
                                       Rs. {Number(store.cashbackAmount || 0).toFixed(2)}
-                                    </span>
-                                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-tight">
-                                      Redeemed
-                                    </span>
+                                    </p>
                                   </div>
                                 ) : (
-                                  <p className="text-sm font-extrabold text-[#00875A] leading-tight mt-0.5">
-                                    Rs. {Number(store.balance).toFixed(2)}
-                                  </p>
+                                  <div>
+                                    <p className="text-[10px] text-slate-700 font-black uppercase tracking-wider">
+                                      CASHBACK
+                                    </p>
+                                    <p className="text-sm font-extrabold text-[#00875A] leading-tight mt-0.5">
+                                      Rs. {Number(store.balance).toFixed(2)}
+                                    </p>
+                                  </div>
                                 )}
                               </div>
+
                             </div>
 
                             {/* Visit Counter with Strict Fixed Alignment */}
@@ -809,11 +814,7 @@ export default function CustomerWalletPage() {
                     style={{ color: active ? '#ffffff' : '#64748B' }}
                     strokeWidth={active ? 2.2 : 1.8}
                   />
-                  <span
-                    className={`text-xs font-extrabold leading-none ${
-                      active ? 'inline-block' : 'hidden sm:inline-block'
-                    }`}
-                  >
+                  <span className="text-xs font-extrabold leading-none">
                     {label}
                   </span>
                 </button>
