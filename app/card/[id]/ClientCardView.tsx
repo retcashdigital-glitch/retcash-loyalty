@@ -323,9 +323,9 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                             </div>
                         </div>
 
-                        {/* 2. Latest Cashback & See All History Button */}
-                        <div className="bg-emerald-50/50 border border-emerald-100/80 p-3 rounded-2xl mb-5 flex justify-between items-center text-xs">
-                            <div className="flex items-center gap-1.5">
+                        {/* 2. Clean Latest Cashback & History Section (No Overlap, No Extra Redeemed Badge) */}
+                        <div className="bg-emerald-50/50 border border-emerald-100/80 p-3 rounded-2xl mb-5 flex justify-between items-center text-xs gap-2">
+                            <div className="flex items-center gap-1.5 shrink-0">
                                 <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">LATEST CASHBACK</span>
                                 <button 
                                     onClick={fetchHistory}
@@ -335,23 +335,21 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                     <span>SEE ALL</span>
                                 </button>
                             </div>
-                            {isRedeemed ? (
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-slate-400 line-through text-[11px]">
+
+                            <div className="shrink-0 text-right">
+                                {isRedeemed ? (
+                                    <span className="text-slate-400 line-through text-xs font-bold">
                                         Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
                                     </span>
-                                    <span className="bg-slate-200 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                        REDEEMED
+                                ) : (
+                                    <span className="text-[#00875A] font-extrabold text-sm">
+                                        + Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
                                     </span>
-                                </div>
-                            ) : (
-                                <span className="text-[#00875A] font-extrabold text-sm">
-                                    + Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
-                                </span>
-                            )}
+                                )}
+                            </div>
                         </div>
 
-                        {/* 3. QR Code Section (Shown only when Reward is ready or Redeemed) */}
+                        {/* 3. QR Code Section (Shown only when Reward is ready) */}
                         {isRewardReady && (
                             <div className="mb-5 w-full animate-fade-in">
                                 <div className="bg-emerald-50 border border-emerald-200/80 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
@@ -364,13 +362,6 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                         className="w-36 h-36 object-contain"
                                     />
                                 </div>
-                            </div>
-                        )}
-
-                        {isRedeemed && (
-                            <div className="mb-5 py-3 px-3 bg-emerald-50/60 border border-emerald-100 rounded-2xl text-center">
-                                <h3 className="text-xs font-black text-[#00875A] uppercase tracking-wider">REWARD REDEEMED</h3>
-                                <p className="text-[10px] text-slate-500 mt-0.5 font-medium">Thank you for visiting!</p>
                             </div>
                         )}
 
