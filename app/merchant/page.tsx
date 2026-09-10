@@ -587,7 +587,7 @@ export default function GlobalEntryPoint() {
         claimId = upsertedData.id
       }
 
-      // 💥 புதிய மாற்றம்: CASHBACK HISTORY TABLE-ல் புதிய விவரங்களை Insert செய்தல்
+      // 💥 CASHBACK HISTORY TABLE-ல் புதிய விவரங்களை Insert செய்தல்
       const { error: historyError } = await supabase
         .from('cashback_history')
         .insert({
@@ -595,11 +595,13 @@ export default function GlobalEntryPoint() {
           customer_phone: cleanCustPhone,
           bill_amount: billNum,
           cashback_amount: cashbackAmount,
-          visit_number: newVisitCount
+          visit_number: newVisitCount,
+          type: 'BILL_ADDED',
+          description: `Bill Amount: Rs. ${billNum} | Cashback Earned: Rs. ${cashbackAmount}`
         })
 
       if (historyError) {
-        console.error('History logging error:', historyError)
+        console.error('History logging error:', historyError.message)
       }
 
       const baseUrl = window.location.origin
