@@ -331,7 +331,6 @@ export default function CustomerWalletPage() {
     }
   }
 
-  // Expanded Deep Search Filter Logic
   const filteredStores = stores.filter(store => {
     const effectiveQuery = (activeSearch || searchQuery).toLowerCase().trim()
     const storeName = store.store_name?.toLowerCase() || ''
@@ -363,7 +362,7 @@ export default function CustomerWalletPage() {
     <div className="flex justify-center min-h-full bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
       <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen">
         
-        {/* ── Fixed Header (App Branding Focus) ─────────────────────────── */}
+        {/* ── Fixed Header ─────────────────────────────────────────────────── */}
         <header className="sticky top-0 z-40 flex-shrink-0 bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 pt-5 pb-4 shadow-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -397,7 +396,7 @@ export default function CustomerWalletPage() {
         <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28 space-y-4">
           {activeTab === 'wallet' && (
             <>
-              {/* Action-Centric Digital Pass Hero Card */}
+              {/* Digital Pass Hero Card */}
               <div
                 className="relative rounded-3xl overflow-hidden p-5 text-white shadow-lg"
                 style={{
@@ -418,7 +417,6 @@ export default function CustomerWalletPage() {
                     </div>
                   </div>
 
-                  {/* Customer Welcome Statement */}
                   <div className="mt-1 mb-4">
                     <p className="text-[11px] text-white/80 font-medium">Welcome back,</p>
                     <h1 className="text-[20px] font-extrabold leading-tight text-white">
@@ -426,7 +424,6 @@ export default function CustomerWalletPage() {
                     </h1>
                   </div>
 
-                  {/* Primary CTA Button */}
                   <button
                     onClick={() => setShowQrModal(true)}
                     className="w-full bg-white hover:bg-emerald-50 text-[#00875A] font-extrabold text-xs py-3 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition cursor-pointer"
@@ -452,7 +449,7 @@ export default function CustomerWalletPage() {
                 </div>
               </div>
 
-              {/* Enhanced Interactive Search Bar */}
+              {/* Search Bar */}
               <div className="space-y-3">
                 <form onSubmit={handleSearchSubmit} className="relative">
                   <button
@@ -579,7 +576,6 @@ export default function CustomerWalletPage() {
                         }`}
                       >
                         <div className="flex items-center gap-3.5">
-                          {/* Store Icon / Logo */}
                           <div
                             className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden"
                             style={{ background: style.bgColor }}
@@ -591,7 +587,6 @@ export default function CustomerWalletPage() {
                             )}
                           </div>
 
-                          {/* Main Content */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div>
@@ -599,7 +594,6 @@ export default function CustomerWalletPage() {
                                   {store.store_name} {isThisNavigating && '(Opening...)'}
                                 </h3>
 
-                                {/* Conditional Category Tag */}
                                 {hasValidCategory && (
                                   <div className="flex items-center gap-1.5 mt-0.5">
                                     <span
@@ -626,7 +620,6 @@ export default function CustomerWalletPage() {
                               </div>
                             </div>
 
-                            {/* Capsule Progress Bar Component */}
                             <div className="mt-3.5 pt-2.5 border-t border-slate-100/80 flex items-center justify-between gap-2">
                               <span className="text-[11px] font-semibold text-slate-500 flex-shrink-0 whitespace-nowrap">
                                 {visits} / {targetVisits} visits
@@ -762,7 +755,7 @@ export default function CustomerWalletPage() {
           )}
         </main>
 
-        {/* ── Fixed Bottom Nav ───────────────────── */}
+        {/* ── Fixed Bottom Nav ─────────────────── */}
         <nav
           className="fixed bottom-0 max-w-[430px] w-full z-30 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
