@@ -42,22 +42,25 @@ function getCategoryColor(category?: string) {
   return { color: '#00875A', bgColor: '#ECFDF5' }
 }
 
-// ─── Capsule Progress Bar Sub-component ─────────────────────────────────────
+// ─── Dynamic Fixed-Width Equal Alignment Progress Bar Sub-component ─────────
 
 function VisitCapsules({ visits, maxVisits, color }: { visits: number; maxVisits: number; color: string }) {
-  const capped = Math.min(maxVisits, 10)
+  const targetVisits = Math.max(1, Math.min(maxVisits, 12)) // Supports smooth dynamic scaling up to 12 visits
+  
   return (
-    <div className="flex gap-1 items-center flex-1 justify-end max-w-[180px]">
-      {Array.from({ length: capped }).map((_, i) => (
-        <div
-          key={i}
-          className="h-1.5 flex-1 max-w-[16px] rounded-full transition-all duration-300 flex-shrink-0"
-          style={{ background: i < visits ? color : '#E2E8F0' }}
-        />
-      ))}
-      {maxVisits > 10 && (
-        <span className="text-[10px] text-slate-500 font-semibold ml-1 flex-shrink-0">+{maxVisits - 10}</span>
-      )}
+    <div className="w-[140px] sm:w-[160px] flex-shrink-0 flex items-center justify-end">
+      <div className="flex gap-1.5 w-full items-center">
+        {Array.from({ length: targetVisits }).map((_, i) => (
+          <div
+            key={i}
+            className="h-2 flex-1 rounded-full transition-all duration-300"
+            style={{ 
+              background: i < visits ? color : '#E2E8F0',
+              opacity: i < visits ? 1 : 0.7
+            }}
+          />
+        ))}
+      </div>
     </div>
   )
 }
@@ -250,7 +253,6 @@ export default function CustomerWalletPage() {
         }, storeClaims.length > 0 ? storeClaims.length : 0)
 
         let storeTarget = Number(store.target_visits) || 6
-        if (storeTarget > 10) storeTarget = 10
 
         router.prefetch(`/card/${store.id}?phone=${phone}`)
 
@@ -618,10 +620,10 @@ export default function CustomerWalletPage() {
 
                               {/* Cashback Label */}
                               <div className="text-right flex-shrink-0">
-                                <p className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider">Cashback</p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Cashback</p>
                                 {store.isRedeemed ? (
-                                  <span className="text-xs font-black text-slate-400 line-through">
-                                    Rs. {Number(store.cashbackAmount).toFixed(2)}
+                                  <span className="inline-block bg-slate-100 text-slate-500 text-[11px] font-bold px-2 py-0.5 rounded-md mt-0.5 border border-slate-200">
+                                    Redeemed
                                   </span>
                                 ) : (
                                   <p className="text-sm font-extrabold text-slate-800 leading-tight">
@@ -631,7 +633,7 @@ export default function CustomerWalletPage() {
                               </div>
                             </div>
 
-                            {/* Visit Counter */}
+                            {/* Visit Counter with Strict Fixed Alignment */}
                             <div className="mt-3.5 pt-2.5 border-t border-slate-100/80 flex items-center justify-between gap-2">
                               <span className="text-[11px] font-bold text-slate-700 flex-shrink-0 whitespace-nowrap">
                                 {visits} / {targetVisits} visits
