@@ -45,10 +45,10 @@ function getCategoryColor(category?: string) {
 // ─── Dynamic Fixed-Width Equal Alignment Progress Bar Sub-component ─────────
 
 function VisitCapsules({ visits, maxVisits, color }: { visits: number; maxVisits: number; color: string }) {
-  const targetVisits = Math.max(1, Math.min(maxVisits, 12)) // Supports smooth dynamic scaling up to 12 visits
+  const targetVisits = Math.max(1, Math.min(maxVisits, 12)) // Dynamic scaling up to 12 visits
   
   return (
-    <div className="w-[140px] sm:w-[160px] flex-shrink-0 flex items-center justify-end">
+    <div className="w-[130px] sm:w-[150px] flex-shrink-0 flex items-center justify-end">
       <div className="flex gap-1.5 w-full items-center">
         {Array.from({ length: targetVisits }).map((_, i) => (
           <div
@@ -110,7 +110,7 @@ export default function CustomerWalletPage() {
           return
         }
 
-        // 2. Direct Supabase Verification: Database-இல் இந்த வாடிக்கையாளர் உள்ளாரா எனச் சரிபார்த்தல்
+        // 2. Direct Supabase Verification
         const cleanPhone = phone.replace(/\D/g, '')
         const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
@@ -121,14 +121,13 @@ export default function CustomerWalletPage() {
           .maybeSingle()
 
         if (error || !customer) {
-          // Supabase-இல் பயனர் பதிவு பெறப்படவில்லை என்றால் லாகின் பக்கத்திற்கு Redirect செய்தல்
           localStorage.removeItem(`retcash_wallet_session_${phone}`)
           localStorage.removeItem(`retcash_wallet_auth_${phone}`)
           router.replace('/customer/login')
           return
         }
 
-        // 3. வாடிக்கையாளர் விவரங்களை அமைத்தல்
+        // 3. Set Customer Info
         if (customer.full_name) {
           setCustomerName(customer.full_name)
           localStorage.setItem(`customer_name_${phone}`, customer.full_name)
@@ -137,7 +136,7 @@ export default function CustomerWalletPage() {
 
         setIsCheckingAuth(false)
 
-        // 4. Cache-இல் உள்ள வாலட் தரவுகளை ஏற்றுதல்
+        // 4. Load Cached Data
         const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
         if (cachedData) {
           try {
@@ -154,7 +153,7 @@ export default function CustomerWalletPage() {
           }
         }
 
-        // 5. வாலட் & ஆஃபர் தரவுகளைப் பெறுதல்
+        // 5. Fetch Data
         fetchWalletAndClaimsData()
         fetchActiveOffers()
 
@@ -379,10 +378,10 @@ export default function CustomerWalletPage() {
 
   return (
     <div className="flex justify-center min-h-full bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
-      <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen">
+      <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen border-x border-slate-200/50 shadow-2xl">
         
-        {/* ── Fixed Opaque Header ────────────────────────────────────────── */}
-        <header className="sticky top-0 z-50 flex-shrink-0 bg-white border-b border-slate-100 px-5 pt-4 pb-3.5 shadow-xs">
+        {/* ── Fixed Header ────────────────────────────────────────────── */}
+        <header className="sticky top-0 z-40 flex-shrink-0 bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 pt-4 pb-3.5 shadow-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img
@@ -581,7 +580,7 @@ export default function CustomerWalletPage() {
                         key={store.id}
                         onClick={() => handleStoreClick(store.id)}
                         onMouseEnter={() => router.prefetch(`/card/${store.id}?phone=${phone}`)}
-                        className={`bg-white rounded-3xl p-4 shadow-xs border border-slate-100/80 active:scale-[0.985] transition-transform duration-150 cursor-pointer ${
+                        className={`bg-white rounded-3xl p-4 shadow-xs border border-slate-100 active:scale-[0.985] transition-transform duration-150 cursor-pointer hover:border-slate-200 ${
                           isThisNavigating ? 'opacity-70' : ''
                         }`}
                       >
@@ -602,7 +601,7 @@ export default function CustomerWalletPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <h3 className="text-sm font-bold text-slate-800 leading-snug">
+                                <h3 className="text-sm font-bold text-slate-800 leading-snug truncate">
                                   {store.store_name} {isThisNavigating && '(Opening...)'}
                                 </h3>
 
@@ -634,7 +633,7 @@ export default function CustomerWalletPage() {
                             </div>
 
                             {/* Visit Counter with Strict Fixed Alignment */}
-                            <div className="mt-3.5 pt-2.5 border-t border-slate-100/80 flex items-center justify-between gap-2">
+                            <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
                               <span className="text-[11px] font-bold text-slate-700 flex-shrink-0 whitespace-nowrap">
                                 {visits} / {targetVisits} visits
                               </span>
