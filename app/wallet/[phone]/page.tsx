@@ -56,7 +56,7 @@ function VisitCapsules({ visits, maxVisits, color }: { visits: number; maxVisits
         />
       ))}
       {maxVisits > 10 && (
-        <span className="text-[10px] text-slate-400 font-semibold ml-1 flex-shrink-0">+{maxVisits - 10}</span>
+        <span className="text-[10px] text-slate-500 font-semibold ml-1 flex-shrink-0">+{maxVisits - 10}</span>
       )}
     </div>
   )
@@ -331,7 +331,6 @@ export default function CustomerWalletPage() {
     }
   }
 
-  // Expanded Deep Search Filter Logic
   const filteredStores = stores.filter(store => {
     const effectiveQuery = (activeSearch || searchQuery).toLowerCase().trim()
     const storeName = store.store_name?.toLowerCase() || ''
@@ -363,11 +362,10 @@ export default function CustomerWalletPage() {
     <div className="flex justify-center min-h-full bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
       <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen">
         
-        {/* ── Fixed Header (Official Logo Branding Focus) ─────────────────── */}
-        <header className="sticky top-0 z-40 flex-shrink-0 bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 pt-4 pb-3.5 shadow-xs">
+        {/* ── Fixed Opaque Header (Fixes Scroll Artifacts) ─────────────────── */}
+        <header className="sticky top-0 z-50 flex-shrink-0 bg-white border-b border-slate-100 px-5 pt-4 pb-3.5 shadow-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {/* RETCASH Official Logo */}
               <img
                 src="/logo.png"
                 alt="RETCASH Logo"
@@ -410,7 +408,6 @@ export default function CustomerWalletPage() {
                     </div>
                   </div>
 
-                  {/* Customer Welcome Statement */}
                   <div className="mt-1 mb-4">
                     <p className="text-[11px] text-white/80 font-medium">Welcome back,</p>
                     <h1 className="text-[20px] font-extrabold leading-tight text-white">
@@ -418,7 +415,6 @@ export default function CustomerWalletPage() {
                     </h1>
                   </div>
 
-                  {/* Primary CTA Button */}
                   <button
                     onClick={() => setShowQrModal(true)}
                     className="w-full bg-white hover:bg-emerald-50 text-[#00875A] font-extrabold text-xs py-3 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition cursor-pointer"
@@ -517,9 +513,9 @@ export default function CustomerWalletPage() {
                 </div>
               </div>
 
-              {/* Store Header */}
+              {/* Store Header - Stronger Slate Color */}
               <div className="flex items-center justify-between px-0.5 pt-1">
-                <h2 className="text-[13px] font-bold text-slate-600">
+                <h2 className="text-[13px] font-bold text-slate-700">
                   {filteredStores.length} {selectedCategory === 'All' ? 'stores' : selectedCategory + ' stores'}
                 </h2>
               </div>
@@ -591,7 +587,6 @@ export default function CustomerWalletPage() {
                                   {store.store_name} {isThisNavigating && '(Opening...)'}
                                 </h3>
 
-                                {/* Conditional Category Tag */}
                                 {hasValidCategory && (
                                   <div className="flex items-center gap-1.5 mt-0.5">
                                     <span
@@ -604,8 +599,9 @@ export default function CustomerWalletPage() {
                                 )}
                               </div>
 
+                              {/* Cashback Label in Dark Slate (text-slate-600) */}
                               <div className="text-right flex-shrink-0">
-                                <p className="text-[10px] text-slate-400 font-medium">Cashback</p>
+                                <p className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider">Cashback</p>
                                 {store.isRedeemed ? (
                                   <span className="text-xs font-black text-slate-400 line-through">
                                     Rs. {Number(store.cashbackAmount).toFixed(2)}
@@ -618,9 +614,9 @@ export default function CustomerWalletPage() {
                               </div>
                             </div>
 
-                            {/* Capsule Progress Bar Component */}
+                            {/* Visit Counter in Dark Slate (text-slate-700) */}
                             <div className="mt-3.5 pt-2.5 border-t border-slate-100/80 flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-semibold text-slate-500 flex-shrink-0 whitespace-nowrap">
+                              <span className="text-[11px] font-bold text-slate-700 flex-shrink-0 whitespace-nowrap">
                                 {visits} / {targetVisits} visits
                               </span>
                               <VisitCapsules
@@ -754,12 +750,12 @@ export default function CustomerWalletPage() {
           )}
         </main>
 
-        {/* ── Fixed Bottom Nav ───────────────────── */}
+        {/* ── Fixed Bottom Nav with Solid Active Pill Style ───────────────── */}
         <nav
-          className="fixed bottom-0 max-w-[430px] w-full z-30 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]"
+          className="fixed bottom-0 max-w-[430px] w-full z-30 bg-white border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
         >
-          <div className="flex items-center justify-around px-6 pt-2 pb-1">
+          <div className="flex items-center justify-around px-4 pt-2 pb-1">
             {[
               { id: 'wallet', label: 'Wallet', Icon: Wallet },
               { id: 'offers', label: 'Offers', Icon: Tag },
@@ -770,21 +766,31 @@ export default function CustomerWalletPage() {
                 <button
                   key={id}
                   onClick={() => setActiveTab(id as any)}
-                  className="flex flex-col items-center gap-0.5 min-w-[64px] py-1 transition-all duration-200 cursor-pointer"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 cursor-pointer ${
+                    active ? 'shadow-md' : ''
+                  }`}
+                  style={
+                    active
+                      ? {
+                          background: '#00875A',
+                          color: '#ffffff',
+                          boxShadow: '0 4px 14px rgba(0,135,90,0.35)',
+                        }
+                      : {
+                          background: 'transparent',
+                          color: '#64748B',
+                        }
+                  }
                 >
-                  <div
-                    className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-200"
-                    style={{ background: active ? "#00875A15" : "transparent" }}
-                  >
-                    <Icon
-                      size={21}
-                      style={{ color: active ? "#00875A" : "#64748B" }}
-                      strokeWidth={active ? 2.2 : 1.8}
-                    />
-                  </div>
+                  <Icon
+                    size={18}
+                    style={{ color: active ? '#ffffff' : '#64748B' }}
+                    strokeWidth={active ? 2.2 : 1.8}
+                  />
                   <span
-                    className="text-[10px] font-bold leading-none transition-colors duration-200"
-                    style={{ color: active ? "#00875A" : "#64748B" }}
+                    className={`text-xs font-extrabold leading-none ${
+                      active ? 'inline-block' : 'hidden sm:inline-block'
+                    }`}
                   >
                     {label}
                   </span>
