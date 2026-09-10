@@ -18,9 +18,9 @@ import {
   Utensils,
   ShoppingBag,
   Coffee,
-  TrendingUp,
   Copy,
-  Check
+  Check,
+  Sparkles
 } from 'lucide-react'
 
 // ─── Types & Dynamic Helper Visuals ───────────────────────────────────────────
@@ -323,7 +323,6 @@ export default function CustomerWalletPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Keyboard 'Go' அல்லது 'Search' பொத்தானை அழுத்தும்போது Keyboard-ஐ கீழே இறக்க (Blur)
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setActiveSearch(searchQuery)
@@ -332,9 +331,7 @@ export default function CustomerWalletPage() {
     }
   }
 
-  const totalCashback = stores.reduce((sum, store) => sum + (store.isRedeemed ? 0 : Number(store.balance || 0)), 0)
-
-  // Expanded Deep Search Filter Logic (கடையின் பெயர், வகை, விவரணம் எதுவாக இருந்தாலும் தேடும்)
+  // Expanded Deep Search Filter Logic
   const filteredStores = stores.filter(store => {
     const effectiveQuery = (activeSearch || searchQuery).toLowerCase().trim()
     const storeName = store.store_name?.toLowerCase() || ''
@@ -366,23 +363,23 @@ export default function CustomerWalletPage() {
     <div className="flex justify-center min-h-full bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
       <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen">
         
-        {/* ── Fixed Header ──────────────────────────────────────────────── */}
-        <header className="sticky top-0 z-40 flex-shrink-0 bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 pt-6 pb-4 shadow-xs">
+        {/* ── Fixed Header (App Branding Focus) ─────────────────────────── */}
+        <header className="sticky top-0 z-40 flex-shrink-0 bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 pt-5 pb-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <div
                 className="w-9 h-9 rounded-2xl flex items-center justify-center shadow-xs"
                 style={{ background: "linear-gradient(135deg, #00875A, #059669)" }}
               >
-                <Wallet size={17} className="text-white" />
+                <Wallet size={18} className="text-white" />
               </div>
               <div>
-                <p className="text-[11px] text-slate-400 font-medium leading-none mb-1">
-                  Welcome back
-                </p>
-                <p className="text-[15px] font-bold text-slate-800 leading-none">
-                  {customerName ? customerName : loading ? '...' : formatPhoneNumber(phone)}
-                </p>
+                <span className="text-[16px] font-black tracking-tight text-slate-800 leading-none block">
+                  Red Cash
+                </span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mt-0.5">
+                  Loyalty Wallet
+                </span>
               </div>
             </div>
 
@@ -391,7 +388,7 @@ export default function CustomerWalletPage() {
               className="w-10 h-10 rounded-2xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 transition-colors flex items-center justify-center cursor-pointer"
               title="Show Digital Loyalty Pass"
             >
-              <QrCode size={18} className="text-slate-600" />
+              <QrCode size={18} className="text-slate-700" />
             </button>
           </div>
         </header>
@@ -400,68 +397,48 @@ export default function CustomerWalletPage() {
         <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28 space-y-4">
           {activeTab === 'wallet' && (
             <>
-              {/* Promo Banner */}
+              {/* Action-Centric Digital Pass Hero Card */}
               <div
                 className="relative rounded-3xl overflow-hidden p-5 text-white shadow-lg"
                 style={{
                   background: "linear-gradient(135deg, #00875A 0%, #059669 45%, #0d9488 100%)",
-                  boxShadow: "0 8px 32px rgba(0,135,90,0.30)",
+                  boxShadow: "0 8px 32px rgba(0,135,90,0.28)",
                 }}
               >
                 <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full bg-white/10 pointer-events-none" />
                 <div className="absolute right-4 top-14 w-20 h-20 rounded-full bg-white/8 pointer-events-none" />
 
                 <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
-                      <TrendingUp size={13} className="text-white" />
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5 bg-white/15 px-2.5 py-1 rounded-full backdrop-blur-xs">
+                      <Sparkles size={11} className="text-emerald-200" />
+                      <span className="text-[10px] font-bold text-white uppercase tracking-wider">
+                        Digital Loyalty Pass
+                      </span>
                     </div>
-                    <span className="text-[11px] font-bold text-white/90 uppercase tracking-[0.14em]">
-                      ACTIVE LOYALTY CARDS
-                    </span>
                   </div>
 
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <p className="text-[26px] font-extrabold leading-none tracking-tight">
-                        Rs. {totalCashback.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                      <p className="text-[12px] text-white/90 mt-1.5 font-medium">
-                        Combined store savings
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[26px] font-extrabold leading-none">{stores.length}</p>
-                      <p className="text-[12px] text-white/90 mt-1.5 font-medium">
-                        Connected stores
-                      </p>
-                    </div>
+                  {/* Customer Welcome Statement */}
+                  <div className="mt-1 mb-4">
+                    <p className="text-[11px] text-white/80 font-medium">Welcome back,</p>
+                    <h1 className="text-[20px] font-extrabold leading-tight text-white">
+                      {customerName ? customerName : loading ? '...' : 'Valued Customer'}
+                    </h1>
                   </div>
+
+                  {/* Primary CTA Button */}
+                  <button
+                    onClick={() => setShowQrModal(true)}
+                    className="w-full bg-white hover:bg-emerald-50 text-[#00875A] font-extrabold text-xs py-3 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition cursor-pointer"
+                  >
+                    <QrCode size={16} />
+                    <span>Show My Pass at Checkout</span>
+                  </button>
 
                   <div className="mt-4 pt-3.5 border-t border-white/20 flex items-center justify-between">
-                    <div className="flex -space-x-2">
-                      {stores.slice(0, 4).map((s, idx) => {
-                        const style = getCategoryColor(s.category)
-                        return (
-                          <div
-                            key={idx}
-                            className="w-7 h-7 rounded-full border-[2px] border-white/30 flex items-center justify-center overflow-hidden"
-                            style={{ background: style.color }}
-                          >
-                            {s.logo_url ? (
-                              <img src={s.logo_url} alt={s.store_name} className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-[10px] font-black text-white">{s.store_name?.[0] || 'S'}</span>
-                            )}
-                          </div>
-                        )
-                      })}
-                      {stores.length > 4 && (
-                        <div className="w-7 h-7 rounded-full border-[2px] border-white/30 bg-white/25 flex items-center justify-center text-[9px] font-bold text-white">
-                          +{stores.length - 4}
-                        </div>
-                      )}
-                    </div>
+                    <span className="text-[11px] text-white/90 font-semibold">
+                      {stores.length} Connected {stores.length === 1 ? 'Store' : 'Stores'}
+                    </span>
 
                     <button
                       onClick={handleCopyPhone}
@@ -475,7 +452,7 @@ export default function CustomerWalletPage() {
                 </div>
               </div>
 
-              {/* Enhanced Interactive Search Bar with Keyboard Go Action */}
+              {/* Enhanced Interactive Search Bar */}
               <div className="space-y-3">
                 <form onSubmit={handleSearchSubmit} className="relative">
                   <button
