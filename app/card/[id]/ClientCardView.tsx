@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 function IconCheck() {
     return (
         <svg width="13" height="10" viewBox="0 0 13 10" fill="none" aria-hidden="true">
-            <path d="M1.5 5L5 8.5L11.5 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M1.5 5L5 8.5L11.5 1.5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
     );
 }
@@ -162,234 +162,247 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
         : 'RC'
 
     return (
-        <div className="min-h-screen bg-[#0F172A] text-[#F8FAFC] flex flex-col items-center p-4 font-sans selection:bg-[#00875A]">
-            <div className="w-full max-w-sm flex items-center justify-between pt-3 pb-3 border-b border-slate-800 mb-4">
-                {customerPhone ? (
-                    <button
-                        onClick={() => router.push(`/wallet/${customerPhone}`)}
-                        className="flex items-center gap-2 text-xs font-bold text-[#00875A] bg-[#00875A]/10 border border-[#00875A]/30 px-3 py-1.5 rounded-xl hover:bg-[#00875A]/20 transition active:scale-95 cursor-pointer"
-                    >
-                        <IconWallet />
-                        <span>My All Stores Wallet</span>
-                    </button>
-                ) : (
-                    <div className="text-xs text-slate-400 font-bold tracking-wider">RETCASH PASS</div>
-                )}
-                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Digital Loyalty</span>
-            </div>
-
-            <div className="w-full max-w-sm space-y-4">
-                {/* Store Loyalty Card Header - Charcoal Black Theme */}
-                <div
-                    className="relative rounded-3xl p-6 shadow-2xl overflow-hidden text-white border border-slate-700/50"
-                    style={{
-                        background: "linear-gradient(135deg, #1E293B 0%, #0F172A 100%)",
-                        boxShadow: "0 20px 30px -10px rgba(0, 0, 0, 0.5)"
-                    }}
-                >
-                    <div className="flex justify-between items-start mb-6">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-[#00875A]/20 border border-[#00875A]/40 flex items-center justify-center font-bold text-[#00875A] text-sm">
-                                {storeInitials}
-                            </div>
-                            <div>
-                                <span className="text-[9px] font-bold text-[#00875A] uppercase tracking-widest block">RETCASH PARTNER</span>
-                                <h1 className="text-lg font-black text-white leading-tight">{store?.store_name || 'PARTNER STORE'}</h1>
-                            </div>
-                        </div>
-                        <Chip />
-                    </div>
-
-                    <div className="mb-6">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">STORE CREDIT BALANCE</span>
-                        <div className="text-3xl font-black text-[#00875A] tracking-tight">
-                            Rs. {Number(claimData?.claimable_amount || 0).toFixed(2)}
-                        </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-slate-700/60 flex items-center justify-between text-[11px]">
-                        <div>
-                            <span className="text-[9px] text-slate-400 block font-semibold uppercase tracking-wider">MEMBER PASS</span>
-                            <span className="text-white font-medium">VIP MEMBER</span>
-                        </div>
-                        <div className="text-right">
-                            <span className="text-[9px] text-slate-400 block font-semibold uppercase tracking-wider">PASS ID</span>
-                            <span className="text-slate-300 font-mono">•••• {customerPhone ? customerPhone.slice(-4) : '0000'}</span>
-                        </div>
-                    </div>
+        <div className="flex justify-center min-h-screen bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
+            <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen border-x border-slate-200/50 shadow-2xl p-4">
+                
+                {/* Header Section */}
+                <div className="w-full flex items-center justify-between pt-1 pb-3 border-b border-slate-200/80 mb-4">
+                    {customerPhone ? (
+                        <button
+                            onClick={() => router.push(`/wallet/${customerPhone}`)}
+                            className="flex items-center gap-2 text-xs font-bold text-[#00875A] bg-emerald-50 border border-emerald-200/80 px-3.5 py-1.5 rounded-xl hover:bg-emerald-100/80 transition active:scale-95 cursor-pointer shadow-xs"
+                        >
+                            <IconWallet />
+                            <span>My Wallet</span>
+                        </button>
+                    ) : (
+                        <div className="text-xs text-slate-500 font-bold tracking-wider">RETCASH PASS</div>
+                    )}
+                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Digital Loyalty Pass</span>
                 </div>
 
-                {/* Main Card View Section - Slate Dark Theme */}
-                <div className="bg-[#1E293B] border border-slate-700/80 rounded-3xl p-6 text-center relative overflow-hidden shadow-lg">
-                    
-                    {/* Latest Cashback Display */}
-                    <div className="bg-[#0F172A] border border-slate-700 p-3 rounded-2xl mb-5 flex justify-between items-center text-xs">
-                        <span className="text-slate-400 font-medium">LATEST CASHBACK</span>
-                        {isRedeemed ? (
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-slate-500 line-through text-[11px]">
-                                    Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
-                                </span>
-                                <span className="bg-slate-800 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-slate-700">
-                                    REDEEMED
-                                </span>
-                            </div>
-                        ) : (
-                            <span className="text-[#00875A] font-black">
-                                + Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
-                            </span>
-                        )}
-                    </div>
+                <div className="w-full space-y-4 flex-1">
+                    {/* Store Loyalty Card Header - Hero Gradient Theme */}
+                    <div
+                        className="relative rounded-3xl p-6 shadow-lg overflow-hidden text-white"
+                        style={{
+                            background: "linear-gradient(135deg, #00875A 0%, #059669 45%, #0d9488 100%)",
+                            boxShadow: "0 8px 32px rgba(0,135,90,0.28)",
+                        }}
+                    >
+                        <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full bg-white/10 pointer-events-none" />
+                        <div className="absolute right-4 top-14 w-20 h-20 rounded-full bg-white/8 pointer-events-none" />
 
-                    {/* Visit Challenge Grid */}
-                    <div className="mb-6">
-                        <div className="flex justify-between text-[11px] font-bold tracking-wider uppercase mb-3">
-                            <span className="text-slate-400">{totalVisits} Visit Challenge</span>
-                            <span className="text-[#00875A]">{currentVisits} / {totalVisits} Visits</span>
-                        </div>
-
-                        <div
-                            className="grid gap-2"
-                            style={{
-                                gridTemplateColumns: `repeat(${totalVisits > 5 ? 5 : totalVisits}, minmax(0, 1fr))`
-                            }}
-                        >
-                            {Array.from({ length: totalVisits }).map((_, i) => {
-                                const step = i + 1;
-                                const done = step <= currentVisits;
-                                return (
-                                    <div
-                                        key={step}
-                                        className={`h-9 rounded-xl flex items-center justify-center font-bold text-xs transition-all duration-300 ${done
-                                            ? 'bg-[#00875A] text-white shadow-md shadow-[#00875A]/30'
-                                            : 'bg-[#0F172A] border border-slate-700 text-slate-500'
-                                            }`}
-                                    >
-                                        {done ? <IconCheck /> : <span className="scale-75 text-slate-500"><IconLock /></span>}
+                        <div className="relative z-10">
+                            <div className="flex justify-between items-start mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-11 h-11 rounded-2xl bg-white/20 border border-white/30 backdrop-blur-xs flex items-center justify-center font-extrabold text-white text-sm shadow-xs overflow-hidden">
+                                        {store?.logo_url ? (
+                                            <img src={store.logo_url} alt={store.store_name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            storeInitials
+                                        )}
                                     </div>
-                                );
-                            })}
+                                    <div>
+                                        <span className="text-[9px] font-extrabold text-emerald-200 uppercase tracking-widest block">RETCASH PARTNER</span>
+                                        <h1 className="text-lg font-black text-white leading-tight">{store?.store_name || 'PARTNER STORE'}</h1>
+                                    </div>
+                                </div>
+                                <Chip />
+                            </div>
+
+                            <div className="mb-6">
+                                <span className="text-[10px] text-white/80 font-bold uppercase tracking-wider block mb-1">STORE CREDIT BALANCE</span>
+                                <div className="text-3xl font-black text-white tracking-tight">
+                                    Rs. {Number(claimData?.claimable_amount || 0).toFixed(2)}
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-white/20 flex items-center justify-between text-[11px]">
+                                <div>
+                                    <span className="text-[9px] text-white/80 block font-semibold uppercase tracking-wider">MEMBER PASS</span>
+                                    <span className="text-white font-bold">VIP MEMBER</span>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-[9px] text-white/80 block font-semibold uppercase tracking-wider">PASS ID</span>
+                                    <span className="text-white font-mono font-medium">•••• {customerPhone ? customerPhone.slice(-4) : '0000'}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* QR Code / Reward Section */}
-                    <div className="relative min-h-[210px] flex items-center justify-center">
-                        <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-out transform ${isRedeemed ? 'opacity-100 scale-100 translate-y-0 blur-0' : 'opacity-0 scale-90 translate-y-6 blur-md pointer-events-none'}`}>
-                            <div className="w-14 h-14 bg-[#00875A]/20 border border-[#00875A]/40 text-[#00875A] rounded-full flex items-center justify-center mx-auto text-3xl mb-3 animate-bounce shadow-sm">
-                                🎉
-                            </div>
-                            <h3 className="text-xs font-black text-[#00875A] uppercase tracking-wider mb-1">REWARD SUCCESSFULLY REDEEMED!</h3>
-                            <p className="text-[11px] text-slate-400 px-2 font-medium">
-                                Your reward has been claimed successfully. Thank you for visiting!
-                            </p>
-                        </div>
-
-                        <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-in transform ${isRedeemed ? 'opacity-0 scale-125 -translate-y-8 blur-lg pointer-events-none' : 'opacity-100 scale-100 translate-y-0 blur-0'}`}>
-                            {isRewardReady ? (
-                                <div className="w-full">
-                                    <div className="bg-[#00875A]/15 border border-[#00875A]/40 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3">
-                                        🎉 Congratulations! Your {totalVisits}th Visit Reward is ready!
-                                    </div>
-                                    <p className="text-[11px] text-slate-400 mb-2 font-semibold">Show QR code at billing counter:</p>
-                                    <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-200">
-                                        <img
-                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${id}`}
-                                            alt="Redemption QR"
-                                            className="w-36 h-36 object-contain"
-                                        />
-                                    </div>
+                    {/* Main Card View Section - Light Clean Theme */}
+                    <div className="bg-white border border-slate-100 rounded-3xl p-5 text-center relative overflow-hidden shadow-xs">
+                        
+                        {/* Latest Cashback Display */}
+                        <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl mb-5 flex justify-between items-center text-xs">
+                            <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">LATEST CASHBACK</span>
+                            {isRedeemed ? (
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-slate-400 line-through text-[11px]">
+                                        Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
+                                    </span>
+                                    <span className="bg-slate-200 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                        REDEEMED
+                                    </span>
                                 </div>
                             ) : (
-                                <div className="py-5 px-4 border border-dashed border-slate-700 rounded-2xl bg-[#0F172A] w-full">
-                                    <div className="w-10 h-10 bg-[#00875A]/20 border border-[#00875A]/40 text-[#00875A] rounded-full flex items-center justify-center mx-auto mb-2 text-base">
-                                        <IconGift />
-                                    </div>
-                                    <h3 className="text-xs font-bold text-white mb-1">
-                                        {totalVisits - currentVisits} More {totalVisits - currentVisits === 1 ? 'Visit' : 'Visits'} Needed!
-                                    </h3>
-                                    <p className="text-[11px] text-slate-400">
-                                        Redemption QR code will appear automatically on your {totalVisits}th visit.
-                                    </p>
+                                <span className="text-[#00875A] font-extrabold text-sm">
+                                    + Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Visit Challenge Grid */}
+                        <div className="mb-6">
+                            <div className="flex justify-between text-[11px] font-bold tracking-wider uppercase mb-3">
+                                <span className="text-slate-600">{totalVisits} Visit Challenge</span>
+                                <span className="text-[#00875A] font-extrabold">{currentVisits} / {totalVisits} Visits</span>
+                            </div>
+
+                            <div
+                                className="grid gap-2"
+                                style={{
+                                    gridTemplateColumns: `repeat(${totalVisits > 5 ? 5 : totalVisits}, minmax(0, 1fr))`
+                                }}
+                            >
+                                {Array.from({ length: totalVisits }).map((_, i) => {
+                                    const step = i + 1;
+                                    const done = step <= currentVisits;
+                                    return (
+                                        <div
+                                            key={step}
+                                            className={`h-9 rounded-xl flex items-center justify-center font-bold text-xs transition-all duration-300 ${done
+                                                ? 'bg-[#00875A] text-white shadow-md shadow-[#00875A]/25'
+                                                : 'bg-slate-100 border border-slate-200/60 text-slate-400'
+                                                }`}
+                                        >
+                                            {done ? <IconCheck /> : <span className="scale-75 text-slate-400"><IconLock /></span>}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* QR Code / Reward Section */}
+                        <div className="relative min-h-[210px] flex items-center justify-center">
+                            <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-out transform ${isRedeemed ? 'opacity-100 scale-100 translate-y-0 blur-0' : 'opacity-0 scale-90 translate-y-6 blur-md pointer-events-none'}`}>
+                                <div className="w-14 h-14 bg-emerald-50 border border-emerald-100 text-[#00875A] rounded-full flex items-center justify-center mx-auto text-3xl mb-3 animate-bounce shadow-xs">
+                                    🎉
                                 </div>
+                                <h3 className="text-xs font-black text-[#00875A] uppercase tracking-wider mb-1">REWARD SUCCESSFULLY REDEEMED!</h3>
+                                <p className="text-[11px] text-slate-500 px-2 font-medium">
+                                    Your reward has been claimed successfully. Thank you for visiting!
+                                </p>
+                            </div>
+
+                            <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-1000 ease-in transform ${isRedeemed ? 'opacity-0 scale-125 -translate-y-8 blur-lg pointer-events-none' : 'opacity-100 scale-100 translate-y-0 blur-0'}`}>
+                                {isRewardReady ? (
+                                    <div className="w-full">
+                                        <div className="bg-emerald-50 border border-emerald-200/80 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
+                                            🎉 Congratulations! Your {totalVisits}th Visit Reward is ready!
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 mb-2 font-semibold">Show QR code at billing counter:</p>
+                                        <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-100">
+                                            <img
+                                                src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${id}`}
+                                                alt="Redemption QR"
+                                                className="w-36 h-36 object-contain"
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="py-5 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50 w-full">
+                                        <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 text-[#00875A] rounded-full flex items-center justify-center mx-auto mb-2 text-base">
+                                            <IconGift />
+                                        </div>
+                                        <h3 className="text-xs font-bold text-slate-800 mb-1">
+                                            {totalVisits - currentVisits} More {totalVisits - currentVisits === 1 ? 'Visit' : 'Visits'} Needed!
+                                        </h3>
+                                        <p className="text-[11px] text-slate-500">
+                                            Redemption QR code will appear automatically on your {totalVisits}th visit.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* STORE OFFERS SECTION */}
+                        {offers.length > 0 && (
+                            <div className="mt-6 pt-5 border-t border-slate-100 text-left">
+                                <div className="flex items-center gap-1.5 text-[#00875A] font-extrabold text-xs uppercase tracking-wider mb-3">
+                                    <IconMegaphone />
+                                    <span>STORE OFFERS & DEALS</span>
+                                </div>
+                                <div className="space-y-3">
+                                    {offers.map((offer) => (
+                                        <div key={offer.id} className="bg-slate-50 border border-slate-100 rounded-2xl p-3 shadow-xs overflow-hidden">
+                                            {offer.image_url && (
+                                                <div className="w-full h-40 bg-slate-200 rounded-xl overflow-hidden mb-3">
+                                                    <img 
+                                                        src={offer.image_url} 
+                                                        alt={offer.title} 
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
+                                            )}
+                                            <h4 className="font-bold text-xs text-slate-800 leading-snug">{offer.title}</h4>
+                                            {offer.description && (
+                                                <p className="text-[11px] text-slate-500 mt-1 leading-normal">{offer.description}</p>
+                                            )}
+                                            {offer.expires_at && (
+                                                <div className="mt-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                                                    Ends: {new Date(offer.expires_at).toLocaleDateString()}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Location & Review Action Buttons */}
+                        <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100 mt-4">
+                            {store?.location_url ? (
+                                <a
+                                    href={store.location_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="py-3 px-3 bg-slate-50 border border-slate-200/80 rounded-xl text-center text-xs text-slate-700 font-bold hover:border-[#00875A] hover:text-[#00875A] transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                                >
+                                    <IconLocation />
+                                    <span>LOCATION</span>
+                                </a>
+                            ) : (
+                                <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200/50 rounded-xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                                    <IconLocation />
+                                    <span>LOCATION</span>
+                                </button>
+                            )}
+
+                            {store?.review_url ? (
+                                <a
+                                    href={store.review_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="py-3 px-3 bg-emerald-50 border border-emerald-200/80 rounded-xl text-center text-xs text-[#00875A] font-bold hover:bg-emerald-100/80 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                                >
+                                    <IconStar />
+                                    <span>REVIEW</span>
+                                </a>
+                            ) : (
+                                <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200/50 rounded-xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                                    <IconStar />
+                                    <span>REVIEW</span>
+                                </button>
                             )}
                         </div>
                     </div>
-
-                    {/* STORE OFFERS SECTION */}
-                    {offers.length > 0 && (
-                        <div className="mt-6 pt-5 border-t border-slate-700/60 text-left">
-                            <div className="flex items-center gap-1.5 text-[#00875A] font-bold text-xs uppercase tracking-wider mb-3">
-                                <IconMegaphone />
-                                <span>STORE OFFERS & DEALS</span>
-                            </div>
-                            <div className="space-y-3">
-                                {offers.map((offer) => (
-                                    <div key={offer.id} className="bg-[#0F172A] border border-slate-700 rounded-2xl p-3 shadow-xs overflow-hidden">
-                                        {offer.image_url && (
-                                            <div className="w-full h-40 bg-slate-800 rounded-xl overflow-hidden mb-3">
-                                                <img 
-                                                    src={offer.image_url} 
-                                                    alt={offer.title} 
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </div>
-                                        )}
-                                        <h4 className="font-bold text-xs text-white leading-snug">{offer.title}</h4>
-                                        {offer.description && (
-                                            <p className="text-[11px] text-slate-400 mt-1 leading-normal">{offer.description}</p>
-                                        )}
-                                        {offer.expires_at && (
-                                            <div className="mt-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                                                Ends: {new Date(offer.expires_at).toLocaleDateString()}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Location & Review Action Buttons */}
-                    <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-700/60 mt-4">
-                        {store?.location_url ? (
-                            <a
-                                href={store.location_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="py-3 px-3 bg-[#0F172A] border border-slate-700 rounded-xl text-center text-xs text-white font-bold hover:border-[#00875A] transition flex items-center justify-center gap-2"
-                            >
-                                <IconLocation />
-                                <span>LOCATION</span>
-                            </a>
-                        ) : (
-                            <button disabled className="py-3 px-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-center text-xs text-slate-500 font-bold flex items-center justify-center gap-2 cursor-not-allowed">
-                                <IconLocation />
-                                <span>LOCATION</span>
-                            </button>
-                        )}
-
-                        {store?.review_url ? (
-                            <a
-                                href={store.review_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="py-3 px-3 bg-[#0F172A] border border-slate-700 rounded-xl text-center text-xs text-[#00875A] font-bold hover:border-[#00875A] transition flex items-center justify-center gap-2"
-                            >
-                                <IconStar />
-                                <span>REVIEW</span>
-                            </a>
-                        ) : (
-                            <button disabled className="py-3 px-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-center text-xs text-slate-500 font-bold flex items-center justify-center gap-2 cursor-not-allowed">
-                                <IconStar />
-                                <span>REVIEW</span>
-                            </button>
-                        )}
-                    </div>
                 </div>
-            </div>
 
-            <div className="py-8 text-center text-[10px] text-slate-500 tracking-wider uppercase font-semibold">
-                <p>©️ RETCASH DIGITAL LOYALTY PLATFORM</p>
+                <div className="py-6 text-center text-[10px] text-slate-400 tracking-wider uppercase font-extrabold">
+                    <p>©️ RETCASH DIGITAL LOYALTY PLATFORM</p>
+                </div>
             </div>
         </div>
     )
