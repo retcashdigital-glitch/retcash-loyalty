@@ -90,8 +90,8 @@ export default function CustomerLoginPage() {
             localStorage.setItem(`retcash_wallet_auth_${dbPhone}`, 'true');
             localStorage.setItem(`customer_name_${dbPhone}`, customer.full_name || '');
 
-            // Redirecting to wallet route
-            router.push(`/customer/wallet/${dbPhone}`);
+            // Redirecting to valid card route (வொலட் ஃபோல்டருக்கு பதிலாக card ஃபோல்டருக்கு Redirect செய்யப்படுகிறது)
+            router.push(`/customer/card/${dbPhone}`);
 
         } catch (err) {
             console.error("Login Error:", err);
