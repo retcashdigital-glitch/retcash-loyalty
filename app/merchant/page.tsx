@@ -511,6 +511,9 @@ export default function GlobalEntryPoint() {
     }
   }
 
+  // -------------------------------------------------------------
+  // 🔥 திருத்தப்பட்ட CASHBACK GENERATION & HISTORY LOGGING FUNCTION
+  // -------------------------------------------------------------
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -532,6 +535,7 @@ export default function GlobalEntryPoint() {
         return
       }
 
+      // 1. வாடிக்கையாளரின் தற்போதைய Cashback Status-ஐச் சோதித்தல்
       const { data: existingClaims } = await supabase
         .from('cashback_claims')
         .select('id, visit_count, claimable_amount, status')
@@ -555,8 +559,6 @@ export default function GlobalEntryPoint() {
         id?: string
         store_id: string
         customer_phone: string
-        bill_amount: number
-        cashback_amount: number
         claimable_amount: number
         visit_count: number
         status: string
@@ -565,8 +567,6 @@ export default function GlobalEntryPoint() {
       const payload: Payload = {
         store_id: storeId,
         customer_phone: cleanCustPhone,
-        bill_amount: billNum,
-        cashback_amount: cashbackAmount,
         claimable_amount: totalClaimable,
         visit_count: newVisitCount,
         status: newVisitCount >= targetVisits ? 'READY' : 'PENDING',
@@ -576,34 +576,45 @@ export default function GlobalEntryPoint() {
         payload.id = claimId
       }
 
+      // 2. cashback_claims டேபிளில் Upsert செய்தல்
       const { data: upsertedData, error: upsertError } = await supabase
         .from('cashback_claims')
         .upsert(payload, { onConflict: 'store_id, customer_phone' })
         .select('id')
         .single()
 
-      if (upsertError) throw upsertError
+      if (upsertError) {
+        console.error('Upsert Error:', upsertError)
+        throw new Error('Cashback claim update failed: ' + upsertError.message)
+      }
+
       if (upsertedData && upsertedData.id) {
         claimId = upsertedData.id
       }
 
-      // 💥 CASHBACK HISTORY TABLE-ல் புதிய விவரங்களை Insert செய்தல்
-      const { error: historyError } = await supabase
-        .from('cashback_history')
-        .insert({
-          store_id: storeId,
-          customer_phone: cleanCustPhone,
-          bill_amount: billNum,
-          cashback_amount: cashbackAmount,
-          visit_number: newVisitCount,
-          type: 'BILL_ADDED',
-          description: `Bill Amount: Rs. ${billNum} | Cashback Earned: Rs. ${cashbackAmount}`
-        })
+      // 3. 🔥 CASHBACK HISTORY TABLE-ல் டேட்டாவைத் துல்லியமாகச் சேமித்தல்
+      try {
+        const { error: historyError } = await supabase
+          .from('cashback_history')
+          .insert({
+            store_id: storeId,
+            customer_phone: cleanCustPhone,
+            bill_amount: billNum,
+            cashback_amount: cashbackAmount,
+            visit_number: newVisitCount,
+            type: 'BILL_ADDED',
+            description: `Bill Amount: Rs. ${billNum} | Cashback Earned: Rs. ${cashbackAmount}`
+          })
 
-      if (historyError) {
-        console.error('History logging error:', historyError.message)
+        if (historyError) {
+          console.error('History logging error detail:', historyError)
+          showToast('error', 'Claim updated, but history log failed: ' + historyError.message)
+        }
+      } catch (hErr: any) {
+        console.error('History exception:', hErr)
       }
 
+      // 4. WhatsApp செய்தி தயார் செய்து அனுப்புதல்
       const baseUrl = window.location.origin
       const cardLink = `${baseUrl}/card/${claimId}`
       const storeName = merchantSession?.store_name || 'RETCASH Partner'
