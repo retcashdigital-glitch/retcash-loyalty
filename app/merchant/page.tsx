@@ -22,11 +22,7 @@ import {
   Percent,
   User,
   Store,
-  Gift,
-  MapPin,
-  Star,
-  Tag,
-  Camera
+  Gift
 } from 'lucide-react'
 
 interface MerchantSession {
@@ -35,10 +31,6 @@ interface MerchantSession {
   phone_number?: string
   default_cashback_percent?: number
   target_visits?: number
-  category?: string
-  logo_url?: string
-  location_url?: string
-  google_review_url?: string
 }
 
 interface CashbackClaim {
@@ -59,17 +51,6 @@ interface Offer {
 }
 
 type Tab = 'billing' | 'offers' | 'customers'
-
-const STORE_CATEGORIES = [
-  'Food & Beverages',
-  'Retail & Supermarket',
-  'Fashion & Clothing',
-  'Beauty & Wellness',
-  'Electronics & Gadgets',
-  'Entertainment & Leisure',
-  'Services',
-  'Other'
-]
 
 export default function App() {
   const router = useRouter()
@@ -97,24 +78,15 @@ export default function App() {
   // Profile Modal State
   const [isProfileOpen, setIsProfileOpen] = useState(false)
 
-  // Profile Editing States
+  // Target Visits settings state
   const [targetVisitsInput, setTargetVisitsInput] = useState('6')
   const [settingLoading, setSettingLoading] = useState(false)
   const [successMsg, setSuccessMsg] = useState(false)
 
+  // Cashback Percent settings state
   const [cashbackPercentInput, setCashbackPercentInput] = useState('5')
   const [cashbackSettingLoading, setCashbackSettingLoading] = useState(false)
   const [cashbackSuccessMsg, setCashbackSuccessMsg] = useState(false)
-
-  // New Profile Fields State
-  const [storeCategory, setStoreCategory] = useState('')
-  const [locationUrl, setLocationUrl] = useState('')
-  const [googleReviewUrl, setGoogleReviewUrl] = useState('')
-  const [profileDetailsLoading, setProfileDetailsLoading] = useState(false)
-
-  // Logo Upload State
-  const [logoFile, setLogoFile] = useState<File | null>(null)
-  const [logoUploading, setLogoUploading] = useState(false)
 
   // QR Scanner State
   const [scannedClaimData, setScannedClaimData] = useState<CashbackClaim | null>(null)
@@ -160,7 +132,7 @@ export default function App() {
           
           const { data: realStore, error: storeErr } = await supabase
             .from('stores')
-            .select('id, store_name, phone_number, default_cashback_percent, target_visits, category, logo_url, location_url, google_review_url')
+            .select('id, store_name, phone_number, default_cashback_percent, target_visits')
             .eq('id', parsed.id)
             .maybeSingle()
 
@@ -174,19 +146,12 @@ export default function App() {
               store_name: realStore.store_name,
               phone_number: realStore.phone_number,
               default_cashback_percent: realStore.default_cashback_percent ?? 5,
-              target_visits: realStore.target_visits ?? 6,
-              category: realStore.category || 'Food & Beverages',
-              logo_url: realStore.logo_url || '',
-              location_url: realStore.location_url || '',
-              google_review_url: realStore.google_review_url || ''
+              target_visits: realStore.target_visits ?? 6
             }
             setMerchantSession(verifiedSession)
             localStorage.setItem('retcash_merchant', JSON.stringify(verifiedSession))
             setTargetVisitsInput(String(Math.min(verifiedSession.target_visits || 6, 10)))
             setCashbackPercentInput(String(verifiedSession.default_cashback_percent ?? 5))
-            setStoreCategory(verifiedSession.category || 'Food & Beverages')
-            setLocationUrl(verifiedSession.location_url || '')
-            setGoogleReviewUrl(verifiedSession.google_review_url || '')
             fetchStoreOffers(verifiedSession.id)
             fetchStoreCustomers(verifiedSession.id)
           }
@@ -419,101 +384,6 @@ export default function App() {
       showToast('error', 'Failed to update cashback percentage: ' + message)
     } finally {
       setCashbackSettingLoading(false)
-    }
-  }
-
-  // UPDATE EXTRA DETAILS (CATEGORY, LOCATION & GOOGLE REVIEW)
-  const handleUpdateStoreDetails = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!merchantSession?.id) return
-
-    setProfileDetailsLoading(true)
-    try {
-      const { error } = await supabase
-        .from('stores')
-        .update({
-          category: storeCategory,
-          location_url: locationUrl,
-          google_review_url: googleReviewUrl
-        })
-        .eq('id', merchantSession.id)
-
-      if (error) throw error
-
-      const updatedSession = {
-        ...merchantSession,
-        category: storeCategory,
-        location_url: locationUrl,
-        google_review_url: googleReviewUrl
-      }
-      setMerchantSession(updatedSession)
-      localStorage.setItem('retcash_merchant', JSON.stringify(updatedSession))
-
-      showToast('success', 'Store details updated successfully!')
-    } catch (err: unknown) {
-      console.error(err)
-      const message = err instanceof Error ? err.message : JSON.stringify(err)
-      showToast('error', 'Failed to update store details: ' + message)
-    } finally {
-      setProfileDetailsLoading(false)
-    }
-  }
-
-  // HANDLE LOGO UPLOAD AND DELETE OLD LOGO FROM SUPABASE STORAGE
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !merchantSession?.id) return
-
-    setLogoUploading(true)
-    try {
-      // 1. Delete Old Logo if exists in Supabase Storage
-      if (merchantSession.logo_url) {
-        try {
-          const urlParts = merchantSession.logo_url.split('/store-logos/')
-          if (urlParts.length > 1) {
-            const oldFilePath = urlParts[1].split('?')[0]
-            await supabase.storage.from('store-logos').remove([oldFilePath])
-          }
-        } catch (removeErr) {
-          console.warn('Old logo deletion skipped or failed:', removeErr)
-        }
-      }
-
-      // 2. Upload New Logo
-      const fileExt = file.name.split('.').pop()
-      const filePath = `${merchantSession.id}_${Date.now()}.${fileExt}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('store-logos')
-        .upload(filePath, file)
-
-      if (uploadError) throw uploadError
-
-      const { data: urlData } = supabase.storage
-        .from('store-logos')
-        .getPublicUrl(filePath)
-
-      const newLogoUrl = urlData.publicUrl
-
-      // 3. Update Database Record
-      const { error: dbError } = await supabase
-        .from('stores')
-        .update({ logo_url: newLogoUrl })
-        .eq('id', merchantSession.id)
-
-      if (dbError) throw dbError
-
-      const updatedSession = { ...merchantSession, logo_url: newLogoUrl }
-      setMerchantSession(updatedSession)
-      localStorage.setItem('retcash_merchant', JSON.stringify(updatedSession))
-
-      showToast('success', 'Store Logo updated successfully!')
-    } catch (err: unknown) {
-      console.error(err)
-      const message = err instanceof Error ? err.message : 'Logo upload failed'
-      showToast('error', message)
-    } finally {
-      setLogoUploading(false)
     }
   }
 
@@ -937,26 +807,17 @@ export default function App() {
               
               <div className="bg-[#00875A] text-white p-5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="relative group flex size-12 items-center justify-center rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-xs overflow-hidden shrink-0">
-                    {merchantSession.logo_url ? (
-                      <img
-                        src={merchantSession.logo_url}
-                        alt="Store Logo"
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      <Store className="size-6" />
-                    )}
-                    <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition">
-                      <Camera className="size-4 text-white" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoUpload}
-                        className="sr-only"
-                        disabled={logoUploading}
-                      />
-                    </label>
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-xs overflow-hidden">
+                    <img
+                      src="/logo.png"
+                      alt="Logo"
+                      className="size-7 object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                      }}
+                    />
+                    <Store className="size-5 hidden" />
                   </div>
                   <div>
                     <h3 className="font-bold text-sm text-white">{merchantSession.store_name}</h3>
@@ -973,27 +834,6 @@ export default function App() {
 
               <div className="p-5 space-y-6 max-h-[80vh] overflow-y-auto">
                 
-                {/* LOGO UPDATE SECTION */}
-                <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <Camera className="size-3.5 text-[#00875A]" /> Store Logo
-                    </span>
-                    <span className="text-[10px] text-slate-400">Replaces old logo automatically</span>
-                  </div>
-                  <label className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/50 text-xs font-semibold text-[#00875A] hover:bg-emerald-100/50 transition">
-                    <Upload className="size-3.5" />
-                    {logoUploading ? 'Uploading Logo...' : 'Upload New Logo'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      className="sr-only"
-                      disabled={logoUploading}
-                    />
-                  </label>
-                </div>
-
                 <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-4 space-y-3">
                   <h4 className="text-xs font-bold text-[#00875A] uppercase tracking-wider">Account Details</h4>
                   <div className="space-y-2 text-xs">
@@ -1009,62 +849,6 @@ export default function App() {
                     )}
                   </div>
                 </div>
-
-                {/* STORE CATEGORY, LOCATION & GOOGLE REVIEW FORM */}
-                <form onSubmit={handleUpdateStoreDetails} className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Store Information</h4>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                      <Tag className="size-3.5 text-[#00875A]" /> Store Category
-                    </label>
-                    <select
-                      value={storeCategory}
-                      onChange={(e) => setStoreCategory(e.target.value)}
-                      className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-[#00875A] focus:bg-white text-slate-900"
-                    >
-                      {STORE_CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                      <MapPin className="size-3.5 text-[#00875A]" /> Location Link (Optional)
-                    </label>
-                    <input
-                      type="url"
-                      value={locationUrl}
-                      onChange={(e) => setLocationUrl(e.target.value)}
-                      placeholder="https://maps.google.com/..."
-                      className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-[#00875A] focus:bg-white font-mono text-slate-900"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                      <Star className="size-3.5 text-[#00875A]" /> Google Review Link (Optional)
-                    </label>
-                    <input
-                      type="url"
-                      value={googleReviewUrl}
-                      onChange={(e) => setGoogleReviewUrl(e.target.value)}
-                      placeholder="https://g.page/r/..."
-                      className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-[#00875A] focus:bg-white font-mono text-slate-900"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={profileDetailsLoading}
-                    className="w-full h-9 rounded-lg bg-[#00875A] hover:bg-[#00704a] text-white text-xs font-bold transition cursor-pointer disabled:opacity-50"
-                  >
-                    {profileDetailsLoading ? 'Saving...' : 'Save Store Details'}
-                  </button>
-                </form>
 
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Store Rules & Configuration</h4>
@@ -1151,15 +935,16 @@ export default function App() {
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-5 lg:px-8">
             <div className="flex items-center gap-3">
               <div className="flex size-9 items-center justify-center rounded-xl bg-white/20 border border-white/30 backdrop-blur-xs text-white shadow-xs overflow-hidden">
-                {merchantSession.logo_url ? (
-                  <img
-                    src={merchantSession.logo_url}
-                    alt="Logo"
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  <WalletCards className="size-5" />
-                )}
+                <img
+                  src="/logo.png"
+                  alt="RETCASH Logo"
+                  className="size-6 object-contain"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                  }}
+                />
+                <WalletCards className="size-5 hidden" />
               </div>
               <div>
                 <p className="font-mono text-[13px] font-extrabold text-white">{merchantSession.store_name}</p>
