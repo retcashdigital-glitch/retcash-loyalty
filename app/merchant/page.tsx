@@ -1,7 +1,5 @@
-'use client'
-
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+const useRouter = () => ({ push: (url: string) => console.log('Navigate to:', url) })
 import { supabase } from '@/lib/supabase'
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode'
 import {
@@ -24,7 +22,7 @@ import {
   Store
 } from 'lucide-react'
 
-export const dynamic = 'force-dynamic'
+// export const dynamic = 'force-dynamic' // Removed for Vite
 
 interface MerchantSession {
   id: string
@@ -53,7 +51,7 @@ interface Offer {
 
 type Tab = 'billing' | 'offers' | 'customers'
 
-export default function GlobalEntryPoint() {
+export default function App() {
   const router = useRouter()
   
   // Auth state for non-logged in state
@@ -511,7 +509,6 @@ export default function GlobalEntryPoint() {
     }
   }
 
-  // CASHBACK GENERATION & HISTORY LOGGING FUNCTION (UPDATED)
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -533,7 +530,6 @@ export default function GlobalEntryPoint() {
         return
       }
 
-      // 1. Check existing cashback claim status
       const { data: existingClaims } = await supabase
         .from('cashback_claims')
         .select('id, visit_count, claimable_amount, status')
@@ -576,7 +572,6 @@ export default function GlobalEntryPoint() {
         payload.id = claimId
       }
 
-      // 2. Upsert to cashback_claims table
       const { data: upsertedData, error: upsertError } = await supabase
         .from('cashback_claims')
         .upsert(payload, { onConflict: 'store_id, customer_phone' })
@@ -592,7 +587,6 @@ export default function GlobalEntryPoint() {
         claimId = upsertedData.id
       }
 
-      // 3. Insert record into cashback_history table (UPDATED MATCHING EXACT SUPABASE COLUMNS)
       try {
         const { error: historyError } = await supabase
           .from('cashback_history')
@@ -616,7 +610,6 @@ export default function GlobalEntryPoint() {
         console.error('History exception:', hErr)
       }
 
-      // 4. Send notification via WhatsApp
       const baseUrl = window.location.origin
       const cardLink = `${baseUrl}/card/${claimId}`
       const storeName = merchantSession?.store_name || 'RETCASH Partner'
@@ -659,25 +652,23 @@ export default function GlobalEntryPoint() {
   if (isVerifyingSession) {
     return (
       <div className="min-h-screen bg-[#F1F5F9] flex flex-col items-center justify-center p-4">
-        <div className="w-8 h-8 border-3 border-slate-200 border-t-[#EA580C] rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-3 border-[#e2e8f0] border-t-[#00875A] rounded-full animate-spin"></div>
       </div>
     )
   }
 
-  // LOGGED IN DASHBOARD VIEW
   if (merchantSession) {
     const targetVisits = Math.min(merchantSession?.target_visits || 6, 10)
     const filteredCustomers = customersList.filter(c => c.customer_phone.includes(customerSearchQuery))
     const totalClaimableSum = customersList.reduce((acc, curr) => acc + Number(curr.claimable_amount || 0), 0)
 
     return (
-      <div className="min-h-screen bg-[#F1F5F9] text-[#0F172A] font-sans selection:bg-[#EA580C] selection:text-white">
+      <div className="min-h-screen bg-[#F1F5F9] text-[#0F172A] font-sans selection:bg-[#00875A] selection:text-[#fff]">
         
-        {/* TOAST NOTIFICATION CONTAINER */}
         {toastMessage && (
           <div className="fixed top-5 right-5 z-50 animate-in fade-in slide-in-from-top-3 duration-200">
             <div className={`flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl text-xs font-bold text-white ${
-              toastMessage.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
+              toastMessage.type === 'success' ? 'bg-[#00875A]' : 'bg-red-600'
             }`}>
               {toastMessage.type === 'success' ? <CheckCircle2 className="size-4 shrink-0" /> : <X className="size-4 shrink-0" />}
               <span>{toastMessage.text}</span>
@@ -685,16 +676,15 @@ export default function GlobalEntryPoint() {
           </div>
         )}
 
-        {/* DELETE CONFIRMATION MODAL */}
         {offerToDelete && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-xs w-full shadow-2xl space-y-4 text-center">
+            <div className="bg-[#fff] border border-[#e2e8f0] rounded-2xl p-6 max-w-xs w-full shadow-2xl space-y-4 text-center">
               <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold border border-red-100">
                 <Trash2 className="size-6" />
               </div>
               <div className="space-y-1">
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Delete Offer</h3>
-                <p className="text-xs text-slate-500">Are you sure you want to delete this offer permanently?</p>
+                <p className="text-xs text-[#64748b]">Are you sure you want to delete this offer permanently?</p>
               </div>
               <div className="flex gap-2 pt-2">
                 <button
@@ -714,18 +704,17 @@ export default function GlobalEntryPoint() {
           </div>
         )}
 
-        {/* REDEEM REWARD CONFIRMATION MODAL */}
         {showRedeemConfirmModal && scannedClaimData && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-xs w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95">
-              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold border border-emerald-100">
+            <div className="bg-[#fff] border border-[#e2e8f0] rounded-2xl p-6 max-w-xs w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95">
+              <div className="w-12 h-12 bg-[#00875A]/10 text-[#00875A] rounded-full flex items-center justify-center mx-auto text-xl font-bold border border-[#00875A]/30">
                 <CheckCircle2 className="size-6" />
               </div>
               <div className="space-y-2">
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Confirm Redemption</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
+                <p className="text-xs text-[#64748b] leading-relaxed">
                   Have you handed over the reward to customer (<span className="font-mono font-semibold">{scannedClaimData.customer_phone}</span>)? 
-                  The balance of <span className="font-bold text-[#EA580C]">Rs. {scannedClaimData.claimable_amount}</span> will be reset to zero.
+                  The balance of <span className="font-bold text-[#00875A]">Rs. {scannedClaimData.claimable_amount}</span> will be reset to zero.
                 </p>
               </div>
               <div className="flex gap-2 pt-2">
@@ -738,7 +727,7 @@ export default function GlobalEntryPoint() {
                 <button
                   onClick={executeRedeemReward}
                   disabled={actionLoading}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md cursor-pointer disabled:opacity-50"
+                  className="flex-1 bg-[#00875A] hover:bg-[#00704A] text-[#fff] font-bold py-2.5 rounded-xl text-xs transition shadow-md cursor-pointer disabled:opacity-50"
                 >
                   {actionLoading ? 'Processing...' : 'Confirm & Reset'}
                 </button>
@@ -747,24 +736,23 @@ export default function GlobalEntryPoint() {
           </div>
         )}
 
-        {/* STORE PROFILE & SETTINGS MODAL */}
         {isProfileOpen && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-[#fff] border border-[#e2e8f0] rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
               
               <div className="bg-[#0F172A] text-white p-5 flex items-center justify-between border-b border-slate-800">
                 <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-[#EA580C] text-white">
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-[#00875A] text-[#fff]">
                     <Store className="size-5" />
                   </div>
                   <div>
                     <h3 className="font-bold text-sm text-white">{merchantSession.store_name}</h3>
-                    <p className="text-[11px] text-slate-400">Store Profile & Settings</p>
+                    <p className="text-[11px] text-[#94a3b8]">Store Profile & Settings</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setIsProfileOpen(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer"
+                  className="p-1.5 rounded-lg text-[#94a3b8] hover:bg-slate-800 hover:text-white transition cursor-pointer"
                 >
                   <X className="size-5" />
                 </button>
@@ -772,16 +760,16 @@ export default function GlobalEntryPoint() {
 
               <div className="p-5 space-y-6 max-h-[80vh] overflow-y-auto">
                 
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Account Details</h4>
+                <div className="bg-slate-50 border border-[#e2e8f0] rounded-xl p-4 space-y-3">
+                  <h4 className="text-xs font-bold text-[#64748b] uppercase tracking-wider">Account Details</h4>
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-500">Store Name:</span>
+                      <span className="text-[#64748b]">Store Name:</span>
                       <span className="font-semibold text-slate-900">{merchantSession.store_name}</span>
                     </div>
                     {merchantSession.phone_number && (
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-500">Registered Phone:</span>
+                        <span className="text-[#64748b]">Registered Phone:</span>
                         <span className="font-mono font-semibold text-slate-900">+{merchantSession.phone_number}</span>
                       </div>
                     )}
@@ -789,14 +777,14 @@ export default function GlobalEntryPoint() {
                 </div>
 
                 <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Store Rules & Configuration</h4>
+                  <h4 className="text-xs font-bold text-[#64748b] uppercase tracking-wider">Store Rules & Configuration</h4>
                   
-                  <form onSubmit={handleUpdateCashbackPercent} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
+                  <form onSubmit={handleUpdateCashbackPercent} className="bg-[#fff] border border-[#e2e8f0] rounded-xl p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <label htmlFor="cashbackPercentModal" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                        <Percent className="size-3.5 text-[#EA580C]" /> Default Cashback %
+                        <Percent className="size-3.5 text-[#00875A]" /> Default Cashback %
                       </label>
-                      <span className="font-mono text-[10px] text-slate-400">per transaction</span>
+                      <span className="font-mono text-[10px] text-[#94a3b8]">per transaction</span>
                     </div>
                     <div className="flex gap-2">
                       <input
@@ -807,27 +795,27 @@ export default function GlobalEntryPoint() {
                         max="100"
                         value={cashbackPercentInput}
                         onChange={(e) => setCashbackPercentInput(e.target.value)}
-                        className="h-10 min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm outline-none focus:border-[#EA580C] focus:bg-white font-mono text-slate-900"
+                        className="h-10 min-w-0 flex-1 rounded-lg border border-[#e2e8f0] bg-slate-50 px-3 text-sm outline-none focus:border-[#00875A] focus:bg-[#fff] font-mono text-slate-900"
                         placeholder="5"
                         required
                       />
                       <button
                         type="submit"
                         disabled={cashbackSettingLoading}
-                        className="rounded-lg border border-[#EA580C] bg-orange-50 text-[#EA580C] hover:bg-[#EA580C] hover:text-white px-4 text-xs font-bold transition cursor-pointer"
+                        className="rounded-lg border border-[#00875A] bg-[#00875A]/10 text-[#00875A] hover:bg-[#00875A] hover:text-[#fff] px-4 text-xs font-bold transition cursor-pointer"
                       >
                         {cashbackSettingLoading ? '...' : 'Update'}
                       </button>
                     </div>
                     {cashbackSuccessMsg && (
-                      <p className="text-[11px] text-emerald-600 font-bold mt-1">✓ Default Cashback updated!</p>
+                      <p className="text-[11px] text-[#00875A] font-bold mt-1">✓ Default Cashback updated!</p>
                     )}
                   </form>
 
-                  <form onSubmit={handleUpdateTargetVisits} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
+                  <form onSubmit={handleUpdateTargetVisits} className="bg-[#fff] border border-[#e2e8f0] rounded-xl p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <label htmlFor="targetModal" className="text-xs font-semibold text-slate-700">Target Visits</label>
-                      <span className="font-mono text-[10px] text-slate-400">per customer</span>
+                      <span className="font-mono text-[10px] text-[#94a3b8]">per customer</span>
                     </div>
                     <div className="flex gap-2">
                       <input
@@ -837,26 +825,26 @@ export default function GlobalEntryPoint() {
                         max="10"
                         value={targetVisitsInput}
                         onChange={handleTargetInputChange}
-                        className="h-10 min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm outline-none focus:border-[#EA580C] focus:bg-white font-mono text-slate-900"
+                        className="h-10 min-w-0 flex-1 rounded-lg border border-[#e2e8f0] bg-slate-50 px-3 text-sm outline-none focus:border-[#00875A] focus:bg-[#fff] font-mono text-slate-900"
                         required
                       />
                       <button
                         type="submit"
                         disabled={settingLoading}
-                        className="rounded-lg border border-[#EA580C] bg-orange-50 text-[#EA580C] hover:bg-[#EA580C] hover:text-white px-4 text-xs font-bold transition cursor-pointer"
+                        className="rounded-lg border border-[#00875A] bg-[#00875A]/10 text-[#00875A] hover:bg-[#00875A] hover:text-[#fff] px-4 text-xs font-bold transition cursor-pointer"
                       >
                         {settingLoading ? '...' : 'Update'}
                       </button>
                     </div>
                     {successMsg && (
-                      <p className="text-[11px] text-emerald-600 font-bold mt-1">✓ Target visits updated!</p>
+                      <p className="text-[11px] text-[#00875A] font-bold mt-1">✓ Target visits updated!</p>
                     )}
                   </form>
                 </div>
 
               </div>
 
-              <div className="bg-slate-50 p-4 border-t border-slate-200 text-right">
+              <div className="bg-slate-50 p-4 border-t border-[#e2e8f0] text-right">
                 <button
                   onClick={() => setIsProfileOpen(false)}
                   className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-2 rounded-xl text-xs transition cursor-pointer"
@@ -869,16 +857,15 @@ export default function GlobalEntryPoint() {
           </div>
         )}
 
-        {/* HEADER */}
         <header className="border-b border-slate-800 bg-[#0F172A] text-white sticky top-0 z-40 shadow-md">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-5 lg:px-8">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-[#EA580C] text-white shadow-[0_0_15px_rgba(234,88,12,0.4)]">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-[#00875A] text-white shadow-[0_0_15px_rgba(0,135,90,0.4)]">
                 <WalletCards className="size-5" />
               </div>
               <div>
                 <p className="font-mono text-[13px] font-semibold text-white">{merchantSession.store_name}</p>
-                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400">
+                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#94a3b8]">
                   <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Store dashboard
                 </div>
               </div>
@@ -890,7 +877,7 @@ export default function GlobalEntryPoint() {
                 className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition cursor-pointer"
                 type="button"
               >
-                <User className="size-3.5 text-[#EA580C]" />
+                <User className="size-3.5 text-[#00875A]" />
                 <span className="hidden sm:inline">Store Profile</span>
               </button>
 
@@ -912,15 +899,15 @@ export default function GlobalEntryPoint() {
           
           <div className="mb-6 flex items-start justify-between gap-3">
             <div>
-              <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#EA580C]">
+              <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#00875A]">
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
               <h1 className="text-2xl font-bold tracking-[-0.04em] text-slate-900 sm:text-4xl">Keep your customers coming back.</h1>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">Reward every visit instantly and keep your regulars in the loop.</p>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-[#64748b]">Reward every visit instantly and keep your regulars in the loop.</p>
             </div>
           </div>
 
-          <nav aria-label="Merchant dashboard sections" className="mb-6 border-b border-slate-200">
+          <nav aria-label="Merchant dashboard sections" className="mb-6 border-b border-[#e2e8f0]">
             <div className="grid grid-cols-3 gap-1" role="tablist">
               {tabs.map(({ id, label, icon: Icon }) => (
                 <button
@@ -931,8 +918,8 @@ export default function GlobalEntryPoint() {
                   onClick={() => setActiveTab(id)}
                   className={`flex min-h-14 flex-col items-center justify-center gap-1 border-b-2 px-1 py-2 text-center text-[10px] font-bold leading-tight transition cursor-pointer sm:min-h-12 sm:flex-row sm:gap-2 sm:px-5 sm:py-3 sm:text-xs ${
                     activeTab === id 
-                      ? 'border-[#EA580C] text-[#EA580C] bg-orange-50/50' 
-                      : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'
+                      ? 'border-[#00875A] text-[#00875A] bg-[#00875A]/5' 
+                      : 'border-transparent text-[#64748b] hover:text-slate-900 hover:bg-[#e2e8f0]/50'
                   }`}
                   type="button"
                 >
@@ -945,16 +932,16 @@ export default function GlobalEntryPoint() {
 
           {activeTab === 'billing' && (
             <section className="grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+              <div className="rounded-2xl border border-[#e2e8f0] bg-[#fff] p-5 shadow-sm sm:p-7">
                 <div className="mb-7 flex items-start justify-between">
                   <div>
-                    <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-orange-100 text-[#EA580C]">
+                    <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-[#00875A]/20 text-[#00875A]">
                       <MessageCircle className="size-5" />
                     </div>
                     <h2 className="text-lg font-bold text-slate-900">New cashback transaction</h2>
-                    <p className="mt-1 text-xs text-slate-500">Add a visit and notify your customer on WhatsApp.</p>
+                    <p className="mt-1 text-xs text-[#64748b]">Add a visit and notify your customer on WhatsApp.</p>
                   </div>
-                  <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-[#EA580C]">
+                  <span className="rounded-full border border-[#00875A]/30 bg-[#00875A]/10 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-[#00875A]">
                     Live
                   </span>
                 </div>
@@ -964,12 +951,12 @@ export default function GlobalEntryPoint() {
                     <label className="grid gap-2 text-xs font-semibold text-slate-700">
                       Customer WhatsApp number
                       <div className="relative">
-                        <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                        <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#94a3b8]" />
                         <input
                           type="tel"
                           value={customerPhone}
                           onChange={(e) => setCustomerPhone(e.target.value)}
-                          className="h-12 w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-[#EA580C] focus:bg-white focus:ring-2 focus:ring-[#EA580C]/20 font-mono transition"
+                          className="h-12 w-full rounded-xl border border-[#e2e8f0] bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-[#fff] focus:ring-2 focus:ring-[#00875A]/20 font-mono transition"
                           placeholder="077 123 4567"
                           required
                         />
@@ -977,12 +964,12 @@ export default function GlobalEntryPoint() {
                     </label>
 
                     <label className="grid gap-2 text-xs font-semibold text-slate-700">
-                      Bill amount <span className="font-normal text-slate-500">LKR / Rs.</span>
+                      Bill amount <span className="font-normal text-[#64748b]">LKR / Rs.</span>
                       <input
                         type="number"
                         value={billAmount}
                         onChange={(e) => setBillAmount(e.target.value)}
-                        className="h-12 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-[#EA580C] focus:bg-white focus:ring-2 focus:ring-[#EA580C]/20 font-mono transition"
+                        className="h-12 w-full rounded-xl border border-[#e2e8f0] bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-[#fff] focus:ring-2 focus:ring-[#00875A]/20 font-mono transition"
                         placeholder="0.00"
                         inputMode="decimal"
                         required
@@ -993,7 +980,7 @@ export default function GlobalEntryPoint() {
                   <button
                     type="submit"
                     disabled={actionLoading}
-                    className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#EA580C] hover:bg-[#d64e05] px-4 text-xs font-bold text-white shadow-md hover:shadow-lg transition cursor-pointer disabled:opacity-50"
+                    className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#00875A] hover:bg-[#00704A] px-4 text-xs font-bold text-white shadow-md hover:shadow-lg transition cursor-pointer disabled:opacity-50"
                   >
                     <MessageCircle className="size-4" />
                     {actionLoading ? 'Processing...' : 'Add cashback & send WhatsApp'}
@@ -1004,34 +991,34 @@ export default function GlobalEntryPoint() {
                 <button
                   type="button"
                   onClick={startScanner}
-                  className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:border-slate-400 cursor-pointer"
+                  className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#e2e8f0] bg-slate-50 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:border-slate-400 cursor-pointer"
                 >
-                  <QrCode className="size-4 text-[#EA580C]" /> Open live QR camera scanner
+                  <QrCode className="size-4 text-[#00875A]" /> Open live QR camera scanner
                 </button>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7 flex flex-col justify-between">
+              <div className="rounded-2xl border border-[#e2e8f0] bg-[#fff] p-5 shadow-sm sm:p-7 flex flex-col justify-between">
                 <div>
                   <div className="mb-6 flex items-center justify-between">
                     <div>
                       <h2 className="text-lg font-bold text-slate-900">Today's Overview</h2>
-                      <p className="mt-1 text-xs text-slate-500">Real-time stats for your store.</p>
+                      <p className="mt-1 text-xs text-[#64748b]">Real-time stats for your store.</p>
                     </div>
-                    <div className="rounded-lg bg-orange-50 p-2 text-[#EA580C]">
+                    <div className="rounded-lg bg-[#00875A]/10 p-2 text-[#00875A]">
                       <Users className="size-4" />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                      <Users className="mb-4 size-4 text-[#EA580C]" />
+                    <div className="rounded-xl border border-[#e2e8f0] bg-slate-50/70 p-4">
+                      <Users className="mb-4 size-4 text-[#00875A]" />
                       <p className="font-mono text-3xl font-bold text-slate-900">{customersList.length}</p>
-                      <p className="mt-1 text-[11px] font-medium text-slate-500">Total Visits</p>
+                      <p className="mt-1 text-[11px] font-medium text-[#64748b]">Total Visits</p>
                     </div>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                      <WalletCards className="mb-4 size-4 text-emerald-600" />
+                    <div className="rounded-xl border border-[#e2e8f0] bg-slate-50/70 p-4">
+                      <WalletCards className="mb-4 size-4 text-[#00875A]" />
                       <p className="font-mono text-2xl font-bold text-slate-900">Rs. {totalClaimableSum.toFixed(2)}</p>
-                      <p className="mt-1 text-[11px] font-medium text-slate-500">Total Cashback Claimable</p>
+                      <p className="mt-1 text-[11px] font-medium text-[#64748b]">Total Cashback Claimable</p>
                     </div>
                   </div>
                 </div>
@@ -1039,7 +1026,7 @@ export default function GlobalEntryPoint() {
                 <div className="mt-6 border-t border-slate-100 pt-4 text-center">
                   <button
                     onClick={() => setIsProfileOpen(true)}
-                    className="text-xs font-semibold text-[#EA580C] hover:underline flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                    className="text-xs font-semibold text-[#00875A] hover:underline flex items-center justify-center gap-1 mx-auto cursor-pointer"
                   >
                     <Settings2 className="size-3.5" /> Manage Cashback Rules in Profile
                   </button>
@@ -1050,19 +1037,19 @@ export default function GlobalEntryPoint() {
 
           {activeTab === 'offers' && (
             <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+              <div className="rounded-2xl border border-[#e2e8f0] bg-[#fff] p-5 shadow-sm sm:p-7">
                 <div className="mb-6 flex items-start justify-between">
                   <div>
                     <h2 className="text-lg font-bold text-slate-900">Post a store offer</h2>
-                    <p className="mt-1 text-xs text-slate-500">Share a new reason to visit.</p>
+                    <p className="mt-1 text-xs text-[#64748b]">Share a new reason to visit.</p>
                   </div>
-                  <div className="rounded-lg bg-orange-100 p-2 text-[#EA580C]">
+                  <div className="rounded-lg bg-[#00875A]/20 p-2 text-[#00875A]">
                     <Upload className="size-4" />
                   </div>
                 </div>
 
                 {offerStatusMsg && (
-                  <div className={`mb-4 p-3 rounded-xl text-xs font-semibold ${offerStatusMsg.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                  <div className={`mb-4 p-3 rounded-xl text-xs font-semibold ${offerStatusMsg.type === 'success' ? 'bg-[#00875A]/10 text-[#00875A] border border-[#00875A]/30' : 'bg-red-50 text-red-700 border border-red-200'}`}>
                     {offerStatusMsg.text}
                   </div>
                 )}
@@ -1073,7 +1060,7 @@ export default function GlobalEntryPoint() {
                     <input
                       value={offerTitle}
                       onChange={(e) => setOfferTitle(e.target.value)}
-                      className="h-11 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-[#EA580C] focus:bg-white"
+                      className="h-11 rounded-lg border border-[#e2e8f0] bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-[#fff]"
                       placeholder="e.g. Weekend Sale 20%"
                       required
                     />
@@ -1084,7 +1071,7 @@ export default function GlobalEntryPoint() {
                     <input
                       value={offerDesc}
                       onChange={(e) => setOfferDesc(e.target.value)}
-                      className="h-11 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-[#EA580C] focus:bg-white"
+                      className="h-11 rounded-lg border border-[#e2e8f0] bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-[#fff]"
                       placeholder="Optional details"
                     />
                   </label>
@@ -1092,19 +1079,19 @@ export default function GlobalEntryPoint() {
                   <label className="grid gap-2 text-xs font-semibold text-slate-700 w-full min-w-0">
                     Expiry date & time
                     <div className="relative w-full min-w-0">
-                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400 z-10" />
+                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#94a3b8] z-10" />
                       <input
                         type="datetime-local"
                         value={offerExpiry}
                         onChange={(e) => setOfferExpiry(e.target.value)}
-                        className="h-11 w-full max-w-full min-w-0 appearance-none rounded-lg border border-slate-300 bg-slate-50 pl-10 pr-3 text-xs sm:text-sm text-slate-900 outline-none focus:border-[#EA580C] focus:bg-white transition"
+                        className="h-11 w-full max-w-full min-w-0 appearance-none rounded-lg border border-[#e2e8f0] bg-slate-50 pl-10 pr-3 text-xs sm:text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-[#fff] transition"
                         required
                       />
                     </div>
                   </label>
 
-                  <label className="flex h-12 cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 text-xs text-slate-600 hover:border-[#EA580C] hover:bg-orange-50/30">
-                    <Upload className="size-4 text-[#EA580C]" />
+                  <label className="flex h-12 cursor-pointer items-center gap-3 rounded-lg border border-dashed border-[#e2e8f0] bg-slate-50 px-3 text-xs text-[#64748b] hover:border-[#00875A] hover:bg-[#00875A]/10">
+                    <Upload className="size-4 text-[#00875A]" />
                     {offerImage ? offerImage.name : 'Upload poster image'}
                     <input
                       type="file"
@@ -1118,28 +1105,28 @@ export default function GlobalEntryPoint() {
                   <button
                     type="submit"
                     disabled={offerUploading}
-                    className="mt-2 h-11 w-full rounded-lg bg-[#EA580C] hover:bg-[#d64e05] text-xs font-bold text-white shadow-md transition cursor-pointer disabled:opacity-50"
+                    className="mt-2 h-11 w-full rounded-lg bg-[#00875A] hover:bg-[#00704A] text-xs font-bold text-[#fff] shadow-md transition cursor-pointer disabled:opacity-50"
                   >
                     {offerUploading ? 'Uploading...' : 'Publish offer to customers'}
                   </button>
                 </form>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+              <div className="rounded-2xl border border-[#e2e8f0] bg-[#fff] p-5 shadow-sm sm:p-7">
                 <div className="mb-6">
                   <h2 className="text-lg font-bold text-slate-900">Active offers ({offers.length})</h2>
-                  <p className="mt-1 text-xs text-slate-500">Offers currently visible to customers.</p>
+                  <p className="mt-1 text-xs text-[#64748b]">Offers currently visible to customers.</p>
                 </div>
 
                 <div className="space-y-3">
                   {offers.length > 0 ? (
                     offers.map((offer) => (
-                      <div key={offer.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                      <div key={offer.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#e2e8f0] bg-slate-50/70 p-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <img src={offer.image_url} alt={offer.title} className="w-12 h-12 object-cover rounded-lg border border-slate-200" />
+                          <img src={offer.image_url} alt={offer.title} className="w-12 h-12 object-cover rounded-lg border border-[#e2e8f0]" />
                           <div className="min-w-0">
                             <p className="font-semibold text-sm text-slate-900 truncate">{offer.title}</p>
-                            <p className="mt-0.5 text-xs text-slate-500 truncate">
+                            <p className="mt-0.5 text-xs text-[#64748b] truncate">
                               Expires: {new Date(offer.expires_at).toLocaleDateString()}
                             </p>
                           </div>
@@ -1150,7 +1137,7 @@ export default function GlobalEntryPoint() {
                           </span>
                           <button
                             onClick={() => setOfferToDelete(offer.id)}
-                            className="p-1.5 text-slate-400 hover:text-red-600 transition cursor-pointer"
+                            className="p-1.5 text-[#94a3b8] hover:text-red-600 transition cursor-pointer"
                           >
                             <Trash2 className="size-4" />
                           </button>
@@ -1158,7 +1145,7 @@ export default function GlobalEntryPoint() {
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-slate-500 text-center py-6">No active offers available.</p>
+                    <p className="text-xs text-[#64748b] text-center py-6">No active offers available.</p>
                   )}
                 </div>
               </div>
@@ -1167,23 +1154,23 @@ export default function GlobalEntryPoint() {
 
           {activeTab === 'customers' && (
             <section className="max-w-3xl">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+              <div className="rounded-2xl border border-[#e2e8f0] bg-[#fff] p-5 shadow-sm sm:p-7">
                 <div className="mb-6 flex items-start justify-between">
                   <div>
                     <h2 className="text-lg font-bold text-slate-900">Customers directory</h2>
-                    <p className="mt-1 text-xs text-slate-500">Your most recent customer activity.</p>
+                    <p className="mt-1 text-xs text-[#64748b]">Your most recent customer activity.</p>
                   </div>
-                  <span className="rounded-full bg-slate-100 border border-slate-200 px-2.5 py-1 font-mono text-[10px] text-slate-600">
+                  <span className="rounded-full bg-slate-100 border border-[#e2e8f0] px-2.5 py-1 font-mono text-[10px] text-[#64748b]">
                     {filteredCustomers.length} customers
                   </span>
                 </div>
 
                 <div className="relative mb-4">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#94a3b8]" />
                   <input
                     value={customerSearchQuery}
                     onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                    className="h-11 w-full rounded-lg border border-slate-300 bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-[#EA580C] focus:bg-white font-mono"
+                    className="h-11 w-full rounded-lg border border-[#e2e8f0] bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-[#fff] font-mono"
                     placeholder="Search customer by phone number..."
                   />
                 </div>
@@ -1191,24 +1178,24 @@ export default function GlobalEntryPoint() {
                 <div className="space-y-3">
                   {filteredCustomers.length > 0 ? (
                     filteredCustomers.map((cust) => (
-                      <div key={cust.id} className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:flex-row sm:items-center">
+                      <div key={cust.id} className="flex flex-col justify-between gap-4 rounded-xl border border-[#e2e8f0] bg-slate-50/70 p-4 sm:flex-row sm:items-center">
                         <div>
                           <p className="font-mono text-sm font-bold text-slate-900">{cust.customer_phone}</p>
-                          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#64748b]">
                             <span>Visits: <strong className="font-bold text-slate-900">{cust.visit_count} / {targetVisits}</strong></span>
                             <span>Cashback: <strong className="font-bold text-slate-900">Rs. {cust.claimable_amount}</strong></span>
                           </div>
                         </div>
                         <span className={`flex items-center gap-1.5 self-start rounded-full border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider sm:self-auto ${
-                          cust.status === 'REDEEMED' ? 'border-slate-300 bg-slate-200 text-slate-700' : 'border-amber-300 bg-amber-50 text-amber-700'
+                          cust.status === 'REDEEMED' ? 'border-slate-300 bg-slate-200 text-slate-700' : 'border-[#00875A]/30 bg-[#00875A]/10 text-[#00875A]'
                         }`}>
-                          <span className={`size-1.5 rounded-full ${cust.status === 'REDEEMED' ? 'bg-slate-500' : 'bg-amber-500'}`} />
+                          <span className={`size-1.5 rounded-full ${cust.status === 'REDEEMED' ? 'bg-slate-500' : 'bg-[#00875A]'}`} />
                           {cust.status}
                         </span>
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-slate-500 text-center py-6">No matching customers found.</p>
+                    <p className="text-xs text-[#64748b] text-center py-6">No matching customers found.</p>
                   )}
                 </div>
               </div>
@@ -1219,7 +1206,7 @@ export default function GlobalEntryPoint() {
 
         {isScanning && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-5" role="dialog" aria-modal="true">
-            <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl space-y-4">
+            <div className="w-full max-w-sm rounded-2xl border border-[#e2e8f0] bg-[#fff] p-6 text-center shadow-2xl space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="font-bold text-sm text-slate-900">Live QR Scanner</h2>
                 <button
@@ -1227,38 +1214,38 @@ export default function GlobalEntryPoint() {
                     await stopScannerInstance()
                     setIsScanning(false)
                   }}
-                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+                  className="rounded-lg p-2 text-[#94a3b8] hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
                   type="button"
                 >
                   <X className="size-4" />
                 </button>
               </div>
 
-              <div id="reader" className="w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-900"></div>
+              <div id="reader" className="w-full overflow-hidden rounded-xl border border-[#e2e8f0] bg-slate-900"></div>
 
               {scannedClaimData ? (
-                <div className="p-3 bg-slate-50 rounded-xl border border-emerald-300 text-xs space-y-2 text-left">
-                  <div className="flex justify-between text-[11px] text-emerald-700 font-bold">
+                <div className="p-3 bg-slate-50 rounded-xl border border-[#00875A]/30 text-xs space-y-2 text-left">
+                  <div className="flex justify-between text-[11px] text-[#00875A] font-bold">
                     <span><CheckCircle2 className="inline size-3.5 mr-1" /> QR Verified</span>
                     <span>{scannedClaimData.visit_count} / {targetVisits} Visits</span>
                   </div>
-                  <p className="text-slate-600">Phone: <span className="font-mono text-slate-900 font-semibold">{scannedClaimData.customer_phone}</span></p>
-                  <p className="text-slate-600">Reward Balance: <span className="font-bold text-[#EA580C]">Rs. {scannedClaimData.claimable_amount}</span></p>
+                  <p className="text-[#64748b]">Phone: <span className="font-mono text-slate-900 font-semibold">{scannedClaimData.customer_phone}</span></p>
+                  <p className="text-[#64748b]">Reward Balance: <span className="font-bold text-[#00875A]">Rs. {scannedClaimData.claimable_amount}</span></p>
 
                   {Number(scannedClaimData.claimable_amount) > 0 ? (
                     <button
                       onClick={() => setShowRedeemConfirmModal(true)}
                       disabled={actionLoading}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs mt-2 transition cursor-pointer shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      className="w-full bg-[#00875A] hover:bg-[#00704A] text-[#fff] font-bold py-2.5 rounded-xl text-xs mt-2 transition cursor-pointer shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
                     >
                       🎁 Redeem Reward & Clear Cashback
                     </button>
                   ) : (
-                    <p className="text-slate-500 text-[11px] italic">Reward balance is 0 for this customer.</p>
+                    <p className="text-[#94a3b8] text-[11px] italic">Reward balance is 0 for this customer.</p>
                   )}
                 </div>
               ) : (
-                <p className="text-xs text-slate-500">Point your camera at the customer's Retcash QR code.</p>
+                <p className="text-xs text-[#64748b]">Point your camera at the customer's Retcash QR code.</p>
               )}
             </div>
           </div>
@@ -1269,19 +1256,19 @@ export default function GlobalEntryPoint() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F1F5F9] text-slate-900 flex flex-col items-center justify-center p-4 font-sans selection:bg-[#EA580C] selection:text-white">
-      <div className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl p-6 shadow-xl space-y-6">
+    <div className="min-h-screen bg-[#F1F5F9] text-slate-900 flex flex-col items-center justify-center p-4 font-sans selection:bg-[#00875A] selection:text-[#fff]">
+      <div className="w-full max-w-sm bg-[#fff] border border-[#e2e8f0] rounded-3xl p-6 shadow-xl space-y-6">
         <div className="text-center space-y-2">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-[#EA580C] text-white mx-auto shadow-md">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-[#00875A] text-[#fff] mx-auto shadow-md">
             <WalletCards className="size-6" />
           </div>
-          <h1 className="text-2xl font-black text-[#EA580C] tracking-wider uppercase">RETCASH</h1>
-          <p className="text-xs text-slate-500">Enter your store mobile number to continue</p>
+          <h1 className="text-2xl font-black text-[#00875A] tracking-wider uppercase">RETCASH</h1>
+          <p className="text-xs text-[#64748b]">Enter your store mobile number to continue</p>
         </div>
 
         <form onSubmit={handleCheckUser} className="space-y-4">
           <div>
-            <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1">
+            <label className="text-[10px] text-[#64748b] font-bold block uppercase mb-1">
               Mobile Number
             </label>
             <input
@@ -1289,7 +1276,7 @@ export default function GlobalEntryPoint() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="e.g. 0771234567"
-              className="w-full bg-slate-50 border border-slate-300 focus:border-[#EA580C] focus:bg-white rounded-xl px-3 py-3 text-sm text-slate-900 outline-none font-mono transition"
+              className="w-full bg-slate-50 border border-[#e2e8f0] focus:border-[#00875A] focus:bg-[#fff] rounded-xl px-3 py-3 text-sm text-slate-900 outline-none font-mono transition"
               required
             />
           </div>
@@ -1299,12 +1286,13 @@ export default function GlobalEntryPoint() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#EA580C] hover:bg-[#d64e05] text-white font-bold py-3 rounded-xl text-sm transition shadow-md active:scale-95 flex items-center justify-center cursor-pointer"
+            className="w-full bg-[#00875A] hover:bg-[#00704A] text-[#fff] font-bold py-3 rounded-xl text-sm transition shadow-md active:scale-95 flex items-center justify-center cursor-pointer"
           >
-            {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'CONTINUE →'}
+            {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-[#fff]"></div> : 'CONTINUE →'}
           </button>
         </form>
       </div>
     </div>
   )
 }
+
