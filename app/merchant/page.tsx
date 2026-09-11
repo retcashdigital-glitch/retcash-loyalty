@@ -807,8 +807,17 @@ export default function App() {
               
               <div className="bg-[#00875A] text-white p-5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-xs">
-                    <Store className="size-5" />
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-xs overflow-hidden">
+                    <img
+                      src="/logo.png"
+                      alt="Logo"
+                      className="size-7 object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                      }}
+                    />
+                    <Store className="size-5 hidden" />
                   </div>
                   <div>
                     <h3 className="font-bold text-sm text-white">{merchantSession.store_name}</h3>
@@ -925,8 +934,17 @@ export default function App() {
         <header className="border-b border-emerald-800/20 bg-gradient-to-r from-[#00875A] via-[#059669] to-[#0d9488] text-white sticky top-0 z-40 shadow-md">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-5 lg:px-8">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-white/20 border border-white/30 backdrop-blur-xs text-white shadow-xs">
-                <WalletCards className="size-5" />
+              <div className="flex size-9 items-center justify-center rounded-xl bg-white/20 border border-white/30 backdrop-blur-xs text-white shadow-xs overflow-hidden">
+                <img
+                  src="/logo.png"
+                  alt="RETCASH Logo"
+                  className="size-6 object-contain"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                  }}
+                />
+                <WalletCards className="size-5 hidden" />
               </div>
               <div>
                 <p className="font-mono text-[13px] font-extrabold text-white">{merchantSession.store_name}</p>
@@ -1369,8 +1387,17 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col items-center justify-center p-4 font-sans selection:bg-[#00875A] selection:text-white">
       <div className="w-full max-w-sm bg-white border border-slate-100 rounded-3xl p-6 shadow-xl space-y-6">
         <div className="text-center space-y-2">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-[#00875A] text-white mx-auto shadow-md shadow-[#00875A]/20">
-            <WalletCards className="size-6" />
+          <div className="flex size-16 items-center justify-center rounded-2xl bg-[#00875A]/10 border border-[#00875A]/20 mx-auto p-2">
+            <img
+              src="/logo.png"
+              alt="RETCASH Logo"
+              className="size-12 object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+                e.currentTarget.nextElementSibling?.classList.remove('hidden')
+              }}
+            />
+            <WalletCards className="size-8 text-[#00875A] hidden" />
           </div>
           <h1 className="text-2xl font-black text-[#00875A] tracking-wider uppercase">RETCASH</h1>
           <p className="text-xs text-slate-500">Enter your store mobile number to continue</p>
