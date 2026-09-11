@@ -19,8 +19,7 @@ import {
   ShoppingBag,
   Copy,
   Check,
-  Sparkles,
-  History
+  Sparkles
 } from 'lucide-react'
 
 // ─── Types & Dynamic Helper Visuals ───────────────────────────────────────────
@@ -87,13 +86,8 @@ export default function CustomerWalletPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [navigatingStoreId, setNavigatingStoreId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  
-  // History Modal State
-  const [showHistoryModal, setShowHistoryModal] = useState(false)
-  const [selectedStoreHistory, setSelectedStoreHistory] = useState<any[]>([])
-  const [selectedStoreName, setSelectedStoreName] = useState('')
-
   const [, startTransition] = useTransition()
+
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -209,7 +203,7 @@ export default function CustomerWalletPage() {
         .from('cashback_claims')
         .select('*')
         .or(`customer_phone.eq.${phone},customer_phone.eq.${phoneWithZero}`)
-        .order('created_at', { ascending: true })
+        .order('updated_at', { ascending: false })
 
       if (claimsError) throw claimsError
 
@@ -232,12 +226,11 @@ export default function CustomerWalletPage() {
       if (storeError) throw storeError
 
       const mergedStores = userStores?.map((store: any) => {
-        // Store claims ordered chronologically for accurate visit sequence computation
         const storeClaims = claimsData?.filter(
           (claim: any) => String(claim.store_id) === String(store.id)
         ) || []
 
-        const latestClaim = storeClaims[storeClaims.length - 1] || null
+        const latestClaim = storeClaims[0] || null
 
         const isRedeemed = latestClaim
           ? (latestClaim.status === 'REDEEMED' || Number(latestClaim.claimable_amount || 0) <= 0)
@@ -255,12 +248,6 @@ export default function CustomerWalletPage() {
           return Math.max(max, Number(claim.visit_count) || 1)
         }, storeClaims.length > 0 ? storeClaims.length : 0)
 
-        // Process chronological Visit # for History Modal
-        const historyWithVisitNumbers = storeClaims.map((claim: any, index: number) => ({
-          ...claim,
-          calculatedVisitNo: claim.visit_count ? Number(claim.visit_count) : index + 1
-        })).reverse() // Show newest first in history modal
-
         let storeTarget = Number(store.target_visits) || 6
 
         router.prefetch(`/card/${store.id}?phone=${phone}`)
@@ -271,8 +258,7 @@ export default function CustomerWalletPage() {
           cashbackAmount: cashbackAmount,
           isRedeemed: isRedeemed,
           visits: visitCount,
-          targetVisits: storeTarget,
-          rawClaimsHistory: historyWithVisitNumbers
+          targetVisits: storeTarget
         }
       }) || []
 
@@ -321,13 +307,6 @@ export default function CustomerWalletPage() {
     startTransition(() => {
       router.push(`/card/${storeId}?phone=${phone}`)
     })
-  }
-
-  const openHistoryModal = (e: React.MouseEvent, store: any) => {
-    e.stopPropagation()
-    setSelectedStoreName(store.store_name)
-    setSelectedStoreHistory(store.rawClaimsHistory || [])
-    setShowHistoryModal(true)
   }
 
   const handleLogout = () => {
@@ -617,47 +596,46 @@ export default function CustomerWalletPage() {
 
                           {/* Main Content Area */}
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start justify-between gap-3">
                               
-                              {/* 1. Store Title & See All Button */}
+                              {/* 1. Store Title & Category with Strict Truncation (Ellipsis) */}
                               <div className="min-w-0 flex-1">
                                 <h3 className="text-sm font-bold text-slate-800 leading-snug truncate" title={store.store_name}>
                                   {store.store_name} {isThisNavigating && '(Opening...)'}
                                 </h3>
 
-                                <div className="flex items-center gap-2 mt-1">
-                                  {hasValidCategory && (
+                                {hasValidCategory && (
+                                  <div className="flex items-center gap-1.5 mt-0.5">
                                     <span
                                       className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize inline-block truncate max-w-full"
                                       style={{ background: style.bgColor, color: style.color }}
                                     >
                                       {store.category}
                                     </span>
-                                  )}
-
-                                  <button
-                                    onClick={(e) => openHistoryModal(e, store)}
-                                    className="flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-[#00875A] text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200/60 transition cursor-pointer"
-                                  >
-                                    <History size={10} />
-                                    <span>SEE ALL</span>
-                                  </button>
-                                </div>
+                                  </div>
+                                )}
                               </div>
 
-                              {/* 2. Modified Cashback Display: Strikethrough Ash Color when REDEEMED */}
+                              {/* 2. Refined Cashback Label & Strikethrough Amount Display */}
                               <div className="text-right flex-shrink-0">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                  LATEST CASHBACK
-                                </p>
                                 {store.isRedeemed ? (
-                                  <p className="text-sm font-bold text-slate-400 line-through leading-tight mt-0.5">
-                                    Rs. {Number(store.cashbackAmount || 0).toFixed(2)}
-                                  </p>
+                                  <div>
+                                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">
+                                      REDEEMED
+                                    </p>
+                                    <p className="text-sm font-bold text-slate-400 line-through leading-tight mt-0.5">
+                                      Rs. {Number(store.cashbackAmount || 0).toFixed(2)}
+                                    </p>
+                                  </div>
                                 ) : (
-                                  <p className="text-sm font-extrabold text-[#00875A] leading-tight mt-0.5">
-                                    Rs. {Number(store.balance).toFixed(2)}
-                                  </p>
+                                  <div>
+                                    <p className="text-[10px] text-slate-700 font-black uppercase tracking-wider">
+                                      CASHBACK
+                                    </p>
+                                    <p className="text-sm font-extrabold text-[#00875A] leading-tight mt-0.5">
+                                      Rs. {Number(store.balance).toFixed(2)}
+                                    </p>
+                                  </div>
                                 )}
                               </div>
 
@@ -844,77 +822,6 @@ export default function CustomerWalletPage() {
             })}
           </div>
         </nav>
-
-        {/* ── Visit & Cashback History Modal (Dynamic Sequential Visit Numbers) ── */}
-        {showHistoryModal && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl relative max-h-[80vh] flex flex-col">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-emerald-50 text-[#00875A] flex items-center justify-center">
-                    <History size={16} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black text-slate-800">Visit & Cashback History</h3>
-                    <p className="text-[11px] text-slate-400 font-bold">{selectedStoreName}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowHistoryModal(false)}
-                  className="text-slate-400 hover:text-slate-600 bg-slate-100 p-1.5 rounded-full transition"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="overflow-y-auto space-y-2.5 flex-1 pr-1">
-                {selectedStoreHistory.length === 0 ? (
-                  <p className="text-xs text-center py-8 text-slate-400 font-bold">No history available</p>
-                ) : (
-                  selectedStoreHistory.map((item) => (
-                    <div
-                      key={item.id || Math.random()}
-                      className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex items-center justify-between"
-                    >
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-black text-slate-800">
-                            Visit #{item.calculatedVisitNo}
-                          </span>
-                          {item.bill_amount && (
-                            <span className="text-[10px] text-slate-400 font-medium">
-                              (Bill: Rs. {Number(item.bill_amount).toFixed(2)})
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                          {item.created_at
-                            ? new Date(item.created_at).toLocaleString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                            : 'Recently'}
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-xs font-black text-[#00875A]">
-                          + Rs. {Number(item.cashback_amount || 0).toFixed(2)}
-                        </span>
-                        <span className="block text-[9px] font-black uppercase text-emerald-600 bg-emerald-100/60 px-2 py-0.5 rounded-full mt-0.5">
-                          {item.status || 'EARNED'}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Image Modal */}
         {selectedImage && (
