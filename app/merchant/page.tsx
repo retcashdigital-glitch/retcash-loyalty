@@ -511,9 +511,7 @@ export default function GlobalEntryPoint() {
     }
   }
 
-  // -------------------------------------------------------------
-  // 🔥 திருத்தப்பட்ட CASHBACK GENERATION & HISTORY LOGGING FUNCTION
-  // -------------------------------------------------------------
+  // CASHBACK GENERATION & HISTORY LOGGING FUNCTION
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -535,7 +533,7 @@ export default function GlobalEntryPoint() {
         return
       }
 
-      // 1. வாடிக்கையாளரின் தற்போதைய Cashback Status-ஐச் சோதித்தல்
+      // 1. Check existing cashback claim status
       const { data: existingClaims } = await supabase
         .from('cashback_claims')
         .select('id, visit_count, claimable_amount, status')
@@ -576,7 +574,7 @@ export default function GlobalEntryPoint() {
         payload.id = claimId
       }
 
-      // 2. cashback_claims டேபிளில் Upsert செய்தல்
+      // 2. Upsert to cashback_claims table
       const { data: upsertedData, error: upsertError } = await supabase
         .from('cashback_claims')
         .upsert(payload, { onConflict: 'store_id, customer_phone' })
@@ -592,7 +590,7 @@ export default function GlobalEntryPoint() {
         claimId = upsertedData.id
       }
 
-      // 3. 🔥 CASHBACK HISTORY TABLE-ல் டேட்டாவைத் துல்லியமாகச் சேமித்தல்
+      // 3. Insert record into cashback_history table
       try {
         const { error: historyError } = await supabase
           .from('cashback_history')
@@ -610,11 +608,11 @@ export default function GlobalEntryPoint() {
           console.error('History logging error detail:', historyError)
           showToast('error', 'Claim updated, but history log failed: ' + historyError.message)
         }
-      } catch (hErr: any) {
+      } catch (hErr: unknown) {
         console.error('History exception:', hErr)
       }
 
-      // 4. WhatsApp செய்தி தயார் செய்து அனுப்புதல்
+      // 4. Send notification via WhatsApp
       const baseUrl = window.location.origin
       const cardLink = `${baseUrl}/card/${claimId}`
       const storeName = merchantSession?.store_name || 'RETCASH Partner'
