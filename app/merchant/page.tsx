@@ -21,7 +21,8 @@ import {
   CheckCircle2,
   Percent,
   User,
-  Store
+  Store,
+  Gift
 } from 'lucide-react'
 
 interface MerchantSession {
@@ -65,6 +66,11 @@ export default function App() {
   const [customerPhone, setCustomerPhone] = useState('')
   const [billAmount, setBillAmount] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+
+  // IN-BILL REDEMPTION STATES
+  const [existingCustomerClaim, setExistingCustomerClaim] = useState<CashbackClaim | null>(null)
+  const [redeemInBill, setRedeemInBill] = useState(false)
+  const [isCheckingCustomer, setIsCheckingCustomer] = useState(false)
 
   // Navigation Tab State
   const [activeTab, setActiveTab] = useState<Tab>('billing')
@@ -164,6 +170,42 @@ export default function App() {
       stopScannerInstance()
     }
   }, [])
+
+  // CHECK CUSTOMER CASHBACK ON PHONE CHANGE
+  useEffect(() => {
+    const cleanPhone = customerPhone.replace(/\D/g, '')
+    if (cleanPhone.length >= 8 && merchantSession?.id) {
+      const formatted = formatPhoneNumber(customerPhone)
+      checkCustomerExistingClaim(formatted)
+    } else {
+      setExistingCustomerClaim(null)
+      setRedeemInBill(false)
+    }
+  }, [customerPhone, merchantSession?.id])
+
+  const checkCustomerExistingClaim = async (phoneNum: string) => {
+    if (!merchantSession?.id) return
+    setIsCheckingCustomer(true)
+    try {
+      const { data } = await supabase
+        .from('cashback_claims')
+        .select('*')
+        .eq('store_id', merchantSession.id)
+        .eq('customer_phone', phoneNum)
+        .maybeSingle()
+
+      if (data && Number(data.claimable_amount) > 0) {
+        setExistingCustomerClaim(data)
+      } else {
+        setExistingCustomerClaim(null)
+        setRedeemInBill(false)
+      }
+    } catch (err) {
+      console.error('Error fetching customer balance:', err)
+    } finally {
+      setIsCheckingCustomer(false)
+    }
+  }
 
   const fetchStoreOffers = async (storeId: string) => {
     try {
@@ -518,9 +560,7 @@ export default function App() {
       const cashbackPercentage = merchantSession?.default_cashback_percent || 5
       const targetVisits = Math.min(merchantSession?.target_visits || 6, 10)
 
-      const billNum = parseFloat(billAmount)
-      const cashbackAmount = Math.round(((billNum * cashbackPercentage) / 100) * 100) / 100
-
+      const initialBillNum = parseFloat(billAmount)
       const cleanCustPhone = formatPhoneNumber(customerPhone)
       const storeId = merchantSession?.id
 
@@ -530,23 +570,33 @@ export default function App() {
         return
       }
 
-      const { data: existingClaims } = await supabase
-        .from('cashback_claims')
-        .select('id, visit_count, claimable_amount, status')
-        .eq('store_id', storeId)
-        .eq('customer_phone', cleanCustPhone)
-        .neq('status', 'REDEEMED')
-        .maybeSingle()
+      // 1. Existing Cashback Info
+      const existingAmount = existingCustomerClaim ? Number(existingCustomerClaim.claimable_amount || 0) : 0
+      
+      // Calculate Discount & Final Bill
+      let redeemedAmount = 0
+      let finalBillToPay = initialBillNum
 
+      if (redeemInBill && existingAmount > 0) {
+        redeemedAmount = Math.min(initialBillNum, existingAmount)
+        finalBillToPay = Math.max(0, initialBillNum - redeemedAmount)
+      }
+
+      // Calculate new cashback based on the final bill paid
+      const cashbackAmount = Math.round(((finalBillToPay * cashbackPercentage) / 100) * 100) / 100
+
+      // Calculate new balance
       let newVisitCount = 1
       let totalClaimable = cashbackAmount
-      let claimId: string | undefined = undefined
+      let claimId: string | undefined = existingCustomerClaim?.id
 
-      if (existingClaims) {
-        const currentVisits = existingClaims.visit_count || 1
+      if (existingCustomerClaim) {
+        const currentVisits = existingCustomerClaim.visit_count || 1
         newVisitCount = currentVisits >= targetVisits ? targetVisits : currentVisits + 1
-        totalClaimable = Math.round((Number(existingClaims.claimable_amount || 0) + cashbackAmount) * 100) / 100
-        claimId = existingClaims.id
+        
+        // Remaining after discount + new cashback
+        const remainingAfterRedeem = existingAmount - redeemedAmount
+        totalClaimable = Math.round((remainingAfterRedeem + cashbackAmount) * 100) / 100
       }
 
       interface Payload {
@@ -587,6 +637,7 @@ export default function App() {
         claimId = upsertedData.id
       }
 
+      // 2. History Log
       try {
         const { error: historyError } = await supabase
           .from('cashback_history')
@@ -595,16 +646,15 @@ export default function App() {
             store_id: storeId,
             customer_phone: cleanCustPhone,
             visit_count: newVisitCount,
-            bill_amount: billNum,
+            bill_amount: initialBillNum,
             cashback_percentage: cashbackPercentage,
             cashback_amount: cashbackAmount,
-            transaction_type: 'BILL_ADDED',
+            transaction_type: redeemedAmount > 0 ? 'REDEEMED_IN_BILL' : 'BILL_ADDED',
             status: claimStatus
           })
 
         if (historyError) {
           console.error('History logging error detail:', historyError)
-          showToast('error', 'Claim updated, but history log failed: ' + historyError.message)
         }
       } catch (hErr: unknown) {
         console.error('History exception:', hErr)
@@ -614,10 +664,17 @@ export default function App() {
       const cardLink = `${baseUrl}/card/${claimId}`
       const storeName = merchantSession?.store_name || 'RETCASH Partner'
 
-      const message = `🎉 *Retcash Rewards - ${storeName}*\n\n` +
+      // Construct WhatsApp Message
+      let message = `🎉 *Retcash Rewards - ${storeName}*\n\n` +
         `உங்களின் வருகை வெற்றிகரமாகப் பதிவு செய்யப்பட்டுள்ளது! 📍\n\n` +
-        `🛍️ பில் தொகை: *Rs. ${billNum}*\n` +
-        `💰 பெற்ற காஷ்பேக் (${cashbackPercentage}%): *Rs. ${cashbackAmount}*\n` +
+        `🛍️ மொத்த பில் தொகை: *Rs. ${initialBillNum}*\n`
+
+      if (redeemedAmount > 0) {
+        message += `🎁 பயன்படுத்திய காஷ்பேக்: *- Rs. ${redeemedAmount}*\n` +
+          `💵 செலுத்திய நிகர தொகை: *Rs. ${finalBillToPay}*\n`
+      }
+
+      message += `💰 பெற்ற புதிய காஷ்பேக் (${cashbackPercentage}%): *Rs. ${cashbackAmount}*\n` +
         `⭐ வருகை எண்ணிக்கை (Visits): *${newVisitCount} / ${targetVisits}*\n\n` +
         `🎁 தற்போதைய மொத்த காஷ்பேக் இருப்பு (Balance): *Rs. ${totalClaimable}*\n\n` +
         `✨ தொடர்ந்து வருகை தந்து உங்களின் பிரத்யேக வெகுமதிகளைப் பெறுங்கள்!\n\n` +
@@ -627,6 +684,8 @@ export default function App() {
 
       setCustomerPhone('')
       setBillAmount('')
+      setExistingCustomerClaim(null)
+      setRedeemInBill(false)
       fetchStoreCustomers(storeId)
 
       const opened = window.open(whatsappUrl, '_blank')
@@ -661,6 +720,12 @@ export default function App() {
     const targetVisits = Math.min(merchantSession?.target_visits || 6, 10)
     const filteredCustomers = customersList.filter(c => c.customer_phone.includes(customerSearchQuery))
     const totalClaimableSum = customersList.reduce((acc, curr) => acc + Number(curr.claimable_amount || 0), 0)
+
+    // Dynamic calculations for previewing current bill reduction
+    const billNum = parseFloat(billAmount) || 0
+    const currentClaimable = existingCustomerClaim ? Number(existingCustomerClaim.claimable_amount || 0) : 0
+    const actualRedeemAmount = (redeemInBill && currentClaimable > 0) ? Math.min(billNum, currentClaimable) : 0
+    const finalToPay = Math.max(0, billNum - actualRedeemAmount)
 
     return (
       <div className="min-h-screen bg-slate-100 text-slate-800 font-sans selection:bg-[#00875A] selection:text-white">
@@ -976,6 +1041,51 @@ export default function App() {
                       />
                     </label>
                   </div>
+
+                  {/* IN-BILL REDEMPTION SECTION */}
+                  {isCheckingCustomer && (
+                    <p className="text-xs text-slate-400 animate-pulse">Checking customer balance...</p>
+                  )}
+
+                  {existingCustomerClaim && currentClaimable > 0 && (
+                    <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Gift className="size-4 text-amber-600" />
+                          <span className="text-xs font-extrabold text-amber-900">
+                            Available Cashback: <span className="font-mono text-amber-700">Rs. {currentClaimable}</span>
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={redeemInBill}
+                            onChange={(e) => setRedeemInBill(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00875A]"></div>
+                          <span className="ml-2 text-xs font-bold text-slate-700">Redeem in Bill</span>
+                        </label>
+                      </div>
+
+                      {redeemInBill && billNum > 0 && (
+                        <div className="pt-2 border-t border-amber-200/60 text-xs space-y-1 font-mono text-slate-600">
+                          <div className="flex justify-between">
+                            <span>Original Bill:</span>
+                            <span>Rs. {billNum.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-amber-700 font-bold">
+                            <span>Cashback Discount:</span>
+                            <span>- Rs. {actualRedeemAmount.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-900 font-black pt-1 border-t border-amber-200">
+                            <span>Net Bill To Pay:</span>
+                            <span className="text-[#00875A]">Rs. {finalToPay.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <button
                     type="submit"
