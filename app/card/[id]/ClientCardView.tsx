@@ -149,7 +149,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
         }
     }, [id])
 
-    // UPDATED: Fetch Full Customer Cashback History from cashback_history table
+    // Fetch Full Customer Cashback History from cashback_history table
     const fetchHistory = async () => {
         const storeId = claimData?.stores?.id || claimData?.store_id;
         const phone = claimData?.customer_phone;
@@ -335,7 +335,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                             <div className="shrink-0 text-right">
                                 {isRedeemed ? (
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-slate-500 text-xs font-extrabold">
+                                        <span className="text-slate-400 text-xs font-extrabold line-through decoration-slate-400">
                                             Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
                                         </span>
                                         <span className="text-[9px] font-extrabold text-slate-500 bg-slate-200/80 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
@@ -444,7 +444,7 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                 </div>
             </div>
 
-            {/* UPDATED: CASHBACK & VISIT HISTORY MODAL (Shows actual transaction history from DB) */}
+            {/* CASHBACK & VISIT HISTORY MODAL */}
             {showHistoryModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
                     <div className="bg-white w-full max-w-[430px] rounded-t-3xl sm:rounded-3xl max-h-[80vh] flex flex-col p-5 shadow-2xl">
@@ -472,33 +472,38 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                             ) : history.length === 0 ? (
                                 <div className="text-center py-8 text-xs text-slate-400 font-medium">No prior transactions found.</div>
                             ) : (
-                                history.map((item) => (
-                                    <div key={item.id} className="bg-slate-50 border border-slate-100/80 rounded-2xl p-3 flex justify-between items-center text-xs">
-                                        <div>
-                                            <div className="font-extrabold text-slate-700">
-                                                Visit #{item.visit_number || 1} 
-                                                <span className="text-[10px] text-slate-400 font-semibold ml-2">(Bill: Rs. {Number(item.bill_amount || 0).toFixed(2)})</span>
+                                history.map((item, index) => {
+                                    // Calculate visit number dynamically based on total history count
+                                    const calculatedVisitNum = item.visit_number || (history.length - index);
+                                    
+                                    return (
+                                        <div key={item.id} className="bg-slate-50 border border-slate-100/80 rounded-2xl p-3 flex justify-between items-center text-xs">
+                                            <div>
+                                                <div className="font-extrabold text-slate-700">
+                                                    Visit #{calculatedVisitNum} 
+                                                    <span className="text-[10px] text-slate-400 font-semibold ml-2">(Bill: Rs. {Number(item.bill_amount || 0).toFixed(2)})</span>
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                                    {new Date(item.created_at).toLocaleDateString('en-US', {
+                                                        day: 'numeric',
+                                                        month: 'short',
+                                                        year: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                                </div>
                                             </div>
-                                            <div className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                                {new Date(item.created_at).toLocaleDateString('en-US', {
-                                                    day: 'numeric',
-                                                    month: 'short',
-                                                    year: 'numeric',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
+                                            <div className="text-right">
+                                                <div className="font-extrabold text-[#00875A]">
+                                                    + Rs. {Number(item.cashback_amount || 0).toFixed(2)}
+                                                </div>
+                                                <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-0.5 bg-emerald-100 text-[#00875A]">
+                                                    Earned
+                                                </span>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="font-extrabold text-[#00875A]">
-                                                + Rs. {Number(item.cashback_amount || 0).toFixed(2)}
-                                            </div>
-                                            <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-0.5 bg-emerald-100 text-[#00875A]">
-                                                Earned
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
                     </div>
