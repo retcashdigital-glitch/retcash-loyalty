@@ -511,7 +511,7 @@ export default function GlobalEntryPoint() {
     }
   }
 
-  // CASHBACK GENERATION & HISTORY LOGGING FUNCTION
+  // CASHBACK GENERATION & HISTORY LOGGING FUNCTION (UPDATED)
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -562,12 +562,14 @@ export default function GlobalEntryPoint() {
         status: string
       }
 
+      const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
+
       const payload: Payload = {
         store_id: storeId,
         customer_phone: cleanCustPhone,
         claimable_amount: totalClaimable,
         visit_count: newVisitCount,
-        status: newVisitCount >= targetVisits ? 'READY' : 'PENDING',
+        status: claimStatus,
       }
 
       if (claimId) {
@@ -590,18 +592,20 @@ export default function GlobalEntryPoint() {
         claimId = upsertedData.id
       }
 
-      // 3. Insert record into cashback_history table
+      // 3. Insert record into cashback_history table (UPDATED MATCHING EXACT SUPABASE COLUMNS)
       try {
         const { error: historyError } = await supabase
           .from('cashback_history')
           .insert({
+            claim_id: claimId,
             store_id: storeId,
             customer_phone: cleanCustPhone,
+            visit_count: newVisitCount,
             bill_amount: billNum,
+            cashback_percentage: cashbackPercentage,
             cashback_amount: cashbackAmount,
-            visit_number: newVisitCount,
-            type: 'BILL_ADDED',
-            description: `Bill Amount: Rs. ${billNum} | Cashback Earned: Rs. ${cashbackAmount}`
+            transaction_type: 'BILL_ADDED',
+            status: claimStatus
           })
 
         if (historyError) {
