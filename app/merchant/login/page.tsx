@@ -19,14 +19,21 @@ function LoginForm() {
     const [errorMsg, setErrorMsg] = useState('')
     const [successMsg, setSuccessMsg] = useState('')
 
+    // 🔄 ஏற்கனவே லாகின் செய்திருந்தால் நேரடியாக Dashboard-க்கு அனுப்பும் Auto-Redirect Logic
     useEffect(() => {
+        const savedMerchant = localStorage.getItem('retcash_merchant')
+        if (savedMerchant) {
+            router.push('/merchant/dashboard')
+            return
+        }
+
         if (phoneFromUrl) {
             setPhone(phoneFromUrl)
         }
         if (isRegistered) {
             setSuccessMsg('Registration Successful! Please login with your password.')
         }
-    }, [phoneFromUrl, isRegistered])
+    }, [phoneFromUrl, isRegistered, router])
 
     // 📱 ஸ்ரீலங்கா போன் நம்பரைச் சீர்படுத்தும் செயல்பாடு (Format Phone Number)
     const formatPhoneNumber = (input: string) => {
@@ -81,9 +88,11 @@ function LoginForm() {
                 return
             }
 
-            // 3. வெற்றி -> Dashboard-க்கு அனுப்புதல்
+            // 3. வெற்றி -> LocalStorage-இல் சேமித்து Dashboard-க்கு அனுப்புதல்
             localStorage.setItem('retcash_merchant', JSON.stringify(store))
-            router.push('/merchant')
+            
+            // 🎯 முக்கிய மாற்றம்: /merchant க்குப் பதிலாக /merchant/dashboard க்கு மாற்றப்பட்டுள்ளது
+            router.push('/merchant/dashboard')
         } catch (err: any) {
             setErrorMsg('Login failed. Please try again.')
         } finally {
