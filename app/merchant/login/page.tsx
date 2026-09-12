@@ -88,10 +88,18 @@ function LoginForm() {
                 return
             }
 
-            // 3. வெற்றி -> LocalStorage-இல் சேமித்து Dashboard-க்கு அனுப்புதல்
-            localStorage.setItem('retcash_merchant', JSON.stringify(store))
+            // 3. வெற்றி -> உணர்திறன் மிக்க தகவல்களை (password_hash) நீக்கிவிட்டு பாதுகாப்பாக LocalStorage-இல் சேமித்தல்
+            const safeMerchantSession = {
+                id: store.id,
+                store_name: store.store_name,
+                phone_number: store.phone_number,
+                default_cashback_percent: store.default_cashback_percent ?? 5,
+                target_visits: store.target_visits ?? 6
+            }
             
-            // 🎯 முக்கிய மாற்றம்: /merchant க்குப் பதிலாக /merchant/dashboard க்கு மாற்றப்பட்டுள்ளது
+            localStorage.setItem('retcash_merchant', JSON.stringify(safeMerchantSession))
+            
+            // 🎯 Dashboard-க்கு நேரடியாக Redirect செய்யப்படுகிறது
             router.push('/merchant/dashboard')
         } catch (err: any) {
             setErrorMsg('Login failed. Please try again.')

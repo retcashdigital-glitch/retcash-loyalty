@@ -121,7 +121,12 @@ export default function MerchantDashboardPage() {
       if (savedMerchant) {
         try {
           const parsed: MerchantSession = JSON.parse(savedMerchant)
+
+          if (!parsed?.id) {
+            throw new Error('Invalid session payload')
+          }
           
+          // 🛡️ SECURITY CHECK: Supabase DB உடன் கடையின் உண்மையான நிலையை சரிபார்த்தல்
           const { data: realStore, error: storeErr } = await supabase
             .from('stores')
             .select('id, store_name, phone_number, default_cashback_percent, target_visits')
@@ -131,7 +136,7 @@ export default function MerchantDashboardPage() {
           if (storeErr || !realStore) {
             console.warn('Unauthorized or invalid local session detected.')
             localStorage.removeItem('retcash_merchant')
-            window.location.href = '/merchant'
+            window.location.href = '/merchant/login'
           } else {
             const verifiedSession: MerchantSession = {
               id: realStore.id,
@@ -150,10 +155,10 @@ export default function MerchantDashboardPage() {
         } catch (e) {
           console.error('Session Parsing Error', e)
           localStorage.removeItem('retcash_merchant')
-          window.location.href = '/merchant'
+          window.location.href = '/merchant/login'
         }
       } else {
-        window.location.href = '/merchant'
+        window.location.href = '/merchant/login'
       }
       setIsVerifyingSession(false)
     }
@@ -657,7 +662,7 @@ export default function MerchantDashboardPage() {
   const handleLogout = () => {
     localStorage.removeItem('retcash_merchant')
     setMerchantSession(null)
-    window.location.href = '/merchant'
+    window.location.href = '/merchant/login'
   }
 
   const tabs: { id: Tab; label: string; icon: typeof MessageCircle }[] = [
