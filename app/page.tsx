@@ -10,11 +10,26 @@ export default function GlobalEntryPoint() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // 1. பயனர் உள்ளிடும் எண்ணை '94...' என்ற வடிவத்திற்கு மாற்றும் Helper Function
+  const formatPhoneNumber = (inputPhone: string) => {
+    let cleaned = inputPhone.replace(/\D/g, '') // தேவையில்லாத குறியீடுகளை நீக்குதல்
+
+    if (cleaned.startsWith('0')) {
+      cleaned = '94' + cleaned.slice(1) // 077... -> 9477...
+    } else if (cleaned.startsWith('7')) {
+      cleaned = '94' + cleaned // 77... -> 9477...
+    }
+
+    return cleaned
+  }
+
   const handleCheckUser = async (e: React.FormEvent) => {
     e.preventDefault()
-    const cleanPhone = phone.replace(/\D/g, '')
+    
+    // 2. எண்ணைச் சீரமைத்தல்
+    const formattedPhone = formatPhoneNumber(phone)
 
-    if (!cleanPhone || cleanPhone.length < 8) {
+    if (!formattedPhone || formattedPhone.length < 10) {
       setError('Please enter a valid mobile number')
       return
     }
@@ -23,26 +38,33 @@ export default function GlobalEntryPoint() {
       setLoading(true)
       setError('')
 
-      // Check if store/merchant exists with this phone number
-      const { data: storeData } = await supabase
+      // 3. Supabase Database-ல் '94...' எண்ணைச் சரிபார்த்தல்
+      const { data: storeData, error: dbError } = await supabase
         .from('stores')
         .select('id, phone_number')
-        .eq('phone_number', cleanPhone)
+        .eq('phone_number', formattedPhone)
         .maybeSingle()
 
-      if (storeData) {
-        // Registered Merchant -> Redirect to Merchant Login
-        router.push(`/merchant/login?phone=${cleanPhone}`)
+      if (dbError) {
+        console.error('Database query error:', dbError)
+        setError('Connection error. Please try again.')
         return
       }
 
-      // New Merchant or Customer -> Redirect to Register
-      router.push(`/merchant/register?phone=${cleanPhone}`)
+      if (storeData) {
+        // கடைகாரராக இருந்தால் -> Merchant Login
+        router.push(`/merchant/login?phone=${formattedPhone}`)
+        return
+      }
+
+      // புதிய பயனராக இருந்தால் -> Registration
+      router.push(`/merchant/register?phone=${formattedPhone}`)
 
     } catch (err: any) {
       console.error('Error verifying user:', err)
       setError('Something went wrong. Please try again.')
     } finally {
+      // 4. Stuck ஆகாமல் தடுக்க லோடிங்கை கண்டிப்பாக நிறுத்துதல்
       setLoading(false)
     }
   }
@@ -71,7 +93,7 @@ export default function GlobalEntryPoint() {
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="e.g. 0771234567"
+              placeholder="e.g. 0771234567 or 771234567"
               className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none transition duration-200 font-mono"
               required
             />
