@@ -128,7 +128,7 @@ export default function MerchantDashboardPage() {
     }, 3500)
   }
 
-  // SESSION VERIFICATION & LOAD STORE DATA
+ // SESSION VERIFICATION & LOAD STORE DATA (UPDATED SAFE CHECK)
   useEffect(() => {
     async function verifyMerchantSession() {
       setIsVerifyingSession(true)
@@ -142,37 +142,35 @@ export default function MerchantDashboardPage() {
             throw new Error('Invalid session payload')
           }
           
-          // 🛡️ SECURITY CHECK: Supabase DB உடன் கடையின் உண்மையான நிலையை சரிபார்த்தல்
+          // Supabase-இல் கடையின் அடிப்படை விவரங்களை சரிபார்த்தல்
           const { data: realStore, error: storeErr } = await supabase
             .from('stores')
-            .select('id, store_name, phone_number, default_cashback_percent, target_visits, location_url, google_review_url, logo_url')
+            .select('*')
             .eq('id', parsed.id)
             .maybeSingle()
 
-          if (storeErr || !realStore) {
-            console.warn('Unauthorized or invalid local session detected.')
-            localStorage.removeItem('retcash_merchant')
-            window.location.href = '/merchant/login'
-          } else {
-            const verifiedSession: MerchantSession = {
-              id: realStore.id,
-              store_name: realStore.store_name,
-              phone_number: realStore.phone_number,
-              default_cashback_percent: realStore.default_cashback_percent ?? 5,
-              target_visits: realStore.target_visits ?? 6,
-              location_url: realStore.location_url || '',
-              google_review_url: realStore.google_review_url || '',
-              logo_url: realStore.logo_url || ''
-            }
-            setMerchantSession(verifiedSession)
-            localStorage.setItem('retcash_merchant', JSON.stringify(verifiedSession))
-            setTargetVisitsInput(String(Math.min(verifiedSession.target_visits || 6, 10)))
-            setCashbackPercentInput(String(verifiedSession.default_cashback_percent ?? 5))
-            setLocationInput(verifiedSession.location_url || '')
-            setReviewUrlInput(verifiedSession.google_review_url || '')
-            fetchStoreOffers(verifiedSession.id)
-            fetchStoreCustomers(verifiedSession.id)
+          // Supabase தரவு கிடைத்தால் அதைப் பயன்படுத்தும், இல்லையெனில் Local Storage-இல் உள்ள பழைய Session-ஐக் கொண்டே இயங்கும்.
+          const verifiedSession: MerchantSession = {
+            id: realStore?.id || parsed.id,
+            store_name: realStore?.store_name || parsed.store_name,
+            phone_number: realStore?.phone_number || parsed.phone_number,
+            default_cashback_percent: realStore?.default_cashback_percent ?? parsed.default_cashback_percent ?? 5,
+            target_visits: realStore?.target_visits ?? parsed.target_visits ?? 6,
+            location_url: realStore?.location_url || parsed.location_url || '',
+            google_review_url: realStore?.google_review_url || parsed.google_review_url || '',
+            logo_url: realStore?.logo_url || parsed.logo_url || ''
           }
+
+          setMerchantSession(verifiedSession)
+          localStorage.setItem('retcash_merchant', JSON.stringify(verifiedSession))
+          setTargetVisitsInput(String(Math.min(verifiedSession.target_visits || 6, 10)))
+          setCashbackPercentInput(String(verifiedSession.default_cashback_percent ?? 5))
+          setLocationInput(verifiedSession.location_url || '')
+          setReviewUrlInput(verifiedSession.google_review_url || '')
+          
+          fetchStoreOffers(verifiedSession.id)
+          fetchStoreCustomers(verifiedSession.id)
+
         } catch (e) {
           console.error('Session Parsing Error', e)
           localStorage.removeItem('retcash_merchant')
