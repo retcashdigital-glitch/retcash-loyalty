@@ -737,24 +737,25 @@ export default function MerchantDashboardPage() {
         console.error('History exception:', hErr)
       }
 
+      // PROFESSIONAL ENGLISH WHATSAPP MESSAGE TEMPLATE
       const baseUrl = window.location.origin
       const cardLink = `${baseUrl}/card/${claimId}`
-      const storeName = merchantSession?.store_name || 'RETCASH Partner'
+      const storeName = merchantSession?.store_name || 'Our Store'
 
-      let message = `🎉 *Retcash Rewards - ${storeName}*\n\n` +
-        `உங்களின் வருகை வெற்றிகரமாகப் பதிவு செய்யப்பட்டுள்ளது! 📍\n\n` +
-        `🛍️ மொத்த பில் தொகை: *Rs. ${initialBillNum}*\n`
+      let message = `🎉 *Reward Alert from ${storeName}!*\n\n` +
+        `Thank you for visiting us today! Your visit has been successfully recorded. 📍\n\n` +
+        `🛍️ *Bill Amount:* LKR ${initialBillNum.toFixed(2)}\n`
 
       if (redeemedAmount > 0) {
-        message += `🎁 பயன்படுத்திய காஷ்பேக்: *- Rs. ${redeemedAmount}*\n` +
-          `💵 செலுத்திய நிகர தொகை: *Rs. ${finalBillToPay}*\n`
+        message += `🎁 *Cashback Redeemed:* - LKR ${redeemedAmount.toFixed(2)}\n` +
+          `💵 *Net Amount Paid:* LKR ${finalBillToPay.toFixed(2)}\n`
       }
 
-      message += `💰 பெற்ற புதிய காஷ்பேக் (${cashbackPercentage}%): *Rs. ${cashbackAmount}*\n` +
-        `⭐ வருகை எண்ணிக்கை (Visits): *${newVisitCount} / ${targetVisits}*\n\n` +
-        `🎁 தற்போதைய மொத்த காஷ்பேக் இருப்பு (Balance): *Rs. ${totalClaimable}*\n\n` +
-        `✨ தொடர்ந்து வருகை தந்து உங்களின் பிரத்யேக வெகுமதிகளைப் பெறுங்கள்!\n\n` +
-        `👉 உங்களின் டிஜிட்டல் கார்டு, நேரலை இருப்பு (Live Balance) மற்றும் காஷ்பேக் விவரங்களைக் காண கீழே உள்ள லிங்கை அழுத்தவும்:\n${cardLink}`
+      message += `💰 *New Cashback Earned (${cashbackPercentage}%):* LKR ${cashbackAmount.toFixed(2)}\n` +
+        `⭐ *Visit Progress:* ${newVisitCount} / ${targetVisits} Visits\n\n` +
+        `🎁 *Total Available Balance:* LKR ${totalClaimable.toFixed(2)}\n\n` +
+        `Keep visiting to unlock more exciting rewards!\n\n` +
+        `👉 *View your Digital Card & Live Balance here:* \n${cardLink}`
 
       const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${encodeURIComponent(message)}`
 
