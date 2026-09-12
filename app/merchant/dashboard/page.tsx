@@ -21,7 +21,10 @@ import {
   Percent,
   User,
   Store,
-  Gift
+  Gift,
+  MapPin,
+  Star,
+  Image as ImageIcon
 } from 'lucide-react'
 
 interface MerchantSession {
@@ -30,6 +33,9 @@ interface MerchantSession {
   phone_number?: string
   default_cashback_percent?: number
   target_visits?: number
+  location_url?: string
+  google_review_url?: string
+  logo_url?: string
 }
 
 interface CashbackClaim {
@@ -80,6 +86,16 @@ export default function MerchantDashboardPage() {
   const [cashbackSettingLoading, setCashbackSettingLoading] = useState(false)
   const [cashbackSuccessMsg, setCashbackSuccessMsg] = useState(false)
 
+  // NEW FEATURES: Location & Review Link States
+  const [locationInput, setLocationInput] = useState('')
+  const [reviewUrlInput, setReviewUrlInput] = useState('')
+  const [infoSettingLoading, setInfoSettingLoading] = useState(false)
+  const [infoSuccessMsg, setInfoSuccessMsg] = useState(false)
+
+  // NEW FEATURES: Logo Upload State
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+
   // QR Scanner State
   const [scannedClaimData, setScannedClaimData] = useState<CashbackClaim | null>(null)
   const [isScanning, setIsScanning] = useState(false)
@@ -129,7 +145,7 @@ export default function MerchantDashboardPage() {
           // 🛡️ SECURITY CHECK: Supabase DB உடன் கடையின் உண்மையான நிலையை சரிபார்த்தல்
           const { data: realStore, error: storeErr } = await supabase
             .from('stores')
-            .select('id, store_name, phone_number, default_cashback_percent, target_visits')
+            .select('id, store_name, phone_number, default_cashback_percent, target_visits, location_url, google_review_url, logo_url')
             .eq('id', parsed.id)
             .maybeSingle()
 
@@ -143,12 +159,17 @@ export default function MerchantDashboardPage() {
               store_name: realStore.store_name,
               phone_number: realStore.phone_number,
               default_cashback_percent: realStore.default_cashback_percent ?? 5,
-              target_visits: realStore.target_visits ?? 6
+              target_visits: realStore.target_visits ?? 6,
+              location_url: realStore.location_url || '',
+              google_review_url: realStore.google_review_url || '',
+              logo_url: realStore.logo_url || ''
             }
             setMerchantSession(verifiedSession)
             localStorage.setItem('retcash_merchant', JSON.stringify(verifiedSession))
             setTargetVisitsInput(String(Math.min(verifiedSession.target_visits || 6, 10)))
             setCashbackPercentInput(String(verifiedSession.default_cashback_percent ?? 5))
+            setLocationInput(verifiedSession.location_url || '')
+            setReviewUrlInput(verifiedSession.google_review_url || '')
             fetchStoreOffers(verifiedSession.id)
             fetchStoreCustomers(verifiedSession.id)
           }
@@ -348,6 +369,106 @@ export default function MerchantDashboardPage() {
       showToast('error', 'Failed to update cashback percentage: ' + message)
     } finally {
       setCashbackSettingLoading(false)
+    }
+  }
+
+  // NEW FUNCTION: UPDATE LOCATION & GOOGLE REVIEW LINKS
+  const handleUpdateStoreInfo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!merchantSession?.id) return
+
+    setInfoSettingLoading(true)
+    try {
+      const { error } = await supabase
+        .from('stores')
+        .update({
+          location_url: locationInput.trim(),
+          google_review_url: reviewUrlInput.trim()
+        })
+        .eq('id', merchantSession.id)
+
+      if (error) throw error
+
+      const updatedSession = {
+        ...merchantSession,
+        location_url: locationInput.trim(),
+        google_review_url: reviewUrlInput.trim()
+      }
+      setMerchantSession(updatedSession)
+      localStorage.setItem('retcash_merchant', JSON.stringify(updatedSession))
+
+      setInfoSuccessMsg(true)
+      showToast('success', 'Store links updated successfully!')
+      setTimeout(() => setInfoSuccessMsg(false), 3000)
+    } catch (err: unknown) {
+      console.error(err)
+      const message = err instanceof Error ? err.message : JSON.stringify(err)
+      showToast('error', 'Failed to update store details: ' + message)
+    } finally {
+      setInfoSettingLoading(false)
+    }
+  }
+
+  // NEW FUNCTION: SMART LOGO UPLOAD & DELETE OLD LOGO
+  const handleUpdateStoreLogo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!logoFile || !merchantSession?.id) {
+      showToast('error', 'Please select an image file first.')
+      return
+    }
+
+    setLogoUploading(true)
+    try {
+      // 1. பழைய Logo இருந்தால் Supabase Storage (`store-logos`) bucket-இல் இருந்து நீக்குதல்
+      if (merchantSession.logo_url) {
+        try {
+          const urlParts = merchantSession.logo_url.split('/store-logos/')
+          if (urlParts.length > 1) {
+            const oldFilePath = urlParts[1].split('?')[0]
+            await supabase.storage.from('store-logos').remove([oldFilePath])
+          }
+        } catch (delErr) {
+          console.warn('Could not remove old logo file:', delErr)
+        }
+      }
+
+      // 2. புதிய Logo பதிவேற்றம்
+      const fileExt = logoFile.name.split('.').pop()
+      const fileName = `${merchantSession.id}_${Date.now()}.${fileExt}`
+      const filePath = `${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('store-logos')
+        .upload(filePath, logoFile)
+
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = supabase.storage
+        .from('store-logos')
+        .getPublicUrl(filePath)
+
+      const newLogoUrl = urlData.publicUrl
+
+      // 3. Database Updates
+      const { error: dbError } = await supabase
+        .from('stores')
+        .update({ logo_url: newLogoUrl })
+        .eq('id', merchantSession.id)
+
+      if (dbError) throw dbError
+
+      const updatedSession = { ...merchantSession, logo_url: newLogoUrl }
+      setMerchantSession(updatedSession)
+      localStorage.setItem('retcash_merchant', JSON.stringify(updatedSession))
+
+      setLogoFile(null)
+      showToast('success', 'Store Logo updated successfully!')
+    } catch (err: unknown) {
+      console.error(err)
+      const message = err instanceof Error ? err.message : JSON.stringify(err)
+      showToast('error', 'Failed to update logo: ' + message)
+    } finally {
+      setLogoUploading(false)
     }
   }
 
@@ -772,7 +893,7 @@ export default function MerchantDashboardPage() {
               <div className="flex items-center gap-3">
                 <div className="flex size-10 items-center justify-center rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-xs overflow-hidden">
                   <img
-                    src="/logo.png"
+                    src={merchantSession.logo_url || "/logo.png"}
                     alt="Logo"
                     className="size-7 object-contain"
                     onError={(e) => {
@@ -811,6 +932,88 @@ export default function MerchantDashboardPage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* NEW SECTION: UPDATE STORE LOGO */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Store Logo Management</h4>
+                <form onSubmit={handleUpdateStoreLogo} className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="size-12 rounded-xl border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+                      {merchantSession.logo_url ? (
+                        <img src={merchantSession.logo_url} alt="Store Logo" className="size-full object-contain" />
+                      ) : (
+                        <ImageIcon className="size-6 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/50 px-3 text-xs font-semibold text-[#00875A] hover:bg-emerald-100/50 transition">
+                        <Upload className="size-3.5" />
+                        <span className="truncate">{logoFile ? logoFile.name : 'Choose new logo'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+                          className="sr-only"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                  {logoFile && (
+                    <button
+                      type="submit"
+                      disabled={logoUploading}
+                      className="w-full h-9 rounded-lg bg-[#00875A] hover:bg-[#00704a] text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      {logoUploading ? 'Replacing Logo...' : 'Upload & Update Logo'}
+                    </button>
+                  )}
+                </form>
+              </div>
+
+              {/* NEW SECTION: LOCATION & GOOGLE REVIEW LINKS */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Store Location & Reviews</h4>
+                <form onSubmit={handleUpdateStoreInfo} className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
+                  <div className="space-y-1">
+                    <label htmlFor="locationUrlModal" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                      <MapPin className="size-3.5 text-[#00875A]" /> Google Maps Location Link
+                    </label>
+                    <input
+                      id="locationUrlModal"
+                      type="url"
+                      value={locationInput}
+                      onChange={(e) => setLocationInput(e.target.value)}
+                      className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-[#00875A] focus:bg-white text-slate-900 transition"
+                      placeholder="https://maps.google.com/..."
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label htmlFor="googleReviewModal" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                      <Star className="size-3.5 text-amber-500" /> Google Review Link
+                    </label>
+                    <input
+                      id="googleReviewModal"
+                      type="url"
+                      value={reviewUrlInput}
+                      onChange={(e) => setReviewUrlInput(e.target.value)}
+                      className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-[#00875A] focus:bg-white text-slate-900 transition"
+                      placeholder="https://g.page/r/..."
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={infoSettingLoading}
+                    className="w-full h-9 rounded-lg border border-[#00875A] bg-emerald-50 text-[#00875A] hover:bg-[#00875A] hover:text-white text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                  >
+                    {infoSettingLoading ? 'Saving...' : 'Save Links'}
+                  </button>
+                  {infoSuccessMsg && (
+                    <p className="text-[11px] text-[#00875A] font-bold mt-1 text-center">✓ Store links updated successfully!</p>
+                  )}
+                </form>
               </div>
 
               <div className="space-y-4">
@@ -899,7 +1102,7 @@ export default function MerchantDashboardPage() {
           <div className="flex items-center gap-3">
             <div className="flex size-9 items-center justify-center rounded-xl bg-white/20 border border-white/30 backdrop-blur-xs text-white shadow-xs overflow-hidden">
               <img
-                src="/logo.png"
+                src={merchantSession.logo_url || "/logo.png"}
                 alt="RETCASH Logo"
                 className="size-6 object-contain"
                 onError={(e) => {
