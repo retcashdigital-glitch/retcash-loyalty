@@ -1,7 +1,8 @@
 'use client'
 
-import { FormEvent } from 'react'
-import { MessageCircle, Phone, Gift, ChevronRight, QrCode, Users, WalletCards, Settings2 } from 'lucide-react'
+import { FormEvent, useState, useEffect, useRef } from 'react'
+import { MessageCircle, Phone, Gift, ChevronRight, QrCode, Users, WalletCards, Settings2, Search } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 interface CashbackClaim {
   id: string
@@ -30,6 +31,7 @@ interface QuickBillingSectionProps {
   handleGenerateCashback: (e: FormEvent) => void
   startScanner: () => void
   onOpenProfile: () => void
+  merchantStoreId?: string // 🎯 குறிப்பிட்ட கடைக் எண்களை மட்டும் வடிகட்ட சேர்க்கப்பட்ட Prop
 }
 
 export default function QuickBillingSection({
@@ -50,8 +52,59 @@ export default function QuickBillingSection({
   totalClaimableSum,
   handleGenerateCashback,
   startScanner,
-  onOpenProfile
+  onOpenProfile,
+  merchantStoreId
 }: QuickBillingSectionProps) {
+
+  // Auto-complete Dropdown-ற்கான States & Refs
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // 1. Phone number Auto-complete (குறிப்பிட்ட கடைக்கு மட்டுமே தேடும் லாஜிக்)
+  useEffect(() => {
+    const cleanPhone = customerPhone.replace(/\D/g, '')
+
+    // 3 இலக்கங்களுக்கு மேல் டைப் செய்யும் போது மற்றும் store_id இருக்கும் போது தேடும்
+    if (cleanPhone.length >= 3 && merchantStoreId) {
+      const fetchSuggestions = async () => {
+        const { data, error } = await supabase
+          .from('cashback_claims')
+          .select('customer_phone')
+          .eq('store_id', merchantStoreId) // 🎯 லாக் இன் செய்த கடைக்குரிய எண்களை மட்டும் வடிகட்டுகிறது
+          .ilike('customer_phone', `%${cleanPhone}%`)
+          .limit(20)
+
+        if (!error && data) {
+          // ஒரே வாடிக்கையாளரின் எண் பலமுறை வராமல் Unique எண்களைப் பிரித்தல்
+          const uniquePhones = Array.from(
+            new Set(data.map((item) => item.customer_phone))
+          ).slice(0, 5)
+
+          setSuggestions(uniquePhones)
+          setShowDropdown(uniquePhones.length > 0)
+        }
+      }
+
+      const timer = setTimeout(fetchSuggestions, 300)
+      return () => clearTimeout(timer)
+    } else {
+      setSuggestions([])
+      setShowDropdown(false)
+    }
+  }, [customerPhone, merchantStoreId])
+
+  // Dropdown Box-க்கு வெளியே கிளிக் செய்தால் அதை மூடுவதற்கான லாஜிக்
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   return (
     <section className="grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
       <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-xs sm:p-7">
@@ -70,18 +123,57 @@ export default function QuickBillingSection({
 
         <form onSubmit={handleGenerateCashback} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
+            
+            {/* WhatsApp Number Input & Auto-complete Section */}
             <label className="grid gap-2 text-xs font-semibold text-slate-700">
               Customer WhatsApp number
-              <div className="relative">
-                <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="tel"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-emerald-100 font-mono transition"
-                  placeholder="077 123 4567"
-                  required
-                />
+              <div className="flex gap-2">
+                <div className="relative flex-1" ref={dropdownRef}>
+                  <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400 z-10" />
+                  <input
+                    type="tel"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
+                    className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-emerald-100 font-mono transition"
+                    placeholder="077 123 4567"
+                    required
+                  />
+
+                  {/* Auto-complete Filter Dropdown */}
+                  {showDropdown && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl animate-in fade-in duration-150">
+                      <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Previous Store Customers
+                      </p>
+                      {suggestions.map((phone) => (
+                        <button
+                          key={phone}
+                          type="button"
+                          onClick={() => {
+                            setCustomerPhone(phone)
+                            setShowDropdown(false)
+                          }}
+                          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-700 hover:bg-emerald-50 hover:text-[#00875A] transition cursor-pointer"
+                        >
+                          <span>{phone}</span>
+                          <Search className="size-3 text-slate-400" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Input-ன் அருகிலேயே Quick Phone QR Scan செய்யும் பட்டன் */}
+                <button
+                  type="button"
+                  onClick={startScanner}
+                  className="flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-emerald-200/80 bg-emerald-50/80 px-3.5 text-xs font-bold text-[#00875A] hover:bg-emerald-100 transition cursor-pointer shrink-0"
+                  title="Scan Customer Phone QR"
+                >
+                  <QrCode className="size-4" />
+                  <span className="hidden sm:inline">Scan</span>
+                </button>
               </div>
             </label>
 
