@@ -70,6 +70,7 @@ export default function MerchantDashboardPage() {
   // QR Scanner State
   const [scannedClaimData, setScannedClaimData] = useState<CashbackClaim | null>(null)
   const [isScanning, setIsScanning] = useState(false)
+  const [scanMode, setScanMode] = useState<'REDEEM' | 'PHONE'>('REDEEM') // 🎯 Scanner Mode பிரிப்பிற்காக
   const [showRedeemConfirmModal, setShowRedeemConfirmModal] = useState(false)
   const scannerRef = useRef<Html5Qrcode | null>(null)
 
@@ -410,7 +411,9 @@ export default function MerchantDashboardPage() {
     }
   }
 
+  // 1. 기존 Redeem QR Scanner (மாற்றம் ஏதும் செய்யப்படவில்லை - சரியாக இயங்கும்)
   const startScanner = async () => {
+    setScanMode('REDEEM')
     setIsScanning(true)
     setScannedClaimData(null)
 
@@ -433,6 +436,49 @@ export default function MerchantDashboardPage() {
         )
       } catch (err) {
         console.error('Camera start error:', err)
+        showToast('error', 'Failed to start camera or permission denied.')
+        setIsScanning(false)
+      }
+    }, 100)
+  }
+
+  // 2. 🎯 PHONE INPUT SCANNER (தொலைபேசி எண்ணைப் பிரித்தெடுக்கும் புதிய Scanner)
+  const startPhoneScanner = async () => {
+    setScanMode('PHONE')
+    setIsScanning(true)
+    setScannedClaimData(null)
+
+    setTimeout(async () => {
+      try {
+        const scanner = new Html5Qrcode('reader')
+        scannerRef.current = scanner
+
+        await scanner.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+          },
+          async (decodedText) => {
+            await stopScannerInstance()
+            setIsScanning(false)
+
+            // QR-க்குள் இருக்கும் URL அல்லது Text-லிருந்து 9 இலக்க எண்களை பிரித்தல்
+            const digitsOnly = decodedText.replace(/\D/g, '')
+
+            if (digitsOnly.length >= 9) {
+              const last9 = digitsOnly.slice(-9)
+              const formattedLocal = `0${last9}`
+              setCustomerPhone(formattedLocal)
+              showToast('success', `Customer phone detected: ${formattedLocal}`)
+            } else {
+              showToast('error', 'Could not extract valid phone number from QR.')
+            }
+          },
+          () => {}
+        )
+      } catch (err) {
+        console.error('Phone Camera start error:', err)
         showToast('error', 'Failed to start camera or permission denied.')
         setIsScanning(false)
       }
@@ -810,7 +856,9 @@ export default function MerchantDashboardPage() {
             totalClaimableSum={totalClaimableSum}
             handleGenerateCashback={handleGenerateCashback}
             startScanner={startScanner}
+            startPhoneScanner={startPhoneScanner} // 🎯 புதிய ஃபங்க்ஷன் பாஸ் செய்யப்பட்டுள்ளது
             onOpenProfile={() => setIsProfileOpen(true)}
+            merchantStoreId={merchantSession?.id}
           />
         )}
 
@@ -847,7 +895,9 @@ export default function MerchantDashboardPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-5" role="dialog" aria-modal="true">
           <div className="w-full max-w-sm rounded-3xl border border-slate-100 bg-white p-6 text-center shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-black text-sm text-slate-900">Live QR Scanner</h2>
+              <h2 className="font-black text-sm text-slate-900">
+                {scanMode === 'PHONE' ? 'Scan Customer Phone QR' : 'Live QR Scanner'}
+              </h2>
               <button
                 onClick={async () => {
                   await stopScannerInstance()
@@ -862,7 +912,9 @@ export default function MerchantDashboardPage() {
 
             <div id="reader" className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-900"></div>
 
-            {scannedClaimData ? (
+            {scanMode === 'PHONE' ? (
+              <p className="text-xs text-slate-500">Point your camera at the customer's QR code to read their phone number.</p>
+            ) : scannedClaimData ? (
               <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-200 text-xs space-y-2 text-left">
                 <div className="flex justify-between text-[11px] text-[#00875A] font-extrabold">
                   <span><CheckCircle2 className="inline size-3.5 mr-1" /> QR Verified</span>

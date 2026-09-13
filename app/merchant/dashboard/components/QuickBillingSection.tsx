@@ -30,6 +30,7 @@ interface QuickBillingSectionProps {
   totalClaimableSum: number
   handleGenerateCashback: (e: FormEvent) => void
   startScanner: () => void
+  startPhoneScanner: () => void // 🎯 புதிய Prop
   onOpenProfile: () => void
   merchantStoreId?: string
 }
@@ -52,6 +53,7 @@ export default function QuickBillingSection({
   totalClaimableSum,
   handleGenerateCashback,
   startScanner,
+  startPhoneScanner,
   onOpenProfile,
   merchantStoreId
 }: QuickBillingSectionProps) {
@@ -63,17 +65,14 @@ export default function QuickBillingSection({
 
   // 1. Phone number Auto-complete (எப்படி Type செய்தாலும் Supabase-ல் தேடும் சீரான Logic)
   useEffect(() => {
-    // அனைத்து குறியீடுகளையும் நீக்கி எண்களை மட்டும் பிரித்தல்
     let digitsOnly = customerPhone.replace(/\D/g, '')
 
-    // முன்னால் '94' அல்லது '0' இருந்தால் அதை நீக்கி மூல 9 இலக்கங்களை எடுப்பது
     if (digitsOnly.startsWith('94')) {
       digitsOnly = digitsOnly.slice(2)
     } else if (digitsOnly.startsWith('0')) {
       digitsOnly = digitsOnly.slice(1)
     }
 
-    // குறைந்தது 3 எண்கள் இருந்தால் தேடத் தொடங்கும்
     if (digitsOnly.length >= 3) {
       const fetchSuggestions = async () => {
         let query = supabase
@@ -82,7 +81,6 @@ export default function QuickBillingSection({
           .ilike('customer_phone', `%${digitsOnly}%`)
           .limit(15)
 
-        // merchantStoreId இருந்தால் குறிப்பிட்ட கடைக்குரிய எண்களை மட்டும் வடிகட்டுதல்
         if (merchantStoreId) {
           query = query.eq('store_id', merchantStoreId)
         }
@@ -90,7 +88,6 @@ export default function QuickBillingSection({
         const { data, error } = await query
 
         if (!error && data) {
-          // Unique எண்களை மட்டும் பிரித்தெடுத்து 5 எண்களை Dropdown-ல் காட்டுவது
           const uniquePhones = Array.from(
             new Set(data.map((item) => item.customer_phone))
           ).filter(Boolean).slice(0, 5)
@@ -181,10 +178,10 @@ export default function QuickBillingSection({
                   )}
                 </div>
 
-                {/* Input-ன் அருகிலேயே Quick Phone QR Scan செய்யும் பட்டன் */}
+                {/* 🎯 Input-ன் அருகிலேயே Phone QR Scan செய்யும் பொத்தான் (இங்கு startPhoneScanner பயன்படுத்தப்படுகிறது) */}
                 <button
                   type="button"
-                  onClick={startScanner}
+                  onClick={startPhoneScanner}
                   className="flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-emerald-200/80 bg-emerald-50/80 px-3.5 text-xs font-bold text-[#00875A] hover:bg-emerald-100 transition cursor-pointer shrink-0"
                   title="Scan Customer Phone QR"
                 >
@@ -263,6 +260,7 @@ export default function QuickBillingSection({
           </button>
         </form>
 
+        {/* 🎯 Redeem Scanner (முன்பு இருந்த அதே startScanner பயன்படுத்தப்படுகிறது) */}
         <button
           type="button"
           onClick={startScanner}
