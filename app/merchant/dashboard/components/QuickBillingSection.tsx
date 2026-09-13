@@ -31,7 +31,7 @@ interface QuickBillingSectionProps {
   handleGenerateCashback: (e: FormEvent) => void
   startScanner: () => void
   onOpenProfile: () => void
-  merchantStoreId?: string // 🎯 குறிப்பிட்ட கடைக் எண்களை மட்டும் வடிகட்ட சேர்க்கப்பட்ட Prop
+  merchantStoreId?: string
 }
 
 export default function QuickBillingSection({
@@ -56,27 +56,32 @@ export default function QuickBillingSection({
   merchantStoreId
 }: QuickBillingSectionProps) {
 
-  // Auto-complete Dropdown-ற்கான States & Refs
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // 1. Phone number Auto-complete (குறிப்பிட்ட கடைக்கு மட்டுமே தேடும் லாஜிக்)
+  // 🎯 Smart Phone Search Logic (077 / 9477 / 77 - எப்படி Type செய்தாலும் தேடும்)
   useEffect(() => {
-    const cleanPhone = customerPhone.replace(/\D/g, '')
+    let rawDigits = customerPhone.replace(/\D/g, '')
 
-    // 3 இலக்கங்களுக்கு மேல் டைப் செய்யும் போது மற்றும் store_id இருக்கும் போது தேடும்
-    if (cleanPhone.length >= 3 && merchantStoreId) {
+    // முன்னால் உள்ள '0' அல்லது '94' ஐ நீக்கி 9 இலக்க முதன்மை எண்ணைப் பிரித்தல்
+    if (rawDigits.startsWith('94')) {
+      rawDigits = rawDigits.slice(2)
+    } else if (rawDigits.startsWith('0')) {
+      rawDigits = rawDigits.slice(1)
+    }
+
+    // 3 இலக்கங்களுக்கு மேல் இருந்தால் தேடலைத் தொடங்கும்
+    if (rawDigits.length >= 3 && merchantStoreId) {
       const fetchSuggestions = async () => {
         const { data, error } = await supabase
           .from('cashback_claims')
           .select('customer_phone')
-          .eq('store_id', merchantStoreId) // 🎯 லாக் இன் செய்த கடைக்குரிய எண்களை மட்டும் வடிகட்டுகிறது
-          .ilike('customer_phone', `%${cleanPhone}%`)
+          .eq('store_id', merchantStoreId)
+          .ilike('customer_phone', `%${rawDigits}%`) // எண்களின் நடுவில் இருந்தாலும் கண்டறியும்
           .limit(20)
 
         if (!error && data) {
-          // ஒரே வாடிக்கையாளரின் எண் பலமுறை வராமல் Unique எண்களைப் பிரித்தல்
           const uniquePhones = Array.from(
             new Set(data.map((item) => item.customer_phone))
           ).slice(0, 5)
@@ -94,7 +99,7 @@ export default function QuickBillingSection({
     }
   }, [customerPhone, merchantStoreId])
 
-  // Dropdown Box-க்கு வெளியே கிளிக் செய்தால் அதை மூடுவதற்கான லாஜிக்
+  // Dropdown-க்கு வெளியே கிளிக் செய்தால் அதை மூடுதல்
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -124,7 +129,7 @@ export default function QuickBillingSection({
         <form onSubmit={handleGenerateCashback} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             
-            {/* WhatsApp Number Input & Auto-complete Section */}
+            {/* Customer Phone Input with Auto-complete */}
             <label className="grid gap-2 text-xs font-semibold text-slate-700">
               Customer WhatsApp number
               <div className="flex gap-2">
@@ -140,11 +145,11 @@ export default function QuickBillingSection({
                     required
                   />
 
-                  {/* Auto-complete Filter Dropdown */}
+                  {/* Auto-complete Suggestions Dropdown Box */}
                   {showDropdown && (
                     <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl animate-in fade-in duration-150">
                       <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        Previous Store Customers
+                        Suggested Store Customers
                       </p>
                       {suggestions.map((phone) => (
                         <button
@@ -164,7 +169,7 @@ export default function QuickBillingSection({
                   )}
                 </div>
 
-                {/* Input-ன் அருகிலேயே Quick Phone QR Scan செய்யும் பட்டன் */}
+                {/* Quick Phone Scan Button */}
                 <button
                   type="button"
                   onClick={startScanner}
