@@ -56,38 +56,50 @@ export default function QuickBillingSection({
   merchantStoreId
 }: QuickBillingSectionProps) {
 
+  // Auto-complete Dropdown-ற்கான States & Refs
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // 🎯 Smart Phone Search Logic (077 / 9477 / 77 - எப்படி Type செய்தாலும் தேடும்)
+  // 1. Phone number Auto-complete (எப்படி Type செய்தாலும் Supabase-ல் தேடும் சீரான Logic)
   useEffect(() => {
-    let rawDigits = customerPhone.replace(/\D/g, '')
+    // அனைத்து குறியீடுகளையும் நீக்கி எண்களை மட்டும் பிரித்தல்
+    let digitsOnly = customerPhone.replace(/\D/g, '')
 
-    // முன்னால் உள்ள '0' அல்லது '94' ஐ நீக்கி 9 இலக்க முதன்மை எண்ணைப் பிரித்தல்
-    if (rawDigits.startsWith('94')) {
-      rawDigits = rawDigits.slice(2)
-    } else if (rawDigits.startsWith('0')) {
-      rawDigits = rawDigits.slice(1)
+    // முன்னால் '94' அல்லது '0' இருந்தால் அதை நீக்கி மூல 9 இலக்கங்களை எடுப்பது
+    if (digitsOnly.startsWith('94')) {
+      digitsOnly = digitsOnly.slice(2)
+    } else if (digitsOnly.startsWith('0')) {
+      digitsOnly = digitsOnly.slice(1)
     }
 
-    // 3 இலக்கங்களுக்கு மேல் இருந்தால் தேடலைத் தொடங்கும்
-    if (rawDigits.length >= 3 && merchantStoreId) {
+    // குறைந்தது 3 எண்கள் இருந்தால் தேடத் தொடங்கும்
+    if (digitsOnly.length >= 3) {
       const fetchSuggestions = async () => {
-        const { data, error } = await supabase
+        let query = supabase
           .from('cashback_claims')
           .select('customer_phone')
-          .eq('store_id', merchantStoreId)
-          .ilike('customer_phone', `%${rawDigits}%`) // எண்களின் நடுவில் இருந்தாலும் கண்டறியும்
-          .limit(20)
+          .ilike('customer_phone', `%${digitsOnly}%`)
+          .limit(15)
+
+        // merchantStoreId இருந்தால் குறிப்பிட்ட கடைக்குரிய எண்களை மட்டும் வடிகட்டுதல்
+        if (merchantStoreId) {
+          query = query.eq('store_id', merchantStoreId)
+        }
+
+        const { data, error } = await query
 
         if (!error && data) {
+          // Unique எண்களை மட்டும் பிரித்தெடுத்து 5 எண்களை Dropdown-ல் காட்டுவது
           const uniquePhones = Array.from(
             new Set(data.map((item) => item.customer_phone))
-          ).slice(0, 5)
+          ).filter(Boolean).slice(0, 5)
 
           setSuggestions(uniquePhones)
           setShowDropdown(uniquePhones.length > 0)
+        } else {
+          setSuggestions([])
+          setShowDropdown(false)
         }
       }
 
@@ -99,7 +111,7 @@ export default function QuickBillingSection({
     }
   }, [customerPhone, merchantStoreId])
 
-  // Dropdown-க்கு வெளியே கிளிக் செய்தால் அதை மூடுதல்
+  // Dropdown Box-க்கு வெளியே கிளிக் செய்தால் மூடும் லாஜிக்
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -129,7 +141,7 @@ export default function QuickBillingSection({
         <form onSubmit={handleGenerateCashback} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             
-            {/* Customer Phone Input with Auto-complete */}
+            {/* WhatsApp Number Input & Auto-complete Section */}
             <label className="grid gap-2 text-xs font-semibold text-slate-700">
               Customer WhatsApp number
               <div className="flex gap-2">
@@ -145,11 +157,11 @@ export default function QuickBillingSection({
                     required
                   />
 
-                  {/* Auto-complete Suggestions Dropdown Box */}
+                  {/* Auto-complete Filter Dropdown */}
                   {showDropdown && (
                     <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl animate-in fade-in duration-150">
                       <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        Suggested Store Customers
+                        Previous Store Customers
                       </p>
                       {suggestions.map((phone) => (
                         <button
@@ -169,7 +181,7 @@ export default function QuickBillingSection({
                   )}
                 </div>
 
-                {/* Quick Phone Scan Button */}
+                {/* Input-ன் அருகிலேயே Quick Phone QR Scan செய்யும் பட்டன் */}
                 <button
                   type="button"
                   onClick={startScanner}
