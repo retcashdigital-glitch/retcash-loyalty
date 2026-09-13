@@ -3,26 +3,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode'
-import {
-  CalendarDays,
-  ChevronRight,
-  LogOut,
-  MessageCircle,
-  Phone,
-  QrCode,
-  Search,
-  Settings2,
-  Upload,
-  Users,
-  WalletCards,
-  X,
-  Trash2,
-  CheckCircle2,
-  Percent,
-  User,
-  Store,
-  Gift
-} from 'lucide-react'
+import { MessageCircle, Upload, Users, CheckCircle2, X, Trash2 } from 'lucide-react'
+
+// Sub-components Import
+import DashboardHeader from './components/DashboardHeader'
+import NavigationTabs, { Tab } from './components/NavigationTabs'
+import QuickBillingSection from './components/QuickBillingSection'
+import StoreOffersSection from './components/StoreOffersSection'
+import CustomersSection from './components/CustomersSection'
+import StoreSettingsModal from './components/StoreSettingsModal'
 
 interface MerchantSession {
   id: string
@@ -48,8 +37,6 @@ interface Offer {
   expires_at: string
   created_at: string
 }
-
-type Tab = 'billing' | 'offers' | 'customers'
 
 export default function MerchantDashboardPage() {
   // Merchant session & core action states
@@ -126,7 +113,6 @@ export default function MerchantDashboardPage() {
             throw new Error('Invalid session payload')
           }
           
-          // 🛡️ SECURITY CHECK: Supabase DB உடன் கடையின் உண்மையான நிலையை சரிபார்த்தல்
           const { data: realStore, error: storeErr } = await supabase
             .from('stores')
             .select('id, store_name, phone_number, default_cashback_percent, target_visits')
@@ -765,178 +751,27 @@ export default function MerchantDashboardPage() {
       )}
 
       {isProfileOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            
-            <div className="bg-[#00875A] text-white p-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-xs overflow-hidden">
-                  <img
-                    src="/logo.png"
-                    alt="Logo"
-                    className="size-7 object-contain"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                      e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                    }}
-                  />
-                  <Store className="size-5 hidden" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-white">{merchantSession.store_name}</h3>
-                  <p className="text-[11px] text-emerald-100">Store Profile & Settings</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsProfileOpen(false)}
-                className="p-1.5 rounded-lg text-emerald-100 hover:bg-white/10 hover:text-white transition cursor-pointer"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-6 max-h-[80vh] overflow-y-auto">
-              
-              <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-4 space-y-3">
-                <h4 className="text-xs font-bold text-[#00875A] uppercase tracking-wider">Account Details</h4>
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Store Name:</span>
-                    <span className="font-semibold text-slate-900">{merchantSession.store_name}</span>
-                  </div>
-                  {merchantSession.phone_number && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-500">Registered Phone:</span>
-                      <span className="font-mono font-semibold text-slate-900">+{merchantSession.phone_number}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Store Rules & Configuration</h4>
-                
-                <form onSubmit={handleUpdateCashbackPercent} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="cashbackPercentModal" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                      <Percent className="size-3.5 text-[#00875A]" /> Default Cashback %
-                    </label>
-                    <span className="font-mono text-[10px] text-slate-400">per transaction</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      id="cashbackPercentModal"
-                      type="number"
-                      step="0.1"
-                      min="0.1"
-                      max="100"
-                      value={cashbackPercentInput}
-                      onChange={(e) => setCashbackPercentInput(e.target.value)}
-                      className="h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-[#00875A] focus:bg-white font-mono text-slate-900"
-                      placeholder="5"
-                      required
-                    />
-                    <button
-                      type="submit"
-                      disabled={cashbackSettingLoading}
-                      className="rounded-lg border border-[#00875A] bg-emerald-50 text-[#00875A] hover:bg-[#00875A] hover:text-white px-4 text-xs font-bold transition cursor-pointer"
-                    >
-                      {cashbackSettingLoading ? '...' : 'Update'}
-                    </button>
-                  </div>
-                  {cashbackSuccessMsg && (
-                    <p className="text-[11px] text-[#00875A] font-bold mt-1">✓ Default Cashback updated!</p>
-                  )}
-                </form>
-
-                <form onSubmit={handleUpdateTargetVisits} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="targetModal" className="text-xs font-semibold text-slate-700">Target Visits</label>
-                    <span className="font-mono text-[10px] text-slate-400">per customer</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      id="targetModal"
-                      type="number"
-                      min="3"
-                      max="10"
-                      value={targetVisitsInput}
-                      onChange={handleTargetInputChange}
-                      className="h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-[#00875A] focus:bg-white font-mono text-slate-900"
-                      required
-                    />
-                    <button
-                      type="submit"
-                      disabled={settingLoading}
-                      className="rounded-lg border border-[#00875A] bg-emerald-50 text-[#00875A] hover:bg-[#00875A] hover:text-white px-4 text-xs font-bold transition cursor-pointer"
-                    >
-                      {settingLoading ? '...' : 'Update'}
-                    </button>
-                  </div>
-                  {successMsg && (
-                    <p className="text-[11px] text-[#00875A] font-bold mt-1">✓ Target visits updated!</p>
-                  )}
-                </form>
-              </div>
-
-            </div>
-
-            <div className="bg-slate-50 p-4 border-t border-slate-200 text-right">
-              <button
-                onClick={() => setIsProfileOpen(false)}
-                className="bg-[#00875A] hover:bg-[#00704a] text-white font-bold px-5 py-2 rounded-xl text-xs transition cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-
-          </div>
-        </div>
+        <StoreSettingsModal
+          merchantSession={merchantSession}
+          onClose={() => setIsProfileOpen(false)}
+          cashbackPercentInput={cashbackPercentInput}
+          setCashbackPercentInput={setCashbackPercentInput}
+          cashbackSettingLoading={cashbackSettingLoading}
+          cashbackSuccessMsg={cashbackSuccessMsg}
+          handleUpdateCashbackPercent={handleUpdateCashbackPercent}
+          targetVisitsInput={targetVisitsInput}
+          handleTargetInputChange={handleTargetInputChange}
+          settingLoading={settingLoading}
+          successMsg={successMsg}
+          handleUpdateTargetVisits={handleUpdateTargetVisits}
+        />
       )}
 
-      <header className="border-b border-emerald-800/20 bg-gradient-to-r from-[#00875A] via-[#059669] to-[#0d9488] text-white sticky top-0 z-40 shadow-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-5 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-white/20 border border-white/30 backdrop-blur-xs text-white shadow-xs overflow-hidden">
-              <img
-                src="/logo.png"
-                alt="RETCASH Logo"
-                className="size-6 object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                  e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                }}
-              />
-              <WalletCards className="size-5 hidden" />
-            </div>
-            <div>
-              <p className="font-mono text-[13px] font-extrabold text-white">{merchantSession.store_name}</p>
-              <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-emerald-100">
-                <span className="size-2 rounded-full bg-emerald-300 animate-pulse" /> Store dashboard
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              onClick={() => setIsProfileOpen(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition cursor-pointer backdrop-blur-xs"
-              type="button"
-            >
-              <User className="size-3.5 text-emerald-200" />
-              <span className="hidden sm:inline">Store Profile</span>
-            </button>
-
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 rounded-xl border border-red-200/40 bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500/30 transition cursor-pointer backdrop-blur-xs"
-              type="button"
-            >
-              <LogOut className="size-3.5" /> Logout
-            </button>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader
+        merchantSession={merchantSession}
+        onOpenProfile={() => setIsProfileOpen(true)}
+        onLogout={handleLogout}
+      />
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-5 sm:py-8 lg:px-8 lg:py-10">
         
@@ -950,343 +785,60 @@ export default function MerchantDashboardPage() {
           </div>
         </div>
 
-        <nav aria-label="Merchant dashboard sections" className="mb-6 border-b border-slate-200">
-          <div className="grid grid-cols-3 gap-1" role="tablist">
-            {tabs.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                id={`${id}-tab`}
-                role="tab"
-                aria-selected={activeTab === id}
-                onClick={() => setActiveTab(id)}
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 border-b-2 px-1 py-2 text-center text-[10px] font-bold leading-tight transition cursor-pointer sm:min-h-12 sm:flex-row sm:gap-2 sm:px-5 sm:py-3 sm:text-xs ${
-                  activeTab === id 
-                    ? 'border-[#00875A] text-[#00875A] bg-emerald-50/80' 
-                    : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'
-                }`}
-                type="button"
-              >
-                <Icon className="size-4 shrink-0" />
-                {label}
-              </button>
-            ))}
-          </div>
-        </nav>
+        <NavigationTabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onSelectTab={(t) => setActiveTab(t)}
+        />
 
         {activeTab === 'billing' && (
-          <section className="grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
-            <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-xs sm:p-7">
-              <div className="mb-7 flex items-start justify-between">
-                <div>
-                  <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-[#00875A]">
-                    <MessageCircle className="size-5" />
-                  </div>
-                  <h2 className="text-lg font-extrabold text-slate-900">New cashback transaction</h2>
-                  <p className="mt-1 text-xs text-slate-500">Add a visit and notify your customer on WhatsApp.</p>
-                </div>
-                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-[#00875A]">
-                  Live
-                </span>
-              </div>
-
-              <form onSubmit={handleGenerateCashback} className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="grid gap-2 text-xs font-semibold text-slate-700">
-                    Customer WhatsApp number
-                    <div className="relative">
-                      <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="tel"
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                        className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-emerald-100 font-mono transition"
-                        placeholder="077 123 4567"
-                        required
-                      />
-                    </div>
-                  </label>
-
-                  <label className="grid gap-2 text-xs font-semibold text-slate-700">
-                    Bill amount <span className="font-normal text-slate-500">LKR / Rs.</span>
-                    <input
-                      type="number"
-                      value={billAmount}
-                      onChange={(e) => setBillAmount(e.target.value)}
-                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-emerald-100 font-mono transition"
-                      placeholder="0.00"
-                      inputMode="decimal"
-                      required
-                    />
-                  </label>
-                </div>
-
-                {isCheckingCustomer && (
-                  <p className="text-xs text-slate-400 animate-pulse">Checking customer balance...</p>
-                )}
-
-                {existingCustomerClaim && currentClaimable > 0 && (
-                  <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Gift className="size-4 text-amber-600" />
-                        <span className="text-xs font-extrabold text-amber-900">
-                          Available Cashback: <span className="font-mono text-amber-700">Rs. {currentClaimable}</span>
-                        </span>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={redeemInBill}
-                          onChange={(e) => setRedeemInBill(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00875A]"></div>
-                        <span className="ml-2 text-xs font-bold text-slate-700">Redeem in Bill</span>
-                      </label>
-                    </div>
-
-                    {redeemInBill && billNum > 0 && (
-                      <div className="pt-2 border-t border-amber-200/60 text-xs space-y-1 font-mono text-slate-600">
-                        <div className="flex justify-between">
-                          <span>Original Bill:</span>
-                          <span>Rs. {billNum.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-amber-700 font-bold">
-                          <span>Cashback Discount:</span>
-                          <span>- Rs. {actualRedeemAmount.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-slate-900 font-black pt-1 border-t border-amber-200">
-                          <span>Net Bill To Pay:</span>
-                          <span className="text-[#00875A]">Rs. {finalToPay.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#00875A] hover:bg-[#00704a] px-4 text-xs font-extrabold text-white shadow-md shadow-[#00875A]/20 transition cursor-pointer disabled:opacity-50 active:scale-98"
-                >
-                  <MessageCircle className="size-4" />
-                  {actionLoading ? 'Processing...' : 'Add cashback & send WhatsApp'}
-                  <ChevronRight className="size-4" />
-                </button>
-              </form>
-
-              <button
-                type="button"
-                onClick={startScanner}
-                className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200/80 bg-emerald-50/60 text-xs font-bold text-[#00875A] transition hover:bg-emerald-100/80 cursor-pointer shadow-xs active:scale-98"
-              >
-                <QrCode className="size-4 text-[#00875A]" /> Open live QR camera scanner
-              </button>
-            </div>
-
-            <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-xs sm:p-7 flex flex-col justify-between">
-              <div>
-                <div className="mb-6 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-extrabold text-slate-900">Today's Overview</h2>
-                    <p className="mt-1 text-xs text-slate-500">Real-time stats for your store.</p>
-                  </div>
-                  <div className="rounded-2xl bg-emerald-50 p-2.5 text-[#00875A]">
-                    <Users className="size-5" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                    <Users className="mb-3 size-4 text-[#00875A]" />
-                    <p className="font-mono text-3xl font-black text-slate-900">{customersList.length}</p>
-                    <p className="mt-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Visits</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                    <WalletCards className="mb-3 size-4 text-[#00875A]" />
-                    <p className="font-mono text-2xl font-black text-slate-900">Rs. {totalClaimableSum.toFixed(2)}</p>
-                    <p className="mt-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Cashback Claimable</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 border-t border-slate-100 pt-4 text-center">
-                <button
-                  onClick={() => setIsProfileOpen(true)}
-                  className="text-xs font-extrabold text-[#00875A] hover:underline flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                >
-                  <Settings2 className="size-3.5" /> Manage Cashback Rules in Profile
-                </button>
-              </div>
-            </div>
-          </section>
+          <QuickBillingSection
+            customerPhone={customerPhone}
+            setCustomerPhone={setCustomerPhone}
+            billAmount={billAmount}
+            setBillAmount={setBillAmount}
+            actionLoading={actionLoading}
+            isCheckingCustomer={isCheckingCustomer}
+            existingCustomerClaim={existingCustomerClaim}
+            currentClaimable={currentClaimable}
+            redeemInBill={redeemInBill}
+            setRedeemInBill={setRedeemInBill}
+            billNum={billNum}
+            actualRedeemAmount={actualRedeemAmount}
+            finalToPay={finalToPay}
+            customersList={customersList}
+            totalClaimableSum={totalClaimableSum}
+            handleGenerateCashback={handleGenerateCashback}
+            startScanner={startScanner}
+            onOpenProfile={() => setIsProfileOpen(true)}
+          />
         )}
 
         {activeTab === 'offers' && (
-          <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-xs sm:p-7">
-              <div className="mb-6 flex items-start justify-between">
-                <div>
-                  <h2 className="text-lg font-extrabold text-slate-900">Post a store offer</h2>
-                  <p className="mt-1 text-xs text-slate-500">Share a new reason to visit.</p>
-                </div>
-                <div className="rounded-2xl bg-emerald-50 p-2.5 text-[#00875A]">
-                  <Upload className="size-5" />
-                </div>
-              </div>
-
-              {offerStatusMsg && (
-                <div className={`mb-4 p-3 rounded-xl text-xs font-semibold ${offerStatusMsg.type === 'success' ? 'bg-emerald-50 text-[#00875A] border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
-                  {offerStatusMsg.text}
-                </div>
-              )}
-
-              <form onSubmit={handleAddOffer} className="grid gap-4">
-                <label className="grid gap-2 text-xs font-semibold text-slate-700">
-                  Offer title
-                  <input
-                    value={offerTitle}
-                    onChange={(e) => setOfferTitle(e.target.value)}
-                    className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white"
-                    placeholder="e.g. Weekend Sale 20%"
-                    required
-                  />
-                </label>
-
-                <label className="grid gap-2 text-xs font-semibold text-slate-700">
-                  Description / Conditions
-                  <input
-                    value={offerDesc}
-                    onChange={(e) => setOfferDesc(e.target.value)}
-                    className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white"
-                    placeholder="Optional details"
-                  />
-                </label>
-
-                <label className="grid gap-2 text-xs font-semibold text-slate-700 w-full min-w-0">
-                  Expiry date & time
-                  <div className="relative w-full min-w-0">
-                    <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400 z-10" />
-                    <input
-                      type="datetime-local"
-                      value={offerExpiry}
-                      onChange={(e) => setOfferExpiry(e.target.value)}
-                      className="h-11 w-full max-w-full min-w-0 appearance-none rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-xs sm:text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white transition"
-                      required
-                    />
-                  </div>
-                </label>
-
-                <label className="flex h-12 cursor-pointer items-center gap-3 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/50 px-3 text-xs text-slate-600 hover:border-[#00875A] hover:bg-emerald-50">
-                  <Upload className="size-4 text-[#00875A]" />
-                  {offerImage ? offerImage.name : 'Upload poster image'}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setOfferImage(e.target.files?.[0] || null)}
-                    className="sr-only"
-                    required
-                  />
-                </label>
-
-                <button
-                  type="submit"
-                  disabled={offerUploading}
-                  className="mt-2 h-11 w-full rounded-xl bg-[#00875A] hover:bg-[#00704a] text-xs font-extrabold text-white shadow-md shadow-[#00875A]/20 transition cursor-pointer disabled:opacity-50 active:scale-98"
-                >
-                  {offerUploading ? 'Uploading...' : 'Publish offer to customers'}
-                </button>
-              </form>
-            </div>
-
-            <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-xs sm:p-7">
-              <div className="mb-6">
-                <h2 className="text-lg font-extrabold text-slate-900">Active offers ({offers.length})</h2>
-                <p className="mt-1 text-xs text-slate-500">Offers currently visible to customers.</p>
-              </div>
-
-              <div className="space-y-3">
-                {offers.length > 0 ? (
-                  offers.map((offer) => (
-                    <div key={offer.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <img src={offer.image_url} alt={offer.title} className="w-12 h-12 object-cover rounded-xl border border-slate-200" />
-                        <div className="min-w-0">
-                          <p className="font-bold text-sm text-slate-900 truncate">{offer.title}</p>
-                          <p className="mt-0.5 text-xs text-slate-500 truncate">
-                            Expires: {new Date(offer.expires_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-mono text-[10px] font-bold uppercase text-[#00875A]">
-                          Active
-                        </span>
-                        <button
-                          onClick={() => setOfferToDelete(offer.id)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 transition cursor-pointer"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-400 text-center py-6">No active offers available.</p>
-                )}
-              </div>
-            </div>
-          </section>
+          <StoreOffersSection
+            offers={offers}
+            offerTitle={offerTitle}
+            setOfferTitle={setOfferTitle}
+            offerDesc={offerDesc}
+            setOfferDesc={setOfferDesc}
+            offerExpiry={offerExpiry}
+            setOfferExpiry={setOfferExpiry}
+            offerImage={offerImage}
+            setOfferImage={setOfferImage}
+            offerUploading={offerUploading}
+            offerStatusMsg={offerStatusMsg}
+            handleAddOffer={handleAddOffer}
+            setOfferToDelete={setOfferToDelete}
+          />
         )}
 
         {activeTab === 'customers' && (
-          <section className="max-w-3xl">
-            <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-xs sm:p-7">
-              <div className="mb-6 flex items-start justify-between">
-                <div>
-                  <h2 className="text-lg font-extrabold text-slate-900">Customers directory</h2>
-                  <p className="mt-1 text-xs text-slate-500">Your most recent customer activity.</p>
-                </div>
-                <span className="rounded-full bg-slate-100 border border-slate-200 px-2.5 py-1 font-mono text-[10px] text-slate-600 font-bold">
-                  {filteredCustomers.length} customers
-                </span>
-              </div>
-
-              <div className="relative mb-4">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={customerSearchQuery}
-                  onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                  className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white font-mono"
-                  placeholder="Search customer by phone number..."
-                />
-              </div>
-
-              <div className="space-y-3">
-                {filteredCustomers.length > 0 ? (
-                  filteredCustomers.map((cust) => (
-                    <div key={cust.id} className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:flex-row sm:items-center">
-                      <div>
-                        <p className="font-mono text-sm font-black text-slate-900">{cust.customer_phone}</p>
-                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                          <span>Visits: <strong className="font-extrabold text-slate-900">{cust.visit_count} / {targetVisits}</strong></span>
-                          <span>Cashback: <strong className="font-extrabold text-slate-900">Rs. {cust.claimable_amount}</strong></span>
-                        </div>
-                      </div>
-                      <span className={`flex items-center gap-1.5 self-start rounded-full border px-2.5 py-1 font-mono text-[10px] font-extrabold uppercase tracking-wider sm:self-auto ${
-                        cust.status === 'REDEEMED' ? 'border-slate-300 bg-slate-200 text-slate-600' : 'border-emerald-200 bg-emerald-50 text-[#00875A]'
-                      }`}>
-                        <span className={`size-1.5 rounded-full ${cust.status === 'REDEEMED' ? 'bg-slate-400' : 'bg-[#00875A]'}`} />
-                        {cust.status}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-400 text-center py-6">No matching customers found.</p>
-                )}
-              </div>
-            </div>
-          </section>
+          <CustomersSection
+            filteredCustomers={filteredCustomers}
+            customerSearchQuery={customerSearchQuery}
+            setCustomerSearchQuery={setCustomerSearchQuery}
+            targetVisits={targetVisits}
+          />
         )}
 
       </main>

@@ -1,0 +1,203 @@
+'use client'
+
+import { FormEvent } from 'react'
+import { MessageCircle, Phone, Gift, ChevronRight, QrCode, Users, WalletCards, Settings2 } from 'lucide-react'
+
+interface CashbackClaim {
+  id: string
+  customer_phone: string
+  claimable_amount: number
+  visit_count: number
+  status: string
+}
+
+interface QuickBillingSectionProps {
+  customerPhone: string
+  setCustomerPhone: (val: string) => void
+  billAmount: string
+  setBillAmount: (val: string) => void
+  actionLoading: boolean
+  isCheckingCustomer: boolean
+  existingCustomerClaim: CashbackClaim | null
+  currentClaimable: number
+  redeemInBill: boolean
+  setRedeemInBill: (val: boolean) => void
+  billNum: number
+  actualRedeemAmount: number
+  finalToPay: number
+  customersList: CashbackClaim[]
+  totalClaimableSum: number
+  handleGenerateCashback: (e: FormEvent) => void
+  startScanner: () => void
+  onOpenProfile: () => void
+}
+
+export default function QuickBillingSection({
+  customerPhone,
+  setCustomerPhone,
+  billAmount,
+  setBillAmount,
+  actionLoading,
+  isCheckingCustomer,
+  existingCustomerClaim,
+  currentClaimable,
+  redeemInBill,
+  setRedeemInBill,
+  billNum,
+  actualRedeemAmount,
+  finalToPay,
+  customersList,
+  totalClaimableSum,
+  handleGenerateCashback,
+  startScanner,
+  onOpenProfile
+}: QuickBillingSectionProps) {
+  return (
+    <section className="grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
+      <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-xs sm:p-7">
+        <div className="mb-7 flex items-start justify-between">
+          <div>
+            <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-[#00875A]">
+              <MessageCircle className="size-5" />
+            </div>
+            <h2 className="text-lg font-extrabold text-slate-900">New cashback transaction</h2>
+            <p className="mt-1 text-xs text-slate-500">Add a visit and notify your customer on WhatsApp.</p>
+          </div>
+          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-[#00875A]">
+            Live
+          </span>
+        </div>
+
+        <form onSubmit={handleGenerateCashback} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="grid gap-2 text-xs font-semibold text-slate-700">
+              Customer WhatsApp number
+              <div className="relative">
+                <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-emerald-100 font-mono transition"
+                  placeholder="077 123 4567"
+                  required
+                />
+              </div>
+            </label>
+
+            <label className="grid gap-2 text-xs font-semibold text-slate-700">
+              Bill amount <span className="font-normal text-slate-500">LKR / Rs.</span>
+              <input
+                type="number"
+                value={billAmount}
+                onChange={(e) => setBillAmount(e.target.value)}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-emerald-100 font-mono transition"
+                placeholder="0.00"
+                inputMode="decimal"
+                required
+              />
+            </label>
+          </div>
+
+          {isCheckingCustomer && (
+            <p className="text-xs text-slate-400 animate-pulse">Checking customer balance...</p>
+          )}
+
+          {existingCustomerClaim && currentClaimable > 0 && (
+            <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Gift className="size-4 text-amber-600" />
+                  <span className="text-xs font-extrabold text-amber-900">
+                    Available Cashback: <span className="font-mono text-amber-700">Rs. {currentClaimable}</span>
+                  </span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={redeemInBill}
+                    onChange={(e) => setRedeemInBill(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00875A]"></div>
+                  <span className="ml-2 text-xs font-bold text-slate-700">Redeem in Bill</span>
+                </label>
+              </div>
+
+              {redeemInBill && billNum > 0 && (
+                <div className="pt-2 border-t border-amber-200/60 text-xs space-y-1 font-mono text-slate-600">
+                  <div className="flex justify-between">
+                    <span>Original Bill:</span>
+                    <span>Rs. {billNum.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-amber-700 font-bold">
+                    <span>Cashback Discount:</span>
+                    <span>- Rs. {actualRedeemAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-900 font-black pt-1 border-t border-amber-200">
+                    <span>Net Bill To Pay:</span>
+                    <span className="text-[#00875A]">Rs. {finalToPay.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={actionLoading}
+            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#00875A] hover:bg-[#00704a] px-4 text-xs font-extrabold text-white shadow-md shadow-[#00875A]/20 transition cursor-pointer disabled:opacity-50 active:scale-98"
+          >
+            <MessageCircle className="size-4" />
+            {actionLoading ? 'Processing...' : 'Add cashback & send WhatsApp'}
+            <ChevronRight className="size-4" />
+          </button>
+        </form>
+
+        <button
+          type="button"
+          onClick={startScanner}
+          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200/80 bg-emerald-50/60 text-xs font-bold text-[#00875A] transition hover:bg-emerald-100/80 cursor-pointer shadow-xs active:scale-98"
+        >
+          <QrCode className="size-4 text-[#00875A]" /> Open live QR camera scanner
+        </button>
+      </div>
+
+      <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-xs sm:p-7 flex flex-col justify-between">
+        <div>
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-extrabold text-slate-900">Today's Overview</h2>
+              <p className="mt-1 text-xs text-slate-500">Real-time stats for your store.</p>
+            </div>
+            <div className="rounded-2xl bg-emerald-50 p-2.5 text-[#00875A]">
+              <Users className="size-5" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+              <Users className="mb-3 size-4 text-[#00875A]" />
+              <p className="font-mono text-3xl font-black text-slate-900">{customersList.length}</p>
+              <p className="mt-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Visits</p>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+              <WalletCards className="mb-3 size-4 text-[#00875A]" />
+              <p className="font-mono text-2xl font-black text-slate-900">Rs. {totalClaimableSum.toFixed(2)}</p>
+              <p className="mt-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Cashback Claimable</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 border-t border-slate-100 pt-4 text-center">
+          <button
+            onClick={onOpenProfile}
+            className="text-xs font-extrabold text-[#00875A] hover:underline flex items-center justify-center gap-1 mx-auto cursor-pointer"
+          >
+            <Settings2 className="size-3.5" /> Manage Cashback Rules in Profile
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
