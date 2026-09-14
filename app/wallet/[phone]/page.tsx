@@ -42,19 +42,13 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   Default: StoreIcon
 }
 
-function getCategoryColor(category?: string) {
-  const cat = category?.toLowerCase() || ''
-  if (cat.includes('food')) return { color: '#FF6B35', bgColor: '#FFF3ED' }
-  if (cat.includes('retail')) return { color: '#6366F1', bgColor: '#EEF2FF' }
-  if (cat.includes('fashion')) return { color: '#EC4899', bgColor: '#FCE7F3' }
-  if (cat.includes('electronics')) return { color: '#0284C7', bgColor: '#E0F2FE' }
-  if (cat.includes('service') || cat.includes('beauty')) return { color: '#8B5CF6', bgColor: '#F3E8FF' }
-  if (cat.includes('supermarket') || cat.includes('grocery')) return { color: '#10B981', bgColor: '#D1FAE5' }
+// 100% Clean Emerald Green Brand Theme for World-Class UX
+function getCategoryColor(_category?: string) {
   return { color: '#00875A', bgColor: '#ECFDF5' }
 }
 
 function getCategoryIcon(category?: string) {
-  if (!category) return StoreIcon
+  if (!category || category === 'All') return StoreIcon
   const cat = category.toLowerCase()
   if (cat.includes('food')) return Utensils
   if (cat.includes('retail')) return ShoppingBag
@@ -531,7 +525,7 @@ export default function CustomerWalletPage() {
                 <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
                   {categoryList.map((cat) => {
                     const active = selectedCategory === cat
-                    const CatIcon = cat !== 'All' ? getCategoryIcon(cat) : null
+                    const CatIcon = getCategoryIcon(cat)
                     return (
                       <button
                         key={cat}
@@ -551,12 +545,10 @@ export default function CustomerWalletPage() {
                               }
                         }
                       >
-                        {CatIcon && (
-                          <CatIcon
-                            size={12}
-                            style={{ color: active ? '#fff' : '#94a3b8' }}
-                          />
-                        )}
+                        <CatIcon
+                          size={13}
+                          style={{ color: active ? '#fff' : '#94a3b8' }}
+                        />
                         {cat}
                       </button>
                     )
@@ -634,7 +626,7 @@ export default function CustomerWalletPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-3">
                               
-                              {/* 1. Store Title & Category with Strict Truncation (Ellipsis) */}
+                              {/* Store Title & Category */}
                               <div className="min-w-0 flex-1">
                                 <h3 className="text-sm font-bold text-slate-800 leading-snug truncate" title={store.store_name}>
                                   {store.store_name} {isThisNavigating && '(Opening...)'}
@@ -652,7 +644,7 @@ export default function CustomerWalletPage() {
                                 )}
                               </div>
 
-                              {/* 2. Refined Cashback Label & Strikethrough Amount Display */}
+                              {/* Cashback Amount Display */}
                               <div className="text-right flex-shrink-0">
                                 {store.isRedeemed ? (
                                   <div>
@@ -677,7 +669,7 @@ export default function CustomerWalletPage() {
 
                             </div>
 
-                            {/* Visit Counter with Strict Fixed Alignment */}
+                            {/* Visit Counter */}
                             <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
                               <span className="text-[11px] font-bold text-slate-700 flex-shrink-0 whitespace-nowrap">
                                 {visits} / {targetVisits} visits
