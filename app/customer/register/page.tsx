@@ -19,8 +19,6 @@ export default function CustomerRegisterPage() {
     const [successMsg, setSuccessMsg] = useState('')
 
     // Standardized Phone normalization logic
-    // Accepts formats like: 0771234567, +94771234567, 94771234567, or 771234567
-    // Returns a standard 11-digit database format starting with 94 (e.g. 94771234567)
     const normalizePhone = (input: string) => {
         let cleaned = input.replace(/\D/g, '')
 
@@ -73,7 +71,6 @@ export default function CustomerRegisterPage() {
             if (checkError) throw checkError
 
             if (existingData && existingData.length > 0) {
-                // User already registered -> Inform and redirect to login
                 setSuccessMsg('Account already exists! Redirecting to login...')
                 setTimeout(() => {
                     router.push('/customer/login')
@@ -95,7 +92,6 @@ export default function CustomerRegisterPage() {
 
             if (insertError) throw insertError
 
-            // Save login session and route directly to wallet
             localStorage.setItem(`retcash_wallet_auth_${cleanPhone}`, 'true')
             router.push(`/wallet/${cleanPhone}`)
 
@@ -108,27 +104,16 @@ export default function CustomerRegisterPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col items-center justify-center p-4 font-sans selection:bg-[#00875A] selection:text-white">
+        <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col items-center justify-between p-4 font-sans selection:bg-[#00875A] selection:text-white">
             
-            {/* Top Header with Real Logo Image */}
-            <div className="w-full max-w-md bg-slate-200/80 py-3 px-4 rounded-t-2xl flex items-center justify-center space-x-2 border-t border-x border-slate-300/60 mb-[-10px] z-10">
-                <Image 
-                    src="/logo.png" 
-                    alt="RETCASH Logo" 
-                    width={20} 
-                    height={20} 
-                    className="w-5 h-5 object-contain"
-                />
-                <span className="font-extrabold tracking-wider text-slate-800 text-sm uppercase">
-                    RET<span className="text-[#00875A]">CASH</span>
-                </span>
-            </div>
+            <div className="pt-2"></div>
 
-            {/* Main Register Card */}
-            <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-8 pt-10 shadow-xl space-y-6 relative z-20">
+            {/* Single Unified Clean White Card */}
+            <div className="w-full max-w-md bg-white border border-slate-100 rounded-[28px] p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.04)] space-y-6 relative my-auto">
 
+                {/* Single Header Brand Logo & Title */}
                 <div className="text-center space-y-2">
-                    <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mx-auto mb-3 p-2">
+                    <div className="w-16 h-16 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.05)] mx-auto mb-3 p-2.5">
                         <Image 
                             src="/logo.png" 
                             alt="RETCASH Logo" 
@@ -137,8 +122,10 @@ export default function CustomerRegisterPage() {
                             className="w-full h-full object-contain"
                         />
                     </div>
-                    <h1 className="text-2xl font-black text-[#00875A] tracking-wider uppercase">RETCASH</h1>
-                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Customer Registration</h2>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-wider uppercase">
+                        RET<span className="text-[#00875A]">CASH</span>
+                    </h1>
+                    <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Customer Registration</h2>
                     <p className="text-xs text-slate-500">
                         Enter your details to create an account and access your cashback wallet.
                     </p>
@@ -161,7 +148,7 @@ export default function CustomerRegisterPage() {
                     {/* Phone Number Field */}
                     <div>
                         <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Phone Number</label>
-                        <div className="flex items-center w-full bg-slate-50 border border-slate-300 focus-within:border-[#00875A] focus-within:ring-2 focus-within:ring-[#00875A]/20 rounded-xl px-3 py-2.5 transition">
+                        <div className="flex items-center w-full bg-slate-50 border border-slate-300 focus-within:border-[#00875A] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#00875A]/20 rounded-xl px-3 py-2.5 transition">
                             <span className="text-slate-500 font-bold text-sm pr-2 border-r border-slate-300">+94</span>
                             <input
                                 type="tel"
@@ -190,7 +177,7 @@ export default function CustomerRegisterPage() {
                     {/* Password Field */}
                     <div>
                         <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Create Password</label>
-                        <div className="relative flex items-center w-full bg-slate-50 border border-slate-300 focus-within:border-[#00875A] focus-within:ring-2 focus-within:ring-[#00875A]/20 rounded-xl px-3 py-2.5 transition">
+                        <div className="relative flex items-center w-full bg-slate-50 border border-slate-300 focus-within:border-[#00875A] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#00875A]/20 rounded-xl px-3 py-2.5 transition">
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 value={passwordInput}
@@ -233,8 +220,9 @@ export default function CustomerRegisterPage() {
 
             </div>
 
-            <div className="py-8 text-center text-[10px] text-slate-400 font-extrabold tracking-wider uppercase">
-                <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM</p>
+            {/* Bottom Footer */}
+            <div className="py-6 text-center text-[10px] text-slate-400 font-bold tracking-wider uppercase">
+                <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
             </div>
         </div>
     )

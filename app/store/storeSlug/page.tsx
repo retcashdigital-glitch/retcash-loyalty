@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useEffect, useState, use } from 'react'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
+import { Store, MapPin, Star, Wallet, Loader2, ArrowLeft } from 'lucide-react'
 
 export default function DynamicStorePage({ params }: { params: Promise<{ storeSlug: string }> }) {
     const { storeSlug } = use(params)
@@ -73,109 +75,138 @@ export default function DynamicStorePage({ params }: { params: Promise<{ storeSl
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#0B0E14] text-white flex items-center justify-center font-sans">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#FF6B00]"></div>
+            <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col items-center justify-center font-sans">
+                <Loader2 className="size-10 text-[#00875A] animate-spin mb-2" />
+                <p className="text-xs text-slate-500 font-semibold">Loading Store Information...</p>
             </div>
         )
     }
 
     if (!store) {
         return (
-            <div className="min-h-screen bg-[#0B0E14] text-white flex flex-col items-center justify-center p-4">
-                <h1 className="text-xl font-bold text-red-400 mb-2">Store Not Found</h1>
-                <p className="text-xs text-gray-400">The link you accessed might be invalid or expired.</p>
+            <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col items-center justify-center p-4 font-sans">
+                <div className="bg-white p-6 rounded-3xl shadow-[0_10px_30px_rgba(0,0,0,0.04)] border border-slate-100 max-w-sm w-full text-center space-y-3">
+                    <div className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto">
+                        <Store className="size-6" />
+                    </div>
+                    <h1 className="text-lg font-black text-slate-900 uppercase tracking-tight">Store Not Found</h1>
+                    <p className="text-xs text-slate-500 leading-relaxed">The store link you accessed might be invalid, renamed, or expired.</p>
+                </div>
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center p-4 font-sans selection:bg-[#FF6B00]">
+        <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col items-center justify-between p-4 font-sans selection:bg-[#00875A] selection:text-white">
+            
+            <div className="pt-2"></div>
 
-            {/* Header Branding */}
-            <div className="pt-6 pb-4 flex flex-col items-center">
-                <img src="/puff.png" alt="Retcash" className="h-10 w-auto object-contain mb-1" />
-                <span className="text-[10px] tracking-widest text-gray-500 uppercase font-semibold">Digital Loyalty Network</span>
-            </div>
+            {/* Single Clean Card Container */}
+            <div className="w-full max-w-md bg-white border border-slate-100 rounded-[28px] p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.04)] relative my-auto space-y-6">
 
-            {/* Main Container */}
-            <div className="w-full max-w-md bg-[#161B26] border border-gray-800 rounded-3xl p-6 shadow-2xl backdrop-blur-md">
+                {/* Retcash Platform Header */}
+                <div className="flex flex-col items-center text-center">
+                    <div className="w-14 h-14 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.05)] mb-2 p-2">
+                        <Image 
+                            src="/logo.png" 
+                            alt="RETCASH Logo" 
+                            width={44} 
+                            height={44} 
+                            className="w-full h-full object-contain"
+                        />
+                    </div>
+                    <span className="text-[10px] tracking-widest text-slate-400 font-extrabold uppercase">
+                        Digital Loyalty Network
+                    </span>
+                </div>
 
-                {/* Active Store Card Header */}
-                <div className="flex items-center gap-4 bg-[#0D1117] p-4 rounded-2xl border border-gray-800 mb-6">
+                {/* Active Store Details Header */}
+                <div className="flex items-center gap-4 bg-[#F8FAFC] p-4 rounded-2xl border border-slate-200/60">
                     {store.logo_url ? (
-                        <img src={store.logo_url} alt={store.store_name} className="w-14 h-14 rounded-xl object-cover border border-gray-700" />
+                        <img src={store.logo_url} alt={store.store_name} className="w-14 h-14 rounded-xl object-cover border border-slate-200" />
                     ) : (
-                        <div className="w-14 h-14 bg-[#FF6B00]/10 border border-[#FF6B00]/30 rounded-xl flex items-center justify-center text-[#FF6B00] font-black text-xl">
+                        <div className="w-14 h-14 bg-[#E6F4EA] border border-[#00875A]/20 rounded-xl flex items-center justify-center text-[#00875A] font-black text-xl">
                             {store.store_name?.charAt(0)}
                         </div>
                     )}
                     <div>
-                        <span className="text-[10px] font-bold text-[#FF6B00] uppercase tracking-wider block">OFFICIAL PARTNER</span>
-                        <h1 className="text-lg font-black text-white">{store.store_name}</h1>
-                        <p className="text-xs text-gray-400">{store.default_cashback_percent}% Cashback Available</p>
+                        <span className="text-[10px] font-extrabold text-[#00875A] uppercase tracking-wider block">
+                            OFFICIAL PARTNER
+                        </span>
+                        <h1 className="text-base font-black text-slate-900">{store.store_name}</h1>
+                        <p className="text-xs text-slate-500 font-medium">{store.default_cashback_percent}% Cashback Available</p>
                     </div>
                 </div>
 
                 {/* Action Form or Customer Dashboard */}
                 {!isLoggedIn ? (
-                    <form onSubmit={handlePhoneCheck} className="flex flex-col gap-3">
-                        <label className="text-xs text-gray-300 font-semibold">Enter Mobile Number to Check Your Balance:</label>
-                        <input
-                            type="tel"
-                            required
-                            placeholder="e.g. 0771234567"
-                            value={userPhone}
-                            onChange={(e) => setUserPhone(e.target.value)}
-                            className="w-full px-4 py-3 bg-[#0D1117] border border-gray-800 rounded-xl text-white focus:outline-none focus:border-[#FF6B00] text-sm"
-                        />
+                    <form onSubmit={handlePhoneCheck} className="space-y-4">
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                                Enter Mobile Number to Check Balance
+                            </label>
+                            <input
+                                type="tel"
+                                required
+                                placeholder="e.g. 0771234567"
+                                value={userPhone}
+                                onChange={(e) => setUserPhone(e.target.value)}
+                                className="w-full px-4 py-3 bg-[#F8FAFC] border border-slate-200 focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 rounded-xl text-slate-900 text-sm font-semibold outline-none transition"
+                            />
+                        </div>
                         <button
                             type="submit"
-                            className="w-full py-3.5 bg-gradient-to-r from-[#D95200] via-[#FF6B00] to-[#D95200] text-white font-bold text-xs tracking-wider uppercase rounded-xl shadow-lg shadow-[#FF6B00]/20 active:scale-98 transition"
+                            className="w-full py-3.5 bg-[#00875A] hover:bg-[#059669] text-white font-extrabold text-xs tracking-wider uppercase rounded-xl shadow-md shadow-[#00875A]/25 active:scale-[0.98] transition duration-200 cursor-pointer"
                         >
-                            VIEW MY CASHBACK & REWARDS
+                            View My Cashback & Rewards
                         </button>
                     </form>
                 ) : (
                     <div className="space-y-4">
 
                         {/* Current Store Specific Balance */}
-                        <div className="bg-gradient-to-br from-[#FF6B00]/20 to-[#0D1117] border border-[#FF6B00]/40 p-5 rounded-2xl">
-                            <span className="text-[11px] font-bold text-gray-300 uppercase">Your Balance at {store.store_name}</span>
-                            <div className="text-3xl font-black text-white mt-1">
-                                Rs. {customerBalances.find(b => b.store_name === store.store_name)?.total_cashback || '0.00'}
+                        <div className="bg-[#E6F4EA] border border-[#00875A]/30 p-5 rounded-2xl text-center">
+                            <span className="text-[10px] font-extrabold text-[#00875A] uppercase tracking-wider block">
+                                Your Balance at {store.store_name}
+                            </span>
+                            <div className="text-3xl font-black text-slate-900 mt-1">
+                                Rs. {customerBalances.find(b => b.store_name === store.store_name)?.total_cashback?.toFixed(2) || '0.00'}
                             </div>
                         </div>
 
-                        {/* Quick Links for this store */}
+                        {/* Quick Links for Store */}
                         {(store.location_url || store.review_url) && (
-                            <div className="grid grid-cols-2 gap-2 pt-2">
+                            <div className="grid grid-cols-2 gap-2 pt-1">
                                 {store.location_url && (
-                                    <a href={store.location_url} target="_blank" rel="noreferrer" className="p-3 bg-[#0D1117] border border-gray-800 rounded-xl text-center text-xs font-semibold text-gray-300 hover:text-white hover:border-gray-600 transition">
-                                        📍 Google Map
+                                    <a href={store.location_url} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 p-3 bg-[#F8FAFC] border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:border-[#00875A] hover:text-[#00875A] transition">
+                                        <MapPin className="size-4" /> Google Map
                                     </a>
                                 )}
                                 {store.review_url && (
-                                    <a href={store.review_url} target="_blank" rel="noreferrer" className="p-3 bg-[#0D1117] border border-gray-800 rounded-xl text-center text-xs font-semibold text-[#FF6B00] hover:border-[#FF6B00]/50 transition">
-                                        ⭐ Rate Store
+                                    <a href={store.review_url} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 p-3 bg-[#F8FAFC] border border-slate-200 rounded-xl text-xs font-bold text-[#00875A] hover:bg-[#E6F4EA] transition">
+                                        <Star className="size-4" /> Rate Store
                                     </a>
                                 )}
                             </div>
                         )}
 
-                        {/* Unified Wallet Accordion - All Other Stores */}
-                        <div className="pt-4 border-t border-gray-800">
-                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Your Retcash Network Wallet</h3>
+                        {/* Network Wallet Accordion */}
+                        <div className="pt-4 border-t border-slate-100">
+                            <div className="flex items-center gap-1.5 mb-3">
+                                <Wallet className="size-3.5 text-slate-400" />
+                                <h3 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                                    Your Network Wallet Balances
+                                </h3>
+                            </div>
 
                             {customerBalances.length === 0 ? (
-                                <p className="text-xs text-gray-500">No previous cashback history found.</p>
+                                <p className="text-xs text-slate-400 font-medium">No previous cashback history found.</p>
                             ) : (
                                 <div className="space-y-2">
                                     {customerBalances.map((item, idx) => (
-                                        <div key={idx} className="flex justify-between items-center p-3 bg-[#0D1117] border border-gray-800 rounded-xl text-xs">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-white">{item.store_name}</span>
-                                            </div>
-                                            <span className="font-bold text-[#FF6B00]">Rs. {item.total_cashback}</span>
+                                        <div key={idx} className="flex justify-between items-center p-3 bg-[#F8FAFC] border border-slate-200/60 rounded-xl text-xs">
+                                            <span className="font-bold text-slate-800">{item.store_name}</span>
+                                            <span className="font-extrabold text-[#00875A]">Rs. {Number(item.total_cashback).toFixed(2)}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -184,14 +215,20 @@ export default function DynamicStorePage({ params }: { params: Promise<{ storeSl
 
                         <button
                             onClick={() => setIsLoggedIn(false)}
-                            className="w-full text-center text-[11px] text-gray-500 hover:text-gray-300 pt-2"
+                            className="w-full text-center text-[11px] font-bold text-slate-400 hover:text-slate-600 pt-2 transition flex items-center justify-center gap-1 cursor-pointer"
                         >
-                            Change Mobile Number
+                            <ArrowLeft className="size-3" /> Change Mobile Number
                         </button>
                     </div>
                 )}
 
             </div>
+
+            {/* Bottom Footer */}
+            <div className="py-6 text-center text-[10px] text-slate-400 font-bold tracking-wider uppercase">
+                <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
+            </div>
+
         </div>
     )
 }

@@ -28,7 +28,7 @@ export default function CustomerLoginPage() {
         return cleaned.slice(0, 9);
     };
 
-    // Unicode safe Base64 helper (பழைய கணக்குகளின் இணக்கத்தன்மைக்காக)
+    // Safe Base64 decoding helper for older accounts
     const safeBtoa = (str: string) => {
         try {
             return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode(parseInt(p1, 16))));
@@ -54,7 +54,7 @@ export default function CustomerLoginPage() {
         const inputPass = password.trim();
 
         try {
-            // 1. தேடலில் +94 மற்றும் 07X என இரண்டு வடிவங்களையும் சரிபார்க்கும் நெகிழ்வுத்தன்மை
+            // 1. Check for matching customer phone formats (+94 or 07X)
             const { data: customer, error: fetchError } = await supabase
                 .from('customers')
                 .select('*')
@@ -67,15 +67,13 @@ export default function CustomerLoginPage() {
                 return;
             }
 
-            // 2. பாஸ்வேர்ட் சரிபார்த்தல் (Bcrypt Hash, Plain Text, மற்றும் பழைய Base64)
+            // 2. Validate password hashes
             const storedPass = customer.password ? customer.password.trim() : '';
             let isPasswordCorrect = false;
 
-            // அ) Bcrypt Hash ஒப்பீடு
             if (storedPass.startsWith('$2a$') || storedPass.startsWith('$2b$')) {
                 isPasswordCorrect = await bcrypt.compare(inputPass, storedPass);
             } else {
-                // ஆ) பழைய முறையில் சேமிக்கப்பட்ட Plain Text / Base64 ஒப்பீடு
                 const base64Pass = safeBtoa(inputPass);
                 isPasswordCorrect = storedPass === inputPass || storedPass === base64Pass;
             }
@@ -86,12 +84,11 @@ export default function CustomerLoginPage() {
                 return;
             }
 
-            // 3. Success Log In - Set exact session keys
+            // 3. Establish customer wallet session
             localStorage.setItem(`retcash_wallet_session_${dbPhone}`, 'true');
             localStorage.setItem(`retcash_wallet_auth_${dbPhone}`, 'true');
             localStorage.setItem(`customer_name_${dbPhone}`, customer.full_name || '');
 
-            // Redirecting to valid card route
             router.push(`/wallet/${dbPhone}`);
 
         } catch (err) {
@@ -103,25 +100,15 @@ export default function CustomerLoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 selection:bg-[#00875A] selection:text-white font-sans">
-            {/* Top Header with Real Logo Image */}
-            <div className="w-full max-w-md bg-slate-200/80 py-3 px-4 rounded-t-2xl flex items-center justify-center space-x-2 border-t border-x border-slate-300/60 mb-[-10px] z-10">
-                <Image 
-                    src="/logo.png" 
-                    alt="RETCASH Logo" 
-                    width={20} 
-                    height={20} 
-                    className="w-5 h-5 object-contain"
-                />
-                <span className="font-extrabold tracking-wider text-slate-800 text-sm uppercase">
-                    RET<span className="text-[#00875A]">CASH</span>
-                </span>
-            </div>
+        <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-between p-4 font-sans selection:bg-[#00875A] selection:text-white">
+            <div className="pt-2"></div>
 
-            {/* Main Card */}
-            <div className="bg-white w-full max-w-md rounded-3xl shadow-xl p-8 pt-10 border border-slate-200/80 relative z-20 space-y-6">
+            {/* Single Unified Clean White Card */}
+            <div className="bg-white w-full max-w-md rounded-[28px] shadow-[0_10px_30px_rgba(0,0,0,0.04)] p-6 md:p-8 border border-slate-100 relative my-auto space-y-6">
+                
+                {/* Header Brand Logo & Title */}
                 <div className="flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mb-3 p-2">
+                    <div className="w-16 h-16 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.05)] mb-3 p-2.5">
                         <Image 
                             src="/logo.png" 
                             alt="RETCASH Logo" 
@@ -148,7 +135,7 @@ export default function CustomerLoginPage() {
                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                             Phone Number
                         </label>
-                        <div className="flex items-center w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus-within:border-[#00875A] focus-within:ring-2 focus-within:ring-[#00875A]/20 transition">
+                        <div className="flex items-center w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus-within:border-[#00875A] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#00875A]/20 transition">
                             <span className="text-slate-500 font-bold text-sm pr-2 border-r border-slate-300">+94</span>
                             <input
                                 type="tel"
@@ -172,7 +159,7 @@ export default function CustomerLoginPage() {
                                 Forgot?
                             </Link>
                         </div>
-                        <div className="relative flex items-center w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus-within:border-[#00875A] focus-within:ring-2 focus-within:ring-[#00875A]/20 transition">
+                        <div className="relative flex items-center w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus-within:border-[#00875A] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#00875A]/20 transition">
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 value={password}
@@ -207,6 +194,11 @@ export default function CustomerLoginPage() {
                         Register here
                     </Link>
                 </div>
+            </div>
+
+            {/* Bottom Footer */}
+            <div className="py-6 text-center text-[10px] text-slate-400 font-bold tracking-wider uppercase space-y-1">
+                <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
             </div>
         </div>
     );
