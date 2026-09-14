@@ -1,6 +1,6 @@
 'use client'
 
-import { WalletCards, User, LogOut, Store } from 'lucide-react'
+import { WalletCards, User, LogOut } from 'lucide-react'
 
 interface MerchantSession {
   id: string
@@ -8,6 +8,8 @@ interface MerchantSession {
   phone_number?: string
   default_cashback_percent?: number
   target_visits?: number
+  logo_url?: string | null
+  category?: string
 }
 
 interface DashboardHeaderProps {
@@ -21,9 +23,14 @@ export default function DashboardHeader({
   onOpenProfile,
   onLogout
 }: DashboardHeaderProps) {
+  // கடையின் பெயரின் முதல் எழுத்தைப் பெறுவதற்கான Fallback Helper
+  const storeInitial = merchantSession.store_name ? merchantSession.store_name.trim()[0].toUpperCase() : 'S'
+
   return (
     <header className="border-b border-emerald-800/20 bg-gradient-to-r from-[#00875A] via-[#059669] to-[#0d9488] text-white sticky top-0 z-40 shadow-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-5 lg:px-8">
+        
+        {/* RETCASH Logo & Store Name Identity */}
         <div className="flex items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-xl bg-white/20 border border-white/30 backdrop-blur-xs text-white shadow-xs overflow-hidden">
             <img
@@ -45,13 +52,28 @@ export default function DashboardHeader({
           </div>
         </div>
         
+        {/* Profile Avatar & Action Buttons */}
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={onOpenProfile}
-            className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition cursor-pointer backdrop-blur-xs"
+            className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition cursor-pointer backdrop-blur-xs"
             type="button"
           >
-            <User className="size-3.5 text-emerald-200" />
+            {/* Store Logo / Initial Avatar */}
+            <div className="size-5 rounded-md bg-white/20 border border-white/30 flex items-center justify-center overflow-hidden flex-shrink-0">
+              {merchantSession.logo_url ? (
+                <img
+                  src={merchantSession.logo_url}
+                  alt={merchantSession.store_name}
+                  className="size-full object-cover"
+                />
+              ) : (
+                <span className="text-[10px] font-black text-white leading-none">
+                  {storeInitial}
+                </span>
+              )}
+            </div>
+
             <span className="hidden sm:inline">Store Profile</span>
           </button>
 
