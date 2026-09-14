@@ -17,6 +17,10 @@ import {
   Store as StoreIcon,
   Utensils,
   ShoppingBag,
+  Shirt,
+  Tv,
+  Scissors,
+  ShoppingCart,
   Copy,
   Check,
   Sparkles
@@ -24,11 +28,17 @@ import {
 
 // ─── Types & Dynamic Helper Visuals ───────────────────────────────────────────
 
-type Category = 'All' | 'Food' | 'Retail'
-
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   Food: Utensils,
+  'Food & Dining': Utensils,
   Retail: ShoppingBag,
+  Fashion: Shirt,
+  'Fashion & Clothing': Shirt,
+  Electronics: Tv,
+  Services: Scissors,
+  'Services & Beauty': Scissors,
+  Supermarket: ShoppingCart,
+  'Supermarket & Grocery': ShoppingCart,
   Default: StoreIcon
 }
 
@@ -36,7 +46,23 @@ function getCategoryColor(category?: string) {
   const cat = category?.toLowerCase() || ''
   if (cat.includes('food')) return { color: '#FF6B35', bgColor: '#FFF3ED' }
   if (cat.includes('retail')) return { color: '#6366F1', bgColor: '#EEF2FF' }
+  if (cat.includes('fashion')) return { color: '#EC4899', bgColor: '#FCE7F3' }
+  if (cat.includes('electronics')) return { color: '#0284C7', bgColor: '#E0F2FE' }
+  if (cat.includes('service') || cat.includes('beauty')) return { color: '#8B5CF6', bgColor: '#F3E8FF' }
+  if (cat.includes('supermarket') || cat.includes('grocery')) return { color: '#10B981', bgColor: '#D1FAE5' }
   return { color: '#00875A', bgColor: '#ECFDF5' }
+}
+
+function getCategoryIcon(category?: string) {
+  if (!category) return StoreIcon
+  const cat = category.toLowerCase()
+  if (cat.includes('food')) return Utensils
+  if (cat.includes('retail')) return ShoppingBag
+  if (cat.includes('fashion')) return Shirt
+  if (cat.includes('electronics')) return Tv
+  if (cat.includes('service') || cat.includes('beauty')) return Scissors
+  if (cat.includes('supermarket') || cat.includes('grocery')) return ShoppingCart
+  return StoreIcon
 }
 
 // ─── Dynamic Fixed-Width Equal Alignment Progress Bar Sub-component ─────────
@@ -89,6 +115,16 @@ export default function CustomerWalletPage() {
   const [, startTransition] = useTransition()
 
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Dynamic available categories from current stores list
+  const availableCategories = Array.from(
+    new Set(
+      stores
+        .map((s) => s.category)
+        .filter((cat) => cat && cat.trim() !== '' && cat.toLowerCase() !== 'others')
+    )
+  )
+  const categoryList = ['All', ...availableCategories]
 
   useEffect(() => {
     if (!phone) {
@@ -491,11 +527,11 @@ export default function CustomerWalletPage() {
                   )}
                 </form>
 
-                {/* Category Pills */}
+                {/* Dynamic Category Filter Pills */}
                 <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
-                  {['All', 'Food', 'Retail'].map((cat) => {
+                  {categoryList.map((cat) => {
                     const active = selectedCategory === cat
-                    const CatIcon = cat !== 'All' ? CATEGORY_ICONS[cat] || StoreIcon : null
+                    const CatIcon = cat !== 'All' ? getCategoryIcon(cat) : null
                     return (
                       <button
                         key={cat}
@@ -517,7 +553,7 @@ export default function CustomerWalletPage() {
                       >
                         {CatIcon && (
                           <CatIcon
-                            size={11}
+                            size={12}
                             style={{ color: active ? '#fff' : '#94a3b8' }}
                           />
                         )}
@@ -562,7 +598,7 @@ export default function CustomerWalletPage() {
                 <div className="space-y-3">
                   {filteredStores.map((store) => {
                     const style = getCategoryColor(store.category)
-                    const Icon = CATEGORY_ICONS[store.category] || StoreIcon
+                    const Icon = getCategoryIcon(store.category)
                     const visits = store.visits || 0
                     const targetVisits = store.targetVisits || 6
                     const isThisNavigating = navigatingStoreId === store.id
@@ -814,7 +850,7 @@ export default function CustomerWalletPage() {
                     style={{ color: active ? '#ffffff' : '#64748B' }}
                     strokeWidth={active ? 2.2 : 1.8}
                   />
-                  <span className="text-xs font-extrabold leading-none">
+                  <span className="text-xs font-xs font-extrabold leading-none">
                     {label}
                   </span>
                 </button>

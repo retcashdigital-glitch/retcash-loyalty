@@ -1,14 +1,18 @@
 'use client'
 
-import { FormEvent, ChangeEvent } from 'react'
-import { Store, X, Percent } from 'lucide-react'
-
+import { FormEvent, ChangeEvent, useState } from 'react'
+import { Store, X, Percent, Upload, MapPin, Star, Tag, Loader2, Check } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 interface MerchantSession {
   id: string
   store_name: string
   phone_number?: string
   default_cashback_percent?: number
   target_visits?: number
+  logo_url?: string
+  location_url?: string
+  review_url?: string
+  category?: string
 }
 
 interface StoreSettingsModalProps {
@@ -26,6 +30,16 @@ interface StoreSettingsModalProps {
   handleUpdateTargetVisits: (e: FormEvent) => void
 }
 
+const CATEGORIES = [
+  'Retail',
+  'Food & Dining',
+  'Fashion & Clothing',
+  'Electronics',
+  'Services & Beauty',
+  'Supermarket & Grocery',
+  'others'
+]
+
 export default function StoreSettingsModal({
   merchantSession,
   onClose,
@@ -40,23 +54,121 @@ export default function StoreSettingsModal({
   successMsg,
   handleUpdateTargetVisits
 }: StoreSettingsModalProps) {
+  
+
+  // Dynamic States for Additional Fields
+  const [logoUrl, setLogoUrl] = useState<string>(merchantSession.logo_url || '')
+  const [locationUrl, setLocationUrl] = useState<string>(merchantSession.location_url || '')
+  const [reviewUrl, setReviewUrl] = useState<string>(merchantSession.review_url || '')
+  const [category, setCategory] = useState<string>(merchantSession.category || 'others')
+
+  // Loading and Success States for New Features
+  const [logoUploading, setLogoUploading] = useState<boolean>(false)
+  const [logoSuccess, setLogoSuccess] = useState<boolean>(false)
+
+  const [detailsLoading, setDetailsLoading] = useState<boolean>(false)
+  const [detailsSuccess, setDetailsSuccess] = useState<boolean>(false)
+
+  // 1. Function to Handle Logo Upload & Delete Old File in Supabase Storage
+  const handleLogoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      setLogoUploading(true)
+      setLogoSuccess(false)
+
+      // Step A: Delete Old File from Supabase Storage (if exists and is from Supabase Storage)
+      if (logoUrl && logoUrl.includes('/store-logos/')) {
+        const oldFileName = logoUrl.split('/store-logos/').pop()
+        if (oldFileName) {
+          await supabase.storage.from('store-logos').remove([oldFileName])
+        }
+      }
+
+      // Step B: Upload New File to Storage
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${merchantSession.id}-${Date.now()}.${fileExt}`
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('store-logos')
+        .upload(fileName, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      // Step C: Get Public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('store-logos')
+        .getPublicUrl(fileName)
+
+      const newPublicUrl = publicUrlData.publicUrl
+
+      // Step D: Update Database Table 'stores'
+      const { error: dbError } = await supabase
+        .from('stores')
+        .update({ logo_url: newPublicUrl })
+        .eq('id', merchantSession.id)
+
+      if (dbError) throw dbError
+
+      setLogoUrl(newPublicUrl)
+      merchantSession.logo_url = newPublicUrl
+      setLogoSuccess(true)
+      setTimeout(() => setLogoSuccess(false), 3000)
+    } catch (err: any) {
+      alert(`Logo upload failed: ${err.message || err}`)
+    } finally {
+      setLogoUploading(false)
+    }
+  }
+
+  // 2. Function to Handle Category, Location, and Review URL Updates
+  const handleUpdateStoreDetails = async (e: FormEvent) => {
+    e.preventDefault()
+    try {
+      setDetailsLoading(true)
+      setDetailsSuccess(false)
+
+      const { error } = await supabase
+        .from('stores')
+        .update({
+          category: category,
+          location_url: locationUrl || null,
+          review_url: reviewUrl || null
+        })
+        .eq('id', merchantSession.id)
+
+      if (error) throw error
+
+      merchantSession.category = category
+      merchantSession.location_url = locationUrl
+      merchantSession.review_url = reviewUrl
+
+      setDetailsSuccess(true)
+      setTimeout(() => setDetailsSuccess(false), 3000)
+    } catch (err: any) {
+      alert(`Update failed: ${err.message || err}`)
+    } finally {
+      setDetailsLoading(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
       <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
         
+        {/* Header */}
         <div className="bg-[#00875A] text-white p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-xs overflow-hidden">
-              <img
-                src="/logo.png"
-                alt="Logo"
-                className="size-7 object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                  e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                }}
-              />
-              <Store className="size-5 hidden" />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-xs overflow-hidden shrink-0">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  className="size-full object-cover"
+                />
+              ) : (
+                <Store className="size-5" />
+              )}
             </div>
             <div>
               <h3 className="font-bold text-sm text-white">{merchantSession.store_name}</h3>
@@ -71,8 +183,10 @@ export default function StoreSettingsModal({
           </button>
         </div>
 
+        {/* Modal Scrollable Body */}
         <div className="p-5 space-y-6 max-h-[80vh] overflow-y-auto">
           
+          {/* Account Details Box */}
           <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-4 space-y-3">
             <h4 className="text-xs font-bold text-[#00875A] uppercase tracking-wider">Account Details</h4>
             <div className="space-y-2 text-xs">
@@ -89,9 +203,51 @@ export default function StoreSettingsModal({
             </div>
           </div>
 
+          {/* SECTION 1: Change Logo (Storage Upload with Delete Logic) */}
+          <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
+            <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Upload className="size-3.5 text-[#00875A]" /> Store Logo
+            </h4>
+            <div className="flex items-center gap-4">
+              <div className="size-14 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Store Logo" className="size-full object-cover" />
+                ) : (
+                  <Store className="size-6 text-slate-400" />
+                )}
+              </div>
+              <div className="flex-1 space-y-1">
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#00875A] bg-emerald-50 text-[#00875A] hover:bg-[#00875A] hover:text-white text-xs font-bold transition cursor-pointer">
+                  {logoUploading ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin" /> Uploading...
+                    </>
+                  ) : (
+                    'Change Logo'
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    disabled={logoUploading}
+                    className="hidden"
+                  />
+                </label>
+                <p className="text-[10px] text-slate-400">Replaces existing logo automatically</p>
+              </div>
+            </div>
+            {logoSuccess && (
+              <p className="text-[11px] text-[#00875A] font-bold flex items-center gap-1">
+                <Check className="size-3" /> Logo updated successfully!
+              </p>
+            )}
+          </div>
+
+          {/* SECTION 2: Existing Cashback Rules & Configuration */}
           <div className="space-y-4">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Store Rules & Configuration</h4>
             
+            {/* Form A: Cashback Percent */}
             <form onSubmit={handleUpdateCashbackPercent} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-xs">
               <div className="flex items-center justify-between">
                 <label htmlFor="cashbackPercentModal" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
@@ -125,6 +281,7 @@ export default function StoreSettingsModal({
               )}
             </form>
 
+            {/* Form B: Target Visits */}
             <form onSubmit={handleUpdateTargetVisits} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-xs">
               <div className="flex items-center justify-between">
                 <label htmlFor="targetModal" className="text-xs font-semibold text-slate-700">Target Visits</label>
@@ -155,8 +312,74 @@ export default function StoreSettingsModal({
             </form>
           </div>
 
+          {/* SECTION 3: Store Category, Google Review & Location Links */}
+          <form onSubmit={handleUpdateStoreDetails} className="bg-white border border-slate-200 rounded-xl p-4 space-y-4 shadow-xs">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Store Information & Links</h4>
+
+            {/* Store Category Select */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                <Tag className="size-3.5 text-[#00875A]" /> Store Category
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-[#00875A] focus:bg-white text-slate-900"
+              >
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Google Location Link */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                <MapPin className="size-3.5 text-[#00875A]" /> Google Maps Location Link
+              </label>
+              <input
+                type="url"
+                value={locationUrl}
+                onChange={(e) => setLocationUrl(e.target.value)}
+                placeholder="https://maps.google.com/..."
+                className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-[#00875A] focus:bg-white font-mono text-slate-900"
+              />
+            </div>
+
+            {/* Google Review Link */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                <Star className="size-3.5 text-[#00875A]" /> Google Review Link
+              </label>
+              <input
+                type="url"
+                value={reviewUrl}
+                onChange={(e) => setReviewUrl(e.target.value)}
+                placeholder="https://g.page/r/..."
+                className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-[#00875A] focus:bg-white font-mono text-slate-900"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={detailsLoading}
+              className="w-full py-2.5 rounded-lg border border-[#00875A] bg-emerald-50 text-[#00875A] hover:bg-[#00875A] hover:text-white text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              {detailsLoading ? <Loader2 className="size-4 animate-spin" /> : 'Save Store Info'}
+            </button>
+
+            {detailsSuccess && (
+              <p className="text-[11px] text-[#00875A] font-bold mt-1 text-center">
+                ✓ Store information & links updated!
+              </p>
+            )}
+          </form>
+
         </div>
 
+        {/* Modal Footer */}
         <div className="bg-slate-50 p-4 border-t border-slate-200 text-right">
           <button
             onClick={onClose}
