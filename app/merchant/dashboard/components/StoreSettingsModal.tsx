@@ -3,6 +3,7 @@
 import { FormEvent, ChangeEvent, useState } from 'react'
 import { Store, X, Percent, Upload, MapPin, Star, Tag, Loader2, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+
 interface MerchantSession {
   id: string
   store_name: string
@@ -30,13 +31,20 @@ interface StoreSettingsModalProps {
   handleUpdateTargetVisits: (e: FormEvent) => void
 }
 
+// ─── 100% Clear & Refined Single-Purpose Categories ───────────────────────────
 const CATEGORIES = [
-  'Retail',
-  'Food & Dining',
-  'Fashion & Clothing',
+  'Food',
+  'Groceries',
+  'Fashion',
   'Electronics',
-  'Services & Beauty',
-  'Supermarket & Grocery',
+  'Beauty',
+  'Services',
+  'Fitness',
+  'Gaming',
+  'Healthcare',
+  'Education',
+  'Automobile',
+  'Retail',
   'others'
 ]
 
@@ -54,7 +62,6 @@ export default function StoreSettingsModal({
   successMsg,
   handleUpdateTargetVisits
 }: StoreSettingsModalProps) {
-  
 
   // Dynamic States for Additional Fields
   const [logoUrl, setLogoUrl] = useState<string>(merchantSession.logo_url || '')
@@ -324,8 +331,13 @@ export default function StoreSettingsModal({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-[#00875A] focus:bg-white text-slate-900"
+                className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-[#00875A] focus:bg-white text-slate-900 font-medium"
               >
+                {/* 기존 பழைய 데이터களையும் காட்டும் பொருட்டு */}
+                {!CATEGORIES.includes(category) && category !== '' && (
+                  <option value={category}>{category}</option>
+                )}
+                
                 {CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat}

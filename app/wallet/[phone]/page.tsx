@@ -19,28 +19,50 @@ import {
   ShoppingBag,
   Shirt,
   Tv,
-  Scissors,
   ShoppingCart,
   Copy,
   Check,
-  Sparkles
+  Sparkles,
+  Dumbbell,     // Fitness / Gym
+  Gamepad2,     // Gaming / Entertainment
+  Pill,         // Healthcare / Pharmacy
+  BookOpen,     // Education / Books
+  Car,          // Automobile
+  Sparkle,      // Beauty
+  Wrench        // General Services
 } from 'lucide-react'
 
 // ─── Types & Dynamic Helper Visuals ───────────────────────────────────────────
 
+// ScissorsIcon-ஐ முதலில் Declare செய்யவும்
+const ScissorsIcon = Wrench
+
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   Food: Utensils,
+  Dining: Utensils,
   'Food & Dining': Utensils,
-  Retail: ShoppingBag,
+  Groceries: ShoppingCart,
+  Supermarket: ShoppingCart,
+  'Supermarket & Grocery': ShoppingCart,
   Fashion: Shirt,
   'Fashion & Clothing': Shirt,
   Electronics: Tv,
-  Services: Scissors,
-  'Services & Beauty': Scissors,
-  Supermarket: ShoppingCart,
-  'Supermarket & Grocery': ShoppingCart,
+  Beauty: Sparkle,
+  Services: Wrench,
+  'Services & Beauty': ScissorsIcon,
+  Fitness: Dumbbell,
+  Gym: Dumbbell,
+  Gaming: Gamepad2,
+  Entertainment: Gamepad2,
+  Healthcare: Pill,
+  Pharmacy: Pill,
+  Education: BookOpen,
+  Automobile: Car,
+  Retail: ShoppingBag,
   Default: StoreIcon
 }
+
+
 
 // 100% Clean Emerald Green Brand Theme for World-Class UX
 function getCategoryColor(_category?: string) {
@@ -49,13 +71,21 @@ function getCategoryColor(_category?: string) {
 
 function getCategoryIcon(category?: string) {
   if (!category || category === 'All') return StoreIcon
-  const cat = category.toLowerCase()
-  if (cat.includes('food')) return Utensils
-  if (cat.includes('retail')) return ShoppingBag
-  if (cat.includes('fashion')) return Shirt
-  if (cat.includes('electronics')) return Tv
-  if (cat.includes('service') || cat.includes('beauty')) return Scissors
-  if (cat.includes('supermarket') || cat.includes('grocery')) return ShoppingCart
+  const cat = category.toLowerCase().trim()
+
+  if (cat.includes('food') || cat.includes('dining') || cat.includes('restaurant') || cat.includes('cafe')) return Utensils
+  if (cat.includes('grocer') || cat.includes('supermarket') || cat.includes('mart')) return ShoppingCart
+  if (cat.includes('fashion') || cat.includes('cloth') || cat.includes('wear')) return Shirt
+  if (cat.includes('electronic') || cat.includes('tech') || cat.includes('gadget') || cat.includes('mobile')) return Tv
+  if (cat.includes('beauty') || cat.includes('salon') || cat.includes('spa') || cat.includes('cosmetic')) return Sparkle
+  if (cat.includes('service') || cat.includes('repair') || cat.includes('clean') || cat.includes('wash')) return Wrench
+  if (cat.includes('fit') || cat.includes('gym') || cat.includes('sport')) return Dumbbell
+  if (cat.includes('game') || cat.includes('gaming') || cat.includes('arcade') || cat.includes('entertain')) return Gamepad2
+  if (cat.includes('health') || cat.includes('pharmacy') || cat.includes('medical') || cat.includes('clinic')) return Pill
+  if (cat.includes('book') || cat.includes('educat') || cat.includes('stationery')) return BookOpen
+  if (cat.includes('auto') || cat.includes('car') || cat.includes('bike') || cat.includes('garage')) return Car
+  if (cat.includes('retail') || cat.includes('shop')) return ShoppingBag
+
   return StoreIcon
 }
 
@@ -893,7 +923,7 @@ export default function CustomerWalletPage() {
                 <img src={qrCodeUrl} alt="Customer QR Code" className="w-48 h-48 mx-auto rounded-xl" />
               </div>
 
-              <div className="bg-emerald-50 border border-emerald-100 py-2.5 px-4 rounded-xl flex items-center justify-between">
+              <div className="bg-emerald-50 border border-emerald-100 py-2.5 px-4 rounded-xl flex items-between justify-between">
                 <p className="text-xs font-bold text-[#00875A]">{formatPhoneNumber(phone)}</p>
                 <button
                   onClick={handleCopyPhone}
