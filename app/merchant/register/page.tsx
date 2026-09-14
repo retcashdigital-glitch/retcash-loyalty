@@ -26,6 +26,24 @@ function RegisterForm() {
     })
     const [errorMsg, setErrorMsg] = useState('')
 
+    // Helper Function: Formats any Sri Lankan mobile number variation into standard '947XXXXXXXX'
+    const formatPhoneNumber = (phone: string): string => {
+        let clean = phone.replace(/\D/g, '') // Keep digits only
+
+        if (!clean) return ''
+
+        // Handle case starting with 0 (e.g., 0771234567 -> 94771234567)
+        if (clean.startsWith('0')) {
+            clean = '94' + clean.slice(1)
+        }
+        // Handle case without leading 0 or 94 (e.g., 771234567 -> 94771234567)
+        else if (!clean.startsWith('94') && clean.length === 9) {
+            clean = '94' + clean
+        }
+
+        return clean
+    }
+
     useEffect(() => {
         if (phoneFromUrl) {
             setFormData(prev => ({ ...prev, phone_number: phoneFromUrl }))
@@ -48,18 +66,25 @@ function RegisterForm() {
         setErrorMsg('')
 
         try {
-            const cleanPhone = formData.phone_number.replace(/\D/g, '') || 'merchant'
+            // Format phone number to standard Sri Lankan 94 format
+            const formattedPhone = formatPhoneNumber(formData.phone_number)
+
+            if (!formattedPhone || formattedPhone.length < 11) {
+                setErrorMsg('Please enter a valid mobile number (e.g., 0771234567 or 771234567).')
+                setLoading(false)
+                return
+            }
 
             // 1. Check if phone number is already registered
             const { data: existingStore } = await supabase
                 .from('stores')
                 .select('id')
-                .eq('phone_number', cleanPhone)
+                .eq('phone_number', formattedPhone)
                 .maybeSingle()
 
+            // If already registered, seamlessly redirect to Merchant Login Page with pre-filled phone number
             if (existingStore) {
-                setErrorMsg('This phone number is already registered. Please login.')
-                setLoading(false)
+                router.push(`/merchant/login?phone=${formattedPhone}&already_exists=true`)
                 return
             }
 
@@ -80,18 +105,18 @@ function RegisterForm() {
                 .replace(/[^a-z0-9]+/g, '-')
                 .replace(/(^-|-$)+/g, '')
 
-            const phoneSuffix = cleanPhone.length >= 4 ? cleanPhone.slice(-4) : Math.floor(1000 + Math.random() * 9000)
+            const phoneSuffix = formattedPhone.length >= 4 ? formattedPhone.slice(-4) : Math.floor(1000 + Math.random() * 9000)
             const storeSlug = `${baseSlug}-${phoneSuffix}`
 
             // 4. Hash password securely
             const hashedPassword = await bcrypt.hash(formData.password, 10)
 
-            // 5. Insert new store record into Supabase
+            // 5. Insert new store record into Supabase using standardized 94 phone number
             const { data, error } = await supabase.from('stores').insert([
                 {
                     store_name: formData.store_name.trim(),
                     store_slug: storeSlug,
-                    phone_number: cleanPhone,
+                    phone_number: formattedPhone,
                     email: formData.email.trim(),
                     password_hash: hashedPassword,
                     logo_url: logoUrl,
@@ -104,8 +129,8 @@ function RegisterForm() {
             if (error) throw error
 
             if (data) {
-                // Redirect to login page with pre-filled phone number and registration flag
-                router.push(`/merchant/login?phone=${cleanPhone}&registered=true`)
+                // Redirect to login page with pre-filled formatted phone number and registration flag
+                router.push(`/merchant/login?phone=${formattedPhone}&registered=true`)
             }
         } catch (err: any) {
             console.error('Registration Error:', err)
