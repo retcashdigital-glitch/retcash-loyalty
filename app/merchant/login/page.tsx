@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import bcrypt from 'bcryptjs'
 
@@ -19,7 +20,7 @@ function LoginForm() {
     const [errorMsg, setErrorMsg] = useState('')
     const [successMsg, setSuccessMsg] = useState('')
 
-    // 🔄 ஏற்கனவே லாகின் செய்திருந்தால் நேரடியாக Dashboard-க்கு அனுப்பும் Auto-Redirect Logic
+    // Auto-redirect if already logged in as merchant
     useEffect(() => {
         const savedMerchant = localStorage.getItem('retcash_merchant')
         if (savedMerchant) {
@@ -35,16 +36,14 @@ function LoginForm() {
         }
     }, [phoneFromUrl, isRegistered, router])
 
-    // 📱 ஸ்ரீலங்கா போன் நம்பரைச் சீர்படுத்தும் செயல்பாடு (Format Phone Number)
+    // Format Sri Lankan phone numbers to international standard format
     const formatPhoneNumber = (input: string) => {
         const cleaned = input.replace(/\D/g, '')
         if (!cleaned) return ''
 
-        // 0-ல் தொடங்கினால் (எ.கா: 0771234567) முன்னால் 94 சேர்த்துக்கொள்ளும்
         if (cleaned.startsWith('0') && cleaned.length === 10) {
             return '94' + cleaned.slice(1)
         }
-        // ஏற்கனவே 94 உடன் இருந்தால் அப்படியே தரும்
         if (cleaned.startsWith('94') && cleaned.length === 11) {
             return cleaned
         }
@@ -66,20 +65,20 @@ function LoginForm() {
                 return
             }
 
-            // 1. போன் நம்பர் டேட்டாபேஸில் உள்ளதா எனச் சோதித்தல்
+            // 1. Verify if merchant exists in database
             const { data: store, error } = await supabase
                 .from('stores')
                 .select('*')
                 .eq('phone_number', cleanPhone)
                 .single()
 
-            // போன் நம்பர் இல்லை என்றால் -> Register பக்கத்திற்கு சீரான போன் நம்பருடன் அனுப்புதல்
+            // Redirect to registration if phone number not found
             if (error || !store) {
                 router.push(`/merchant/register?phone=${cleanPhone}`)
                 return
             }
 
-            // 2. பாஸ்வேர்டை சரிபார்த்தல்
+            // 2. Validate password hash
             const isPasswordValid = await bcrypt.compare(password, store.password_hash)
 
             if (!isPasswordValid) {
@@ -88,7 +87,7 @@ function LoginForm() {
                 return
             }
 
-            // 3. வெற்றி -> உணர்திறன் மிக்க தகவல்களை (password_hash) நீக்கிவிட்டு பாதுகாப்பாக LocalStorage-இல் சேமித்தல்
+            // 3. Store merchant session safely without sensitive hashes
             const safeMerchantSession = {
                 id: store.id,
                 store_name: store.store_name,
@@ -99,7 +98,7 @@ function LoginForm() {
             
             localStorage.setItem('retcash_merchant', JSON.stringify(safeMerchantSession))
             
-            // 🎯 Dashboard-க்கு நேரடியாக Redirect செய்யப்படுகிறது
+            // Redirect to merchant dashboard
             router.push('/merchant/dashboard')
         } catch (err: any) {
             setErrorMsg('Login failed. Please try again.')
@@ -109,15 +108,30 @@ function LoginForm() {
     }
 
     return (
-        <div className="w-full max-w-sm bg-[#161B26] border border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-md my-auto">
-            <h1 className="text-lg font-black text-center tracking-wider text-white uppercase mb-1">
-                MERCHANT PORTAL
-            </h1>
-            <p className="text-[11px] text-center text-gray-400 mb-6">Enter your phone number & password to access console.</p>
+        <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-6 md:p-8 shadow-xl relative my-auto">
+            
+            {/* Logo & Header Section */}
+            <div className="text-center mb-6 space-y-2">
+                <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mx-auto mb-3 p-2">
+                    <Image 
+                        src="/logo.png" 
+                        alt="RETCASH Logo" 
+                        width={48} 
+                        height={48} 
+                        className="w-full h-full object-contain"
+                    />
+                </div>
+                <h1 className="text-xl font-black tracking-wider text-[#00875A] uppercase">
+                    MERCHANT PORTAL
+                </h1>
+                <p className="text-xs text-slate-500">
+                    Enter your registered phone number & password to access your console.
+                </p>
+            </div>
 
             {successMsg && (
-                <div className="bg-green-500/10 border border-green-500/30 text-green-400 text-xs p-3 rounded-2xl mb-4 text-center break-words flex items-center justify-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <div className="bg-emerald-50 border border-emerald-200 text-[#00875A] text-xs p-3 rounded-2xl mb-4 text-center font-bold break-words flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#00875A] shrink-0" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
                     {successMsg}
@@ -125,26 +139,26 @@ function LoginForm() {
             )}
 
             {errorMsg && (
-                <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-2xl mb-4 text-center">
+                <div className="bg-red-50 border border-red-200 text-red-600 text-xs p-3 rounded-2xl mb-4 text-center font-bold">
                     <p>{errorMsg}</p>
                 </div>
             )}
 
             <form onSubmit={handleLogin} className="flex flex-col gap-4 text-xs">
                 <div>
-                    <label className="text-gray-300 font-semibold block mb-1">Mobile Number</label>
+                    <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Mobile Number</label>
                     <input
                         type="tel"
                         required
                         placeholder="e.g. 0771234567 or 94771234567"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white focus:outline-none focus:border-[#FF6B00] transition font-mono"
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition font-mono"
                     />
                 </div>
 
                 <div>
-                    <label className="text-gray-300 font-semibold block mb-1">Password</label>
+                    <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Password</label>
 
                     <div className="relative w-full">
                         <input
@@ -153,12 +167,12 @@ function LoginForm() {
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white pr-12 focus:outline-none focus:border-[#FF6B00] transition"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold pr-12 focus:outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition focus:outline-none cursor-pointer"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition focus:outline-none cursor-pointer"
                         >
                             {showPassword ? (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -177,7 +191,7 @@ function LoginForm() {
                 <div className="flex justify-end -mt-2 mb-1">
                     <span
                         onClick={() => router.push('/merchant/forgot-password')}
-                        className="text-[11px] text-gray-400 hover:text-[#FF6B00] cursor-pointer transition"
+                        className="text-[11px] text-slate-500 font-medium hover:text-[#00875A] cursor-pointer transition"
                     >
                         Forgot Password?
                     </span>
@@ -186,17 +200,17 @@ function LoginForm() {
                 <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-4 mt-1 bg-gradient-to-r from-[#D95200] via-[#FF6B00] to-[#D95200] text-white font-black tracking-widest uppercase rounded-xl shadow-lg shadow-[#FF6B00]/20 active:scale-98 hover:brightness-110 transition cursor-pointer"
+                    className="w-full py-3.5 mt-1 bg-[#00875A] hover:bg-[#059669] text-white font-extrabold tracking-wider uppercase rounded-xl shadow-md shadow-[#00875A]/25 active:scale-[0.98] transition cursor-pointer flex items-center justify-center disabled:opacity-50"
                 >
-                    {loading ? 'CHECKING...' : 'CONTINUE TO DASHBOARD'}
+                    {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'CONTINUE TO DASHBOARD'}
                 </button>
             </form>
 
-            <p className="text-[11px] text-center text-gray-400 mt-6">
+            <p className="text-xs text-center text-slate-500 font-medium mt-6">
                 Don't have an account?{' '}
                 <span
                     onClick={() => router.push('/merchant/register')}
-                    className="text-[#FF6B00] font-bold cursor-pointer hover:underline"
+                    className="text-[#00875A] font-extrabold cursor-pointer hover:underline"
                 >
                     Register Store
                 </span>
@@ -207,14 +221,14 @@ function LoginForm() {
 
 export default function MerchantLoginPage() {
     return (
-        <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center justify-between p-4 font-sans selection:bg-[#FF6B00] selection:text-white">
+        <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col items-center justify-between p-4 font-sans selection:bg-[#00875A] selection:text-white">
             <div className="pt-2"></div>
-            <Suspense fallback={<div className="text-white text-xs">Loading login form...</div>}>
+            <Suspense fallback={<div className="text-slate-500 text-xs font-bold">Loading login form...</div>}>
                 <LoginForm />
             </Suspense>
-            <div className="py-6 text-center text-[10px] text-gray-500 tracking-wider">
+            <div className="py-6 text-center text-[10px] text-slate-400 font-extrabold tracking-wider uppercase space-y-1">
                 <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
-                <p className="mt-1 text-gray-600">Encrypted End-to-End & Supabase Secured Connection</p>
+                <p className="text-slate-400/80 font-semibold">Encrypted End-to-End & Supabase Secured Connection</p>
             </div>
         </div>
     )

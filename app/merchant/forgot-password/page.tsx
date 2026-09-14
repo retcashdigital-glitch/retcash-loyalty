@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import bcrypt from 'bcryptjs'
 
@@ -159,21 +160,34 @@ export default function ForgotPasswordPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center justify-between p-4 font-sans selection:bg-[#FF6B00] selection:text-white">
+        <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col items-center justify-between p-4 font-sans selection:bg-[#00875A] selection:text-white">
             <div className="pt-4"></div>
 
-            <div className="w-full max-w-sm bg-[#161B26] border border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-md">
-                <h1 className="text-lg font-black text-center tracking-wider text-white uppercase mb-1">
-                    RESET PASSWORD
-                </h1>
-                <p className="text-[11px] text-center text-gray-400 mb-6">
-                    {step === 'email_input' && 'Enter your registered store email address.'}
-                    {step === 'otp_input' && `Enter the 6-digit OTP sent to your email (${fetchedEmail.replace(/(.{2})(.*)(@.*)/, "$1***$3")}).`}
-                    {step === 'password_reset' && 'Set a secure new password for your store.'}
-                </p>
+            <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-6 md:p-8 shadow-xl relative">
+                
+                {/* Header Section with Logo */}
+                <div className="text-center mb-6 space-y-2">
+                    <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mx-auto mb-3 p-2">
+                        <Image 
+                            src="/logo.png" 
+                            alt="RETCASH Logo" 
+                            width={48} 
+                            height={48} 
+                            className="w-full h-full object-contain"
+                        />
+                    </div>
+                    <h1 className="text-xl font-black tracking-wider text-[#00875A] uppercase">
+                        RESET PASSWORD
+                    </h1>
+                    <p className="text-xs text-slate-500">
+                        {step === 'email_input' && 'Enter your registered store email address.'}
+                        {step === 'otp_input' && `Enter the 6-digit OTP sent to your email (${fetchedEmail.replace(/(.{2})(.*)(@.*)/, "$1***$3")}).`}
+                        {step === 'password_reset' && 'Set a secure new password for your store.'}
+                    </p>
+                </div>
 
                 {msg && (
-                    <div className={`text-xs p-3 rounded-2xl mb-4 text-center border ${isError ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
+                    <div className={`text-xs p-3 rounded-2xl mb-4 text-center border font-bold ${isError ? 'bg-red-50 border-red-200 text-red-600' : 'bg-emerald-50 border-emerald-200 text-[#00875A]'}`}>
                         {msg}
                     </div>
                 )}
@@ -182,23 +196,23 @@ export default function ForgotPasswordPage() {
                 {step === 'email_input' && (
                     <form onSubmit={handleSendOtpRequest} className="flex flex-col gap-4 text-xs">
                         <div>
-                            <label className="text-gray-300 font-semibold block mb-1">Store Email Address</label>
+                            <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Store Email Address</label>
                             <input
                                 type="email"
                                 required
                                 placeholder="store@example.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white focus:outline-none focus:border-[#FF6B00] transition"
+                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
                             />
                         </div>
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-4 mt-2 bg-gradient-to-r from-[#D95200] via-[#FF6B00] to-[#D95200] text-white font-black tracking-widest uppercase rounded-xl shadow-lg shadow-[#FF6B00]/20 active:scale-98 hover:brightness-110 transition cursor-pointer flex items-center justify-center"
+                            className="w-full py-3.5 mt-2 bg-[#00875A] hover:bg-[#059669] text-white font-extrabold tracking-wider uppercase rounded-xl shadow-md shadow-[#00875A]/25 active:scale-[0.98] transition cursor-pointer flex items-center justify-center disabled:opacity-50"
                         >
-                            {loading ? 'SENDING OTP...' : 'SEND OTP'}
+                            {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'SEND OTP'}
                         </button>
                     </form>
                 )}
@@ -207,7 +221,7 @@ export default function ForgotPasswordPage() {
                 {step === 'otp_input' && (
                     <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4 text-xs">
                         <div>
-                            <label className="text-gray-300 font-semibold block mb-1">Enter 6-Digit OTP</label>
+                            <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Enter 6-Digit OTP</label>
                             <input
                                 type="text"
                                 maxLength={6}
@@ -215,14 +229,14 @@ export default function ForgotPasswordPage() {
                                 placeholder="123456"
                                 value={otpInput}
                                 onChange={(e) => setOtpInput(e.target.value)}
-                                className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-center text-lg tracking-widest text-white font-mono focus:outline-none focus:border-[#FF6B00] transition"
+                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-center text-lg tracking-widest text-slate-900 font-bold font-mono focus:outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
                             />
                             <div className="flex justify-between items-center mt-2 px-1">
-                                <span className="text-[10px] text-orange-400 font-medium">⏳ {timerText}</span>
+                                <span className="text-[10px] text-[#00875A] font-bold">⏳ {timerText}</span>
                                 <button
                                     type="button"
                                     onClick={() => setStep('email_input')}
-                                    className="text-[10px] text-gray-400 hover:underline"
+                                    className="text-[10px] text-slate-500 font-medium hover:underline cursor-pointer"
                                 >
                                     Change Email
                                 </button>
@@ -231,7 +245,7 @@ export default function ForgotPasswordPage() {
 
                         <button
                             type="submit"
-                            className="w-full py-4 mt-2 bg-gradient-to-r from-[#D95200] via-[#FF6B00] to-[#D95200] text-white font-black tracking-widest uppercase rounded-xl shadow-lg shadow-[#FF6B00]/20 active:scale-98 hover:brightness-110 transition cursor-pointer"
+                            className="w-full py-3.5 mt-2 bg-[#00875A] hover:bg-[#059669] text-white font-extrabold tracking-wider uppercase rounded-xl shadow-md shadow-[#00875A]/25 active:scale-[0.98] transition cursor-pointer"
                         >
                             VERIFY OTP
                         </button>
@@ -242,7 +256,7 @@ export default function ForgotPasswordPage() {
                 {step === 'password_reset' && (
                     <form onSubmit={handleResetPassword} className="flex flex-col gap-4 text-xs">
                         <div>
-                            <label className="text-gray-300 font-semibold block mb-1">New Password</label>
+                            <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">New Password</label>
                             <div className="relative">
                                 <input
                                     type={showPassword ? 'text' : 'password'}
@@ -250,12 +264,12 @@ export default function ForgotPasswordPage() {
                                     placeholder="Enter new password"
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
-                                    className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white focus:outline-none focus:border-[#FF6B00] transition pr-10"
+                                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition pr-10"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition focus:outline-none"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition focus:outline-none cursor-pointer"
                                 >
                                     {showPassword ? (
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -270,11 +284,11 @@ export default function ForgotPasswordPage() {
                                 </button>
                             </div>
 
-                            <div className="mt-2 space-y-1 text-[11px] bg-[#0D1117]/50 p-2.5 rounded-xl border border-gray-800">
-                                <p className={`flex items-center gap-1.5 transition-colors ${isMinLength ? 'text-green-400 font-medium' : 'text-gray-400'}`}>
+                            <div className="mt-2 space-y-1 text-[11px] bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                                <p className={`flex items-center gap-1.5 transition-colors ${isMinLength ? 'text-[#00875A] font-bold' : 'text-slate-400'}`}>
                                     <span>{isMinLength ? '✓' : '•'}</span> At least 8 characters
                                 </p>
-                                <p className={`flex items-center gap-1.5 transition-colors ${hasLetterAndNumber ? 'text-green-400 font-medium' : 'text-gray-400'}`}>
+                                <p className={`flex items-center gap-1.5 transition-colors ${hasLetterAndNumber ? 'text-[#00875A] font-bold' : 'text-slate-400'}`}>
                                     <span>{hasLetterAndNumber ? '✓' : '•'}</span> Contains letters & numbers
                                 </p>
                             </div>
@@ -283,22 +297,22 @@ export default function ForgotPasswordPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-4 mt-2 bg-gradient-to-r from-[#D95200] via-[#FF6B00] to-[#D95200] text-white font-black tracking-widest uppercase rounded-xl shadow-lg shadow-[#FF6B00]/20 active:scale-98 hover:brightness-110 transition cursor-pointer flex items-center justify-center"
+                            className="w-full py-3.5 mt-2 bg-[#00875A] hover:bg-[#059669] text-white font-extrabold tracking-wider uppercase rounded-xl shadow-md shadow-[#00875A]/25 active:scale-[0.98] transition cursor-pointer flex items-center justify-center disabled:opacity-50"
                         >
-                            {loading ? 'UPDATING...' : 'UPDATE PASSWORD'}
+                            {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'UPDATE PASSWORD'}
                         </button>
                     </form>
                 )}
 
-                <p className="text-[11px] text-center text-gray-400 mt-6">
+                <p className="text-xs text-center text-slate-500 font-medium mt-6">
                     Remember your password?{' '}
-                    <span onClick={() => router.push('/merchant/login')} className="text-[#FF6B00] font-bold cursor-pointer hover:underline">
+                    <span onClick={() => router.push('/merchant/login')} className="text-[#00875A] font-extrabold cursor-pointer hover:underline">
                         Login Here
                     </span>
                 </p>
             </div>
 
-            <div className="py-6 text-center text-[10px] text-gray-500 tracking-wider">
+            <div className="py-6 text-center text-[10px] text-slate-400 font-extrabold tracking-wider uppercase">
                 <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
             </div>
         </div>

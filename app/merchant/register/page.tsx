@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import bcrypt from 'bcryptjs'
 
@@ -13,7 +14,7 @@ function RegisterForm() {
 
     const [loading, setLoading] = useState(false)
     const [logoFile, setLogoFile] = useState<File | null>(null)
-    const [showPassword, setShowPassword] = useState(false) // 👁️ பாஸ்வேர்ட் பார்க்க/மறைக்க state
+    const [showPassword, setShowPassword] = useState(false)
     const [formData, setFormData] = useState({
         store_name: '',
         phone_number: phoneFromUrl,
@@ -31,7 +32,7 @@ function RegisterForm() {
         }
     }, [phoneFromUrl])
 
-    // படத்தை Base64 Text ஆக மாற்றும் எளிய முறை (Storage பிழைகளைத் தவிர்க்க)
+    // Convert uploaded image file to Base64 Data URL to prevent storage configuration issues
     const convertBase64 = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
             const fileReader = new FileReader()
@@ -49,7 +50,7 @@ function RegisterForm() {
         try {
             const cleanPhone = formData.phone_number.replace(/\D/g, '') || 'merchant'
 
-            // 1. Phone number ஏற்கனவே உள்ளதா என சரிபார்த்தல்
+            // 1. Check if phone number is already registered
             const { data: existingStore } = await supabase
                 .from('stores')
                 .select('id')
@@ -62,7 +63,7 @@ function RegisterForm() {
                 return
             }
 
-            // 2. Logo இருந்தால் அதை உரையாக (Data URL) மாற்றுதல்
+            // 2. Convert logo file to Data URL if provided
             let logoUrl = null
             if (logoFile) {
                 try {
@@ -72,7 +73,7 @@ function RegisterForm() {
                 }
             }
 
-            // 3. Store Slug உருவாக்குதல் (ஒரே பெயரில் பல கிளைகள் வந்தாலும் டூப்ளிகேட் வராமல் இருக்க போன் எண்ணின் கடைசி 4 இலக்கங்கள் இணைக்கப்பட்டுள்ளது)
+            // 3. Generate unique store slug with phone suffix to avoid collisions
             const baseSlug = formData.store_name
                 .trim()
                 .toLowerCase()
@@ -82,10 +83,10 @@ function RegisterForm() {
             const phoneSuffix = cleanPhone.length >= 4 ? cleanPhone.slice(-4) : Math.floor(1000 + Math.random() * 9000)
             const storeSlug = `${baseSlug}-${phoneSuffix}`
 
-            // 4. Password Hash செய்தல்
+            // 4. Hash password securely
             const hashedPassword = await bcrypt.hash(formData.password, 10)
 
-            // 5. Database-இல் புதிய கடையைப் பதிவேற்றுதல்
+            // 5. Insert new store record into Supabase
             const { data, error } = await supabase.from('stores').insert([
                 {
                     store_name: formData.store_name.trim(),
@@ -103,7 +104,7 @@ function RegisterForm() {
             if (error) throw error
 
             if (data) {
-                // ✅ alert(...) நீக்கப்பட்டு, லாகின் பக்கத்தில் Phone Auto-fill ஆகும்படி அனுப்பப்படுகிறது
+                // Redirect to login page with pre-filled phone number and registration flag
                 router.push(`/merchant/login?phone=${cleanPhone}&registered=true`)
             }
         } catch (err: any) {
@@ -118,59 +119,73 @@ function RegisterForm() {
     const hasLetterAndNumber = /[A-Za-z]/.test(formData.password) && /\d/.test(formData.password)
 
     return (
-        <div className="w-full max-w-md bg-[#161B26] border border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-md">
-            <h1 className="text-lg font-black text-center tracking-wider text-white uppercase mb-1">
-                MERCHANT REGISTRATION
-            </h1>
-            <p className="text-[11px] text-center text-gray-400 mb-6">Create your official store profile to start rewarding customers.</p>
+        <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-6 md:p-8 shadow-xl relative my-auto">
+            
+            {/* Logo & Header Section */}
+            <div className="text-center mb-6 space-y-2">
+                <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mx-auto mb-3 p-2">
+                    <Image 
+                        src="/logo.png" 
+                        alt="RETCASH Logo" 
+                        width={48} 
+                        height={48} 
+                        className="w-full h-full object-contain"
+                    />
+                </div>
+                <h1 className="text-xl font-black tracking-wider text-[#00875A] uppercase">
+                    MERCHANT REGISTRATION
+                </h1>
+                <p className="text-xs text-slate-500">
+                    Create your official store profile to start rewarding customers.
+                </p>
+            </div>
 
             {errorMsg && (
-                <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-2xl mb-4 text-center break-words">
+                <div className="bg-red-50 border border-red-200 text-red-600 text-xs p-3 rounded-2xl mb-4 text-center font-bold break-words">
                     {errorMsg}
                 </div>
             )}
 
             <form onSubmit={handleRegister} className="flex flex-col gap-4 text-xs">
                 <div>
-                    <label className="text-gray-300 font-semibold block mb-1">Store Name *</label>
+                    <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Store Name *</label>
                     <input
                         type="text"
                         required
                         placeholder="e.g. Royal Bakery"
                         value={formData.store_name}
                         onChange={(e) => setFormData({ ...formData, store_name: e.target.value })}
-                        className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white focus:outline-none focus:border-[#FF6B00] transition"
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
                     />
                 </div>
 
                 <div>
-                    <label className="text-gray-300 font-semibold block mb-1">Merchant Mobile Number (Login ID) *</label>
+                    <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Merchant Mobile Number (Login ID) *</label>
                     <input
                         type="tel"
                         required
                         placeholder="e.g. 0771234567"
                         value={formData.phone_number}
                         onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                        className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white focus:outline-none focus:border-[#FF6B00] transition font-mono"
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition font-mono"
                     />
                 </div>
 
                 <div>
-                    <label className="text-gray-300 font-semibold block mb-1">Store Email Address (For Password Reset) *</label>
+                    <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Store Email Address (For Password Reset) *</label>
                     <input
                         type="email"
                         required
                         placeholder="store@example.com"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white focus:outline-none focus:border-[#FF6B00] transition"
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
                     />
                 </div>
 
                 <div>
-                    <label className="text-gray-300 font-semibold block mb-1">Account Password *</label>
+                    <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Account Password *</label>
 
-                    {/* 👁️ Eye Toggle Icon உடன் கூடிய Password Input */}
                     <div className="relative w-full">
                         <input
                             type={showPassword ? "text" : "password"}
@@ -178,12 +193,12 @@ function RegisterForm() {
                             placeholder="Set a strong password"
                             value={formData.password}
                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                            className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white pr-12 focus:outline-none focus:border-[#FF6B00] transition"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold pr-12 focus:outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition focus:outline-none cursor-pointer"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition focus:outline-none cursor-pointer"
                         >
                             {showPassword ? (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -198,46 +213,46 @@ function RegisterForm() {
                         </button>
                     </div>
 
-                    <div className="mt-2 space-y-1 text-[11px] bg-[#0D1117]/50 p-2.5 rounded-xl border border-gray-800">
-                        <p className={`flex items-center gap-1.5 transition-colors ${isMinLength ? 'text-green-400 font-medium' : 'text-gray-400'}`}>
+                    <div className="mt-2 space-y-1 text-[11px] bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        <p className={`flex items-center gap-1.5 transition-colors ${isMinLength ? 'text-[#00875A] font-bold' : 'text-slate-400'}`}>
                             <span>{isMinLength ? '✓' : '•'}</span> At least 8 characters
                         </p>
-                        <p className={`flex items-center gap-1.5 transition-colors ${hasLetterAndNumber ? 'text-green-400 font-medium' : 'text-gray-400'}`}>
+                        <p className={`flex items-center gap-1.5 transition-colors ${hasLetterAndNumber ? 'text-[#00875A] font-bold' : 'text-slate-400'}`}>
                             <span>{hasLetterAndNumber ? '✓' : '•'}</span> Contains letters & numbers
                         </p>
                     </div>
                 </div>
 
                 <div>
-                    <label className="text-gray-300 font-semibold block mb-1">Default Cashback %</label>
+                    <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Default Cashback %</label>
                     <input
                         type="number"
                         placeholder="10"
                         value={formData.default_cashback_percent}
                         onChange={(e) => setFormData({ ...formData, default_cashback_percent: e.target.value })}
-                        className="w-full px-4 py-3.5 bg-[#0D1117] border border-gray-800 rounded-xl text-white focus:outline-none focus:border-[#FF6B00] transition"
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
                     />
                 </div>
 
                 <div>
-                    <label className="text-gray-300 font-semibold block mb-1">Store Logo Image (Optional)</label>
+                    <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Store Logo Image (Optional)</label>
                     <input
                         type="file"
                         accept="image/*"
                         onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
-                        className="w-full text-gray-400 border border-gray-800 rounded-xl bg-[#0D1117] file:mr-4 file:py-3 file:px-4 file:rounded-l-xl file:border-0 file:text-xs file:font-semibold file:bg-[#FF6B00]/20 file:text-[#FF6B00] hover:file:bg-[#FF6B00]/30 transition cursor-pointer"
+                        className="w-full text-slate-500 text-xs border border-slate-300 rounded-xl bg-slate-50 file:mr-4 file:py-2.5 file:px-4 file:rounded-l-xl file:border-0 file:text-xs file:font-bold file:bg-[#00875A]/10 file:text-[#00875A] hover:file:bg-[#00875A]/20 transition cursor-pointer"
                     />
                 </div>
 
-                <div className="border-t border-gray-800 pt-4 mt-1">
-                    <p className="text-[11px] text-[#FF6B00] mb-3 font-semibold">Optional Business Links (Can leave blank):</p>
+                <div className="border-t border-slate-200 pt-4 mt-1">
+                    <p className="text-[11px] text-[#00875A] mb-3 font-bold">Optional Business Links (Can leave blank):</p>
 
                     <input
                         type="url"
                         placeholder="Google Map Link (Optional)"
                         value={formData.location_url}
                         onChange={(e) => setFormData({ ...formData, location_url: e.target.value })}
-                        className="w-full px-4 py-3 bg-[#0D1117] border border-gray-800 rounded-xl text-white mb-2.5 focus:outline-none focus:border-[#FF6B00] transition"
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold mb-2.5 focus:outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
                     />
 
                     <input
@@ -245,24 +260,24 @@ function RegisterForm() {
                         placeholder="Google Review Link (Optional)"
                         value={formData.review_url}
                         onChange={(e) => setFormData({ ...formData, review_url: e.target.value })}
-                        className="w-full px-4 py-3 bg-[#0D1117] border border-gray-800 rounded-xl text-white focus:outline-none focus:border-[#FF6B00] transition"
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
                     />
                 </div>
 
                 <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-4 mt-3 bg-gradient-to-r from-[#D95200] via-[#FF6B00] to-[#D95200] text-[#FFFFFF] font-black tracking-widest uppercase rounded-xl shadow-lg shadow-[#FF6B00]/20 active:scale-98 hover:brightness-110 transition cursor-pointer"
+                    className="w-full py-3.5 mt-3 bg-[#00875A] hover:bg-[#059669] text-white font-extrabold tracking-wider uppercase rounded-xl shadow-md shadow-[#00875A]/25 active:scale-[0.98] transition cursor-pointer flex items-center justify-center disabled:opacity-50"
                 >
-                    {loading ? 'REGISTERING STORE...' : 'CREATE STORE ACCOUNT'}
+                    {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'CREATE STORE ACCOUNT'}
                 </button>
             </form>
 
-            <p className="text-[11px] text-center text-gray-400 mt-6">
+            <p className="text-xs text-center text-slate-500 font-medium mt-6">
                 Already have a merchant account?{' '}
                 <span
                     onClick={() => router.push('/merchant/login')}
-                    className="text-[#FF6B00] font-bold cursor-pointer hover:underline"
+                    className="text-[#00875A] font-extrabold cursor-pointer hover:underline"
                 >
                     Login Here
                 </span>
@@ -273,16 +288,16 @@ function RegisterForm() {
 
 export default function MerchantRegisterPage() {
     return (
-        <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center justify-between p-4 font-sans selection:bg-[#FF6B00] selection:text-white">
+        <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col items-center justify-between p-4 font-sans selection:bg-[#00875A] selection:text-white">
             <div className="pt-4"></div>
 
-            <Suspense fallback={<div className="text-white text-xs">Loading registration form...</div>}>
+            <Suspense fallback={<div className="text-slate-500 text-xs font-bold">Loading registration form...</div>}>
                 <RegisterForm />
             </Suspense>
 
-            <div className="py-6 text-center text-[10px] text-gray-500 tracking-wider">
+            <div className="py-6 text-center text-[10px] text-slate-400 font-extrabold tracking-wider uppercase space-y-1">
                 <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
-                <p className="mt-1 text-gray-600">Encrypted End-to-End & Supabase Secured Connection</p>
+                <p className="text-slate-400/80 font-semibold">Encrypted End-to-End & Supabase Secured Connection</p>
             </div>
         </div>
     )

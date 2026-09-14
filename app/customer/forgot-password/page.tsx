@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { KeyRound, Mail, ArrowLeft, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
+import Image from 'next/image';
+import { Mail, ArrowLeft, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 
 export default function CustomerForgotPasswordPage() {
     // Step state: 1 = Enter Email, 2 = Enter OTP & Reset Password
@@ -100,15 +101,21 @@ export default function CustomerForgotPasswordPage() {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-[#F1F5F9] px-4 font-sans text-[#0F172A] selection:bg-[#EA580C] selection:text-white">
+        <div className="flex min-h-screen items-center justify-center bg-[#F1F5F9] px-4 font-sans text-[#0F172A] selection:bg-[#00875A] selection:text-white">
             <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-xl space-y-6">
                 
-                {/* Header Section */}
+                {/* Header Section with Real Logo Image */}
                 <div className="text-center space-y-2">
-                    <div className="flex size-12 items-center justify-center rounded-2xl bg-[#EA580C] text-white mx-auto shadow-md">
-                        <KeyRound className="size-6" />
+                    <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mx-auto mb-3 p-2">
+                        <Image 
+                            src="/logo.png" 
+                            alt="RETCASH Logo" 
+                            width={48} 
+                            height={48} 
+                            className="w-full h-full object-contain"
+                        />
                     </div>
-                    <h1 className="text-2xl font-black tracking-wider text-[#EA580C] uppercase">RETCASH</h1>
+                    <h1 className="text-2xl font-black tracking-wider text-[#00875A] uppercase">RETCASH</h1>
                     <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
                         {step === 1 ? 'Forgot Password' : 'Reset Password'}
                     </h2>
@@ -129,7 +136,7 @@ export default function CustomerForgotPasswordPage() {
 
                 {/* Success Banner */}
                 {message && (
-                    <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-xs font-semibold text-emerald-700">
+                    <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-xs font-semibold text-[#00875A]">
                         <CheckCircle2 className="size-4 shrink-0" />
                         <span>{message}</span>
                     </div>
@@ -150,7 +157,7 @@ export default function CustomerForgotPasswordPage() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="name@example.com"
-                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm text-slate-900 outline-none focus:border-[#EA580C] focus:bg-white focus:ring-2 focus:ring-[#EA580C]/20 transition"
+                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
                                 />
                             </div>
                         </div>
@@ -165,7 +172,7 @@ export default function CustomerForgotPasswordPage() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="flex-[2] rounded-xl bg-[#EA580C] hover:bg-[#d64e05] py-3 text-center text-xs font-bold text-white shadow-md transition disabled:opacity-50 cursor-pointer"
+                                className="flex-[2] rounded-xl bg-[#00875A] hover:bg-[#059669] py-3 text-center text-xs font-extrabold text-white shadow-md shadow-[#00875A]/20 active:scale-[0.98] transition disabled:opacity-50 cursor-pointer"
                             >
                                 {loading ? 'Sending...' : 'Send OTP'}
                             </button>
@@ -189,7 +196,7 @@ export default function CustomerForgotPasswordPage() {
                                     value={otp}
                                     onChange={(e) => setOtp(e.target.value)}
                                     placeholder="Enter 6-digit OTP"
-                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm font-mono tracking-widest text-slate-900 outline-none focus:border-[#EA580C] focus:bg-white focus:ring-2 focus:ring-[#EA580C]/20 transition"
+                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm font-mono tracking-widest text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
                                 />
                             </div>
                         </div>
@@ -204,7 +211,7 @@ export default function CustomerForgotPasswordPage() {
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 placeholder="••••••••"
-                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#EA580C] focus:bg-white focus:ring-2 focus:ring-[#EA580C]/20 transition"
+                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
                             />
                         </div>
 
@@ -218,7 +225,7 @@ export default function CustomerForgotPasswordPage() {
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 placeholder="••••••••"
-                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#EA580C] focus:bg-white focus:ring-2 focus:ring-[#EA580C]/20 transition"
+                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
                             />
                         </div>
 
@@ -237,7 +244,7 @@ export default function CustomerForgotPasswordPage() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="flex-[2] rounded-xl bg-[#EA580C] hover:bg-[#d64e05] py-3 text-center text-xs font-bold text-white shadow-md transition disabled:opacity-50 cursor-pointer"
+                                className="flex-[2] rounded-xl bg-[#00875A] hover:bg-[#059669] py-3 text-center text-xs font-extrabold text-white shadow-md shadow-[#00875A]/20 active:scale-[0.98] transition disabled:opacity-50 cursor-pointer"
                             >
                                 {loading ? 'Resetting...' : 'Submit & Reset'}
                             </button>

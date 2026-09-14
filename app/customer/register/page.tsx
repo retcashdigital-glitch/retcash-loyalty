@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { Eye, EyeOff } from 'lucide-react'
 
@@ -107,13 +108,38 @@ export default function CustomerRegisterPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#0B0E14] text-gray-100 flex flex-col items-center justify-center p-4 font-sans selection:bg-[#FF6B00]">
-            <div className="w-full max-w-sm bg-[#161B26] border border-gray-800 rounded-3xl p-6 shadow-xl space-y-6">
+        <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col items-center justify-center p-4 font-sans selection:bg-[#00875A] selection:text-white">
+            
+            {/* Top Header with Real Logo Image */}
+            <div className="w-full max-w-md bg-slate-200/80 py-3 px-4 rounded-t-2xl flex items-center justify-center space-x-2 border-t border-x border-slate-300/60 mb-[-10px] z-10">
+                <Image 
+                    src="/logo.png" 
+                    alt="RETCASH Logo" 
+                    width={20} 
+                    height={20} 
+                    className="w-5 h-5 object-contain"
+                />
+                <span className="font-extrabold tracking-wider text-slate-800 text-sm uppercase">
+                    RET<span className="text-[#00875A]">CASH</span>
+                </span>
+            </div>
+
+            {/* Main Register Card */}
+            <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-8 pt-10 shadow-xl space-y-6 relative z-20">
 
                 <div className="text-center space-y-2">
-                    <h1 className="text-xl font-black text-[#FF6B00] tracking-wider">RETCASH</h1>
-                    <h2 className="text-sm font-bold text-white">Customer Registration</h2>
-                    <p className="text-[11px] text-gray-400">
+                    <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mx-auto mb-3 p-2">
+                        <Image 
+                            src="/logo.png" 
+                            alt="RETCASH Logo" 
+                            width={48} 
+                            height={48} 
+                            className="w-full h-full object-contain"
+                        />
+                    </div>
+                    <h1 className="text-2xl font-black text-[#00875A] tracking-wider uppercase">RETCASH</h1>
+                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Customer Registration</h2>
+                    <p className="text-xs text-slate-500">
                         Enter your details to create an account and access your cashback wallet.
                     </p>
                 </div>
@@ -121,28 +147,28 @@ export default function CustomerRegisterPage() {
                 <form onSubmit={handleRegister} className="space-y-4">
                     {/* Full Name Field */}
                     <div>
-                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Full Name</label>
+                        <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Full Name</label>
                         <input
                             type="text"
                             value={fullNameInput}
                             onChange={(e) => setFullNameInput(e.target.value)}
                             placeholder="e.g. John Doe"
-                            className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition"
+                            className="w-full bg-slate-50 border border-slate-300 focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none transition"
                             required
                         />
                     </div>
 
                     {/* Phone Number Field */}
                     <div>
-                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Phone Number</label>
-                        <div className="flex items-center w-full bg-[#0B0E14] border border-gray-800 focus-within:border-[#FF6B00] rounded-xl px-3 py-2 transition">
-                            <span className="text-gray-400 text-sm pr-2 border-r border-gray-800">+94</span>
+                        <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Phone Number</label>
+                        <div className="flex items-center w-full bg-slate-50 border border-slate-300 focus-within:border-[#00875A] focus-within:ring-2 focus-within:ring-[#00875A]/20 rounded-xl px-3 py-2.5 transition">
+                            <span className="text-slate-500 font-bold text-sm pr-2 border-r border-slate-300">+94</span>
                             <input
                                 type="tel"
                                 value={phoneInput}
                                 onChange={(e) => setPhoneInput(e.target.value)}
                                 placeholder="0771234567 or 771234567"
-                                className="w-full bg-transparent pl-3 text-sm text-white outline-none"
+                                className="w-full bg-transparent pl-3 text-sm font-semibold text-slate-900 outline-none"
                                 required
                             />
                         </div>
@@ -150,56 +176,56 @@ export default function CustomerRegisterPage() {
 
                     {/* Email Field */}
                     <div>
-                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Email Address</label>
+                        <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Email Address</label>
                         <input
                             type="email"
                             value={emailInput}
                             onChange={(e) => setEmailInput(e.target.value)}
                             placeholder="name@example.com"
-                            className="w-full bg-[#0B0E14] border border-gray-800 focus:border-[#FF6B00] rounded-xl px-3 py-2 text-sm text-white outline-none transition"
+                            className="w-full bg-slate-50 border border-slate-300 focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none transition"
                             required
                         />
                     </div>
 
                     {/* Password Field */}
                     <div>
-                        <label className="text-[10px] text-gray-400 font-semibold block uppercase mb-1">Create Password</label>
-                        <div className="relative flex items-center w-full bg-[#0B0E14] border border-gray-800 focus-within:border-[#FF6B00] rounded-xl px-3 py-2 transition">
+                        <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Create Password</label>
+                        <div className="relative flex items-center w-full bg-slate-50 border border-slate-300 focus-within:border-[#00875A] focus-within:ring-2 focus-within:ring-[#00875A]/20 rounded-xl px-3 py-2.5 transition">
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 value={passwordInput}
                                 onChange={(e) => setPasswordInput(e.target.value)}
                                 placeholder="At least 6 characters"
-                                className="w-full bg-transparent pr-8 text-sm text-white outline-none"
+                                className="w-full bg-transparent pr-8 text-sm font-semibold text-slate-900 outline-none"
                                 required
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 text-gray-400 hover:text-white outline-none cursor-pointer"
+                                className="absolute right-3 text-slate-400 hover:text-slate-600 outline-none cursor-pointer"
                             >
                                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
                         </div>
-                        <p className="text-[10px] text-gray-500 mt-1">Use 6 or more characters with letters & numbers.</p>
+                        <p className="text-[10px] text-slate-400 font-medium mt-1">Use 6 or more characters with letters & numbers.</p>
                     </div>
 
-                    {errorMsg && <p className="text-[11px] text-red-500 font-medium text-center">{errorMsg}</p>}
-                    {successMsg && <p className="text-[11px] text-emerald-400 font-medium text-center">{successMsg}</p>}
+                    {errorMsg && <p className="text-xs text-red-600 font-bold text-center bg-red-50 p-2 rounded-xl border border-red-200">{errorMsg}</p>}
+                    {successMsg && <p className="text-xs text-[#00875A] font-bold text-center bg-emerald-50 p-2 rounded-xl border border-emerald-200">{successMsg}</p>}
 
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-[#FF6B00] hover:bg-[#ff8526] text-white font-bold py-2.5 rounded-xl text-sm transition shadow-lg active:scale-95 flex items-center justify-center cursor-pointer disabled:opacity-50"
+                        className="w-full bg-[#00875A] hover:bg-[#059669] text-white font-extrabold py-3.5 rounded-xl text-xs uppercase tracking-wider transition shadow-md shadow-[#00875A]/25 active:scale-[0.98] flex items-center justify-center cursor-pointer disabled:opacity-50"
                     >
                         {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'Register & Open Wallet'}
                     </button>
                 </form>
 
                 <div className="text-center pt-2 space-y-2">
-                    <p className="text-[11px] text-gray-400">
+                    <p className="text-xs text-slate-500 font-medium">
                         Already have an account?{' '}
-                        <Link href="/customer/login" className="text-[#FF6B00] font-bold hover:underline">
+                        <Link href="/customer/login" className="text-[#00875A] font-extrabold hover:underline">
                             Login here
                         </Link>
                     </p>
@@ -207,8 +233,8 @@ export default function CustomerRegisterPage() {
 
             </div>
 
-            <div className="py-8 text-center text-[10px] text-gray-600 tracking-wider">
-                <p>© 2026 RETCASH DIGITAL LOYALTY PLATFORM</p>
+            <div className="py-8 text-center text-[10px] text-slate-400 font-extrabold tracking-wider uppercase">
+                <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM</p>
             </div>
         </div>
     )

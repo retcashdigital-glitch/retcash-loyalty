@@ -30,19 +30,40 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to save OTP' }, { status: 500 });
     }
 
-    // 4. Send Email via Resend (OTP response-இல் வராது!)
+    // 4. Send Email via Resend with RETCASH Emerald Green Branding & Logo
     const { error: mailError } = await resend.emails.send({
       from: 'Retcash <support@retcashapp.com>',
       to: [email],
       subject: 'RETCASH Customer Password Reset Code',
       html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; background: #0B0F19; color: #ffffff; border-radius: 10px; max-width: 450px;">
-          <h2 style="color: #EA580C; text-align: center;">RETCASH Security Code</h2>
-          <p style="text-align: center; color: #A0AEC0;">Use the code below to reset your password:</p>
-          <div style="background: #161B26; padding: 15px; text-align: center; border-radius: 8px; margin: 20px 0;">
-            <span style="font-size: 30px; font-weight: bold; letter-spacing: 6px; color: #EA580C;">${otp}</span>
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 28px; background-color: #f8fafc; border-radius: 16px; max-width: 450px; margin: 0 auto; border: 1px solid #e2e8f0;">
+          
+          <!-- RETCASH Logo & Title Header -->
+          <div style="text-align: center; margin-bottom: 24px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #00875A, #059669); padding: 12px; border-radius: 14px; margin-bottom: 8px;">
+              <img src="https://retcashapp.com/logo.png" alt="RETCASH Logo" style="width: 32px; height: 32px; display: block;" />
+            </div>
+            <h1 style="color: #00875A; font-size: 18px; font-weight: 800; letter-spacing: 2px; margin: 0; text-transform: uppercase;">RETCASH</h1>
           </div>
-          <p style="text-align: center; color: #A0AEC0; font-size: 12px;">This code is valid for 5 minutes only.</p>
+
+          <!-- Email Content Body -->
+          <div style="background-color: #ffffff; border-radius: 12px; padding: 24px; border: 1px solid #f1f5f9; text-align: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            <h2 style="color: #1e293b; font-size: 18px; font-weight: 700; margin-top: 0; margin-bottom: 8px;">Password Reset Verification</h2>
+            <p style="color: #64748b; font-size: 13px; margin: 0 0 20px 0;">Use the 6-digit verification code below to reset your account password:</p>
+            
+            <!-- OTP Display Box in Emerald Green Tone -->
+            <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; padding: 16px; text-align: center; border-radius: 12px; margin: 20px 0;">
+              <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #00875A; font-family: monospace;">${otp}</span>
+            </div>
+            
+            <p style="color: #94a3b8; font-size: 12px; margin: 0;">This code is valid for <strong>5 minutes</strong> only. Do not share this code with anyone.</p>
+          </div>
+
+          <!-- Email Footer -->
+          <div style="text-align: center; margin-top: 20px;">
+            <p style="color: #94a3b8; font-size: 11px; margin: 0;">© ${new Date().getFullYear()} RETCASH. All rights reserved.</p>
+          </div>
+
         </div>
       `,
     });

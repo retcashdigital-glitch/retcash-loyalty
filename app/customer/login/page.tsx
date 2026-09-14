@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Eye, EyeOff, Wallet } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import bcrypt from 'bcryptjs';
 
 export default function CustomerLoginPage() {
@@ -90,7 +91,7 @@ export default function CustomerLoginPage() {
             localStorage.setItem(`retcash_wallet_auth_${dbPhone}`, 'true');
             localStorage.setItem(`customer_name_${dbPhone}`, customer.full_name || '');
 
-            // Redirecting to valid card route (வொலட் ஃபோல்டருக்கு பதிலாக card ஃபோல்டருக்கு Redirect செய்யப்படுகிறது)
+            // Redirecting to valid card route
             router.push(`/wallet/${dbPhone}`);
 
         } catch (err) {
@@ -102,31 +103,41 @@ export default function CustomerLoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-            {/* Top Header with Logo */}
-            <div className="w-full max-w-md bg-gray-300 py-3 px-4 rounded-t-xl flex items-center justify-center space-x-2 shadow-sm mb-[-10px] z-10">
-                <div className="bg-orange-500 p-1.5 rounded-lg flex items-center justify-center text-white shadow">
-                    <Wallet className="w-5 h-5" />
-                </div>
-                <span className="font-bold tracking-wider text-gray-800 text-lg">
-                    RET<span className="text-orange-600">CASH</span>
+        <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 selection:bg-[#00875A] selection:text-white font-sans">
+            {/* Top Header with Real Logo Image */}
+            <div className="w-full max-w-md bg-slate-200/80 py-3 px-4 rounded-t-2xl flex items-center justify-center space-x-2 border-t border-x border-slate-300/60 mb-[-10px] z-10">
+                <Image 
+                    src="/logo.png" 
+                    alt="RETCASH Logo" 
+                    width={20} 
+                    height={20} 
+                    className="w-5 h-5 object-contain"
+                />
+                <span className="font-extrabold tracking-wider text-slate-800 text-sm uppercase">
+                    RET<span className="text-[#00875A]">CASH</span>
                 </span>
             </div>
 
             {/* Main Card */}
-            <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-8 pt-10 border border-gray-100 relative z-20">
-                <div className="flex flex-col items-center mb-6">
-                    <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center shadow-md mb-3 text-white">
-                        <Wallet className="w-8 h-8" />
+            <div className="bg-white w-full max-w-md rounded-3xl shadow-xl p-8 pt-10 border border-slate-200/80 relative z-20 space-y-6">
+                <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mb-3 p-2">
+                        <Image 
+                            src="/logo.png" 
+                            alt="RETCASH Logo" 
+                            width={48} 
+                            height={48} 
+                            className="w-full h-full object-contain"
+                        />
                     </div>
-                    <h1 className="text-2xl font-black tracking-wide text-gray-900">
-                        RET<span className="text-orange-500">CASH</span>
+                    <h1 className="text-2xl font-black tracking-wider text-slate-900 uppercase">
+                        RET<span className="text-[#00875A]">CASH</span>
                     </h1>
-                    <p className="text-xs text-gray-500 mt-1">Access your customer wallet</p>
+                    <p className="text-xs font-semibold text-slate-500 mt-1">Access your customer wallet</p>
                 </div>
 
                 {error && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl text-center font-medium">
+                    <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl text-center font-bold">
                         {error}
                     </div>
                 )}
@@ -134,11 +145,11 @@ export default function CustomerLoginPage() {
                 <form onSubmit={handleLogin} className="space-y-4">
                     {/* Phone Number Field */}
                     <div>
-                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                             Phone Number
                         </label>
-                        <div className="flex items-center w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-orange-500 transition">
-                            <span className="text-gray-500 font-medium text-sm pr-2 border-r border-gray-300">+94</span>
+                        <div className="flex items-center w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus-within:border-[#00875A] focus-within:ring-2 focus-within:ring-[#00875A]/20 transition">
+                            <span className="text-slate-500 font-bold text-sm pr-2 border-r border-slate-300">+94</span>
                             <input
                                 type="tel"
                                 value={phone}
@@ -146,7 +157,7 @@ export default function CustomerLoginPage() {
                                 placeholder="0771234567 or 771234567"
                                 required
                                 maxLength={12}
-                                className="w-full bg-transparent pl-3 focus:outline-none text-gray-800 text-sm font-medium"
+                                className="w-full bg-transparent pl-3 focus:outline-none text-slate-900 text-sm font-semibold"
                             />
                         </div>
                     </div>
@@ -154,26 +165,26 @@ export default function CustomerLoginPage() {
                     {/* Password Field */}
                     <div>
                         <div className="flex justify-between items-center mb-1.5">
-                            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                                 Password
                             </label>
-                            <Link href="/customer/forgot-password" className="text-xs font-semibold text-orange-600 hover:underline">
+                            <Link href="/customer/forgot-password" className="text-xs font-bold text-[#00875A] hover:underline">
                                 Forgot?
                             </Link>
                         </div>
-                        <div className="relative flex items-center w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-orange-500 transition">
+                        <div className="relative flex items-center w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus-within:border-[#00875A] focus-within:ring-2 focus-within:ring-[#00875A]/20 transition">
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="••••••••"
                                 required
-                                className="w-full bg-transparent pr-8 focus:outline-none text-gray-800 text-sm font-medium"
+                                className="w-full bg-transparent pr-8 focus:outline-none text-slate-900 text-sm font-semibold"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                                className="absolute right-3 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
                             >
                                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                             </button>
@@ -184,15 +195,15 @@ export default function CustomerLoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-orange-500/30 transition duration-200 text-sm tracking-wide mt-2 disabled:opacity-50 cursor-pointer"
+                        className="w-full bg-[#00875A] hover:bg-[#059669] text-white font-extrabold py-3.5 rounded-xl shadow-md shadow-[#00875A]/25 transition active:scale-[0.98] duration-200 text-xs uppercase tracking-wider mt-2 disabled:opacity-50 cursor-pointer"
                     >
                         {loading ? 'Logging in...' : 'Login'}
                     </button>
                 </form>
 
-                <div className="text-center mt-6 text-xs text-gray-500">
+                <div className="text-center text-xs text-slate-500 font-medium">
                     Don't have an account?{' '}
-                    <Link href="/customer/register" className="text-orange-600 font-bold hover:underline">
+                    <Link href="/customer/register" className="text-[#00875A] font-extrabold hover:underline">
                         Register here
                     </Link>
                 </div>

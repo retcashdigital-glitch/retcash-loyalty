@@ -153,12 +153,13 @@ export default function SingleCardPage() {
     if (loading || isAuthorized === false || isAuthorized === null) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
-                <div className="w-8 h-8 border-3 border-slate-200 border-t-[#EE8838] rounded-full animate-spin"></div>
+                {/* Updated Loader Color to Emerald Green */}
+                <div className="w-8 h-8 border-3 border-slate-200 border-t-[#00875A] rounded-full animate-spin"></div>
             </div>
         )
     }
 
-    // Professional English UI for Access Denied Screen
+    // Professional English UI for Access Denied Screen with Emerald Primary Button
     if (accessDenied) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center items-center p-6 text-center space-y-4">
@@ -176,7 +177,7 @@ export default function SingleCardPage() {
                         const storedPhone = localStorage.getItem('retcash_phone') || ''
                         router.push(storedPhone ? `/wallet/${storedPhone}` : '/customer/login')
                     }}
-                    className="px-5 py-2.5 bg-[#EE8838] hover:bg-[#d8772a] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer active:scale-95 transition-all"
+                    className="px-5 py-2.5 bg-[#00875A] hover:bg-[#059669] text-white text-xs font-extrabold rounded-xl shadow-md shadow-[#00875A]/20 cursor-pointer active:scale-95 transition-all"
                 >
                     Go to My Wallet
                 </button>
@@ -193,7 +194,7 @@ export default function SingleCardPage() {
                         const storedPhone = localStorage.getItem('retcash_phone') || ''
                         router.push(storedPhone ? `/wallet/${storedPhone}` : '/customer/login')
                     }}
-                    className="px-4 py-2 bg-[#EE8838] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
+                    className="px-4 py-2 bg-[#00875A] hover:bg-[#059669] text-white text-xs font-extrabold rounded-xl shadow-md shadow-[#00875A]/20 cursor-pointer active:scale-95 transition-all"
                 >
                     Back to Wallet
                 </button>
