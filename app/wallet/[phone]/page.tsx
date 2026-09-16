@@ -29,12 +29,14 @@ import {
   BookOpen,     // Education / Books
   Car,          // Automobile
   Sparkle,      // Beauty
-  Wrench        // General Services
+  Wrench,       // General Services
+  Camera,
+  Loader2,
+  Lock
 } from 'lucide-react'
 
 // ─── Types & Dynamic Helper Visuals ───────────────────────────────────────────
 
-// ScissorsIcon-ஐ முதலில் Declare செய்யவும்
 const ScissorsIcon = Wrench
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -61,8 +63,6 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   Retail: ShoppingBag,
   Default: StoreIcon
 }
-
-
 
 // 100% Clean Emerald Green Brand Theme for World-Class UX
 function getCategoryColor(_category?: string) {
@@ -124,6 +124,14 @@ export default function CustomerWalletPage() {
 
   const [customerName, setCustomerName] = useState<string>('')
   const [customerEmail, setCustomerEmail] = useState<string>('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [customerId, setCustomerId] = useState<string | null>(null)
+  
+  // Profile editing state
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   const [activeTab, setActiveTab] = useState<'wallet' | 'offers' | 'profile'>('wallet')
   const [loading, setLoading] = useState(true)
   const [stores, setStores] = useState<any[]>([])
@@ -139,6 +147,7 @@ export default function CustomerWalletPage() {
   const [, startTransition] = useTransition()
 
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Dynamic available categories from current stores list
   const availableCategories = Array.from(
@@ -173,7 +182,7 @@ export default function CustomerWalletPage() {
 
         const { data: customer, error } = await supabase
           .from('customers')
-          .select('full_name, email')
+          .select('id, full_name, email, avatar_url')
           .or(`phone_number.eq.${phone},phone_number.eq.${phoneWithZero}`)
           .maybeSingle()
 
@@ -185,11 +194,13 @@ export default function CustomerWalletPage() {
         }
 
         // 3. Set Customer Info
+        setCustomerId(customer.id)
         if (customer.full_name) {
           setCustomerName(customer.full_name)
           localStorage.setItem(`customer_name_${phone}`, customer.full_name)
         }
         if (customer.email) setCustomerEmail(customer.email)
+        if (customer.avatar_url) setAvatarUrl(customer.avatar_url)
 
         setIsCheckingAuth(false)
 
@@ -405,6 +416,73 @@ export default function CustomerWalletPage() {
     }
   }
 
+  // Profile functions
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const file = e.target.files?.[0]
+      if (!file || !customerId) return
+
+      setIsUploadingImage(true)
+      setProfileMessage(null)
+
+      const fileExt = file.name.split('.').pop()
+      const filePath = `${customerId}/avatar.${fileExt}`
+
+      // Upload or replace image in Supabase storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      const { data: publicUrlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      const publicUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`
+
+      const { error: updateError } = await supabase
+        .from('customers')
+        .update({ avatar_url: publicUrl })
+        .eq('id', customerId)
+
+      if (updateError) throw updateError
+
+      setAvatarUrl(publicUrl)
+      setProfileMessage({ type: 'success', text: 'Profile picture updated successfully!' })
+    } catch (err: any) {
+      console.error('Avatar upload error:', err)
+      setProfileMessage({ type: 'error', text: err.message || 'Failed to update profile picture.' })
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!customerId) return
+
+    try {
+      setIsSavingProfile(true)
+      setProfileMessage(null)
+
+      const { error } = await supabase
+        .from('customers')
+        .update({ full_name: customerName })
+        .eq('id', customerId)
+
+      if (error) throw error
+
+      localStorage.setItem(`customer_name_${phone}`, customerName)
+      setProfileMessage({ type: 'success', text: 'Name updated successfully!' })
+    } catch (err: any) {
+      console.error('Update profile error:', err)
+      setProfileMessage({ type: 'error', text: err.message || 'Failed to save changes.' })
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
+
   const filteredStores = stores.filter(store => {
     const effectiveQuery = (activeSearch || searchQuery).toLowerCase().trim()
     const storeName = store.store_name?.toLowerCase() || ''
@@ -483,11 +561,20 @@ export default function CustomerWalletPage() {
                     </div>
                   </div>
 
-                  <div className="mt-1 mb-4">
-                    <p className="text-[11px] text-white/80 font-medium">Welcome back,</p>
-                    <h1 className="text-[20px] font-extrabold leading-tight text-white">
-                      {customerName ? customerName : loading ? '...' : 'Valued Customer'}
-                    </h1>
+                  <div className="mt-1 mb-4 flex items-center gap-3">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="Avatar" className="w-12 h-12 rounded-full border-2 border-white/40 object-cover shadow-sm flex-shrink-0" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                        {customerName ? customerName[0].toUpperCase() : 'U'}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-[11px] text-white/80 font-medium">Welcome back,</p>
+                      <h1 className="text-[20px] font-extrabold leading-tight text-white">
+                        {customerName ? customerName : loading ? '...' : 'Valued Customer'}
+                      </h1>
+                    </div>
                   </div>
 
                   <button
@@ -804,32 +891,129 @@ export default function CustomerWalletPage() {
             <div className="space-y-4 pt-1">
               <div className="space-y-1">
                 <h1 className="text-lg font-black text-[#0F172A]">My Profile</h1>
-                <p className="text-xs text-slate-500">Manage your account details and session.</p>
+                <p className="text-xs text-slate-500">Manage your personal information.</p>
               </div>
 
-              <div className="bg-white rounded-3xl p-5 space-y-4 shadow-xs border border-slate-100">
-                <div className="flex items-center space-x-3.5 pb-4 border-b border-slate-100">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#00875A] flex items-center justify-center font-black text-lg border border-emerald-100">
-                    <User className="w-6 h-6" />
+              {profileMessage && (
+                <div
+                  className={`p-3 rounded-2xl text-xs font-semibold ${
+                    profileMessage.type === 'success'
+                      ? 'bg-emerald-50 text-[#00875A] border border-emerald-100'
+                      : 'bg-red-50 text-red-600 border border-red-100'
+                  }`}
+                >
+                  {profileMessage.text}
+                </div>
+              )}
+
+              <div className="bg-white rounded-3xl p-5 space-y-5 shadow-xs border border-slate-100">
+                {/* Profile Avatar Edit Section */}
+                <div className="flex flex-col items-center justify-center space-y-3 pb-2 border-b border-slate-100">
+                  <div className="relative">
+                    <div className="w-20 h-20 rounded-full bg-emerald-50 text-[#00875A] flex items-center justify-center font-black text-2xl border-2 border-emerald-100 overflow-hidden shadow-xs">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="Profile Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-10 h-10" />
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isUploadingImage}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute bottom-0 right-0 bg-[#00875A] text-white p-2 rounded-full shadow-md hover:bg-emerald-700 transition cursor-pointer disabled:opacity-50"
+                      title="Upload Avatar"
+                    >
+                      {isUploadingImage ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Camera className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
                   </div>
-                  <div>
-                    <h3 className="text-base font-bold text-[#0F172A]">
-                      {customerName || 'Customer'}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-medium">{formatPhoneNumber(phone)}</p>
-                    {customerEmail && (
-                      <p className="text-[11px] text-slate-400 font-medium pt-0.5">{customerEmail}</p>
-                    )}
-                  </div>
+                  <span className="text-[11px] font-semibold text-slate-400">
+                    Click camera button to upload new photo
+                  </span>
                 </div>
 
-                <button
-                  onClick={handleLogout}
-                  className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition cursor-pointer"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout / Switch Account</span>
-                </button>
+                {/* Profile Edit Form */}
+                <form onSubmit={handleUpdateProfile} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      required
+                      placeholder="Enter full name"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#00875A]/20 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                      <span>Phone Number</span>
+                      <Lock className="w-3 h-3 text-slate-400" />
+                    </label>
+                    <input
+                      type="text"
+                      value={formatPhoneNumber(phone)}
+                      disabled
+                      readOnly
+                      className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-500 font-semibold cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                      <span>Email Address</span>
+                      <Lock className="w-3 h-3 text-slate-400" />
+                    </label>
+                    <input
+                      type="text"
+                      value={customerEmail || 'No email associated'}
+                      disabled
+                      readOnly
+                      className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-500 font-semibold cursor-not-allowed"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingProfile}
+                    className="w-full bg-[#00875A] hover:bg-emerald-700 text-white font-extrabold text-xs py-3 rounded-2xl flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {isSavingProfile ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Saving Changes...</span>
+                      </>
+                    ) : (
+                      <span>Save Changes</span>
+                    )}
+                  </button>
+                </form>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
