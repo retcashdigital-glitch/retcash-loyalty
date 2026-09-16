@@ -449,6 +449,7 @@ export default function CustomerWalletPage() {
       if (updateError) throw updateError
 
       setAvatarUrl(publicUrl)
+      // திருத்தம்: புகைப்படப் புதுப்பிப்பிற்குரிய சரியான செய்தி
       setProfileMessage({ type: 'success', text: 'Profile picture updated successfully!' })
     } catch (err: any) {
       console.error('Avatar upload error:', err)
@@ -474,6 +475,7 @@ export default function CustomerWalletPage() {
       if (error) throw error
 
       localStorage.setItem(`customer_name_${phone}`, customerName)
+      // திருத்தம்: பெயர் புதுப்பிப்பிற்குரிய சரியான செய்தி
       setProfileMessage({ type: 'success', text: 'Name updated successfully!' })
     } catch (err: any) {
       console.error('Update profile error:', err)
