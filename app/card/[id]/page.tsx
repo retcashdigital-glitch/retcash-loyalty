@@ -27,7 +27,6 @@ export default function SingleCardPage() {
         if (!paramId) return
 
         async function verifyAuthAndFetchCardData() {
-            setLoading(true)
             try {
                 // ==========================================
                 // STRICT AUTH GUARD: லாக்-இன் செய்த பயனரின் போன் நம்பரைக் கண்டறிதல்
@@ -64,6 +63,46 @@ export default function SingleCardPage() {
                     ? authenticatedPhone 
                     : `94${authenticatedPhone.replace(/^0/, '')}`
 
+                // ==========================================
+                // ⚡ OPTIMISTIC CACHE READ (உடனடி லோடிங் தீர்வு)
+                // ==========================================
+                let hasLoadedFromCache = false
+                if (typeof window !== 'undefined') {
+                    const cachedWallet = localStorage.getItem(`wallet_cache_${formattedAuthPhone}`)
+                    if (cachedWallet) {
+                        try {
+                            const parsedStores = JSON.parse(cachedWallet)
+                            const cachedStore = parsedStores.find((s: any) => String(s.id) === String(paramId))
+                            
+                            if (cachedStore) {
+                                setClaim({
+                                    id: cachedStore.id,
+                                    store_id: cachedStore.id,
+                                    customer_phone: formattedAuthPhone,
+                                    cashback_amount: cachedStore.cashbackAmount || 0,
+                                    claimable_amount: cachedStore.balance || 0,
+                                    visit_count: cachedStore.visits || 1,
+                                    status: cachedStore.isRedeemed ? 'REDEEMED' : 'ACTIVE',
+                                    stores: cachedStore
+                                })
+                                setIsAuthorized(true)
+                                setLoading(false) // Cache கிடைத்தவுடன் Spinner நிற்கும்!
+                                hasLoadedFromCache = true
+                            }
+                        } catch (e) {
+                            console.error('Error reading wallet cache:', e)
+                        }
+                    }
+                }
+
+                // Cache இல்லாத போது மட்டுமே UI லோடிங் சுழலியைக் காட்டும்
+                if (!hasLoadedFromCache) {
+                    setLoading(true)
+                }
+
+                // ==========================================
+                // BACKGROUND DATA FETCH (Supabase துல்லியமான தேடல்)
+                // ==========================================
                 let currentClaim = null;
 
                 // A. முதலில் கிடைத்த ID நேரடியாக ஒரு Claim ID-ஆ என சோதித்தல்
@@ -138,7 +177,9 @@ export default function SingleCardPage() {
                     }
                 }
 
-                setClaim(currentClaim)
+                if (currentClaim) {
+                    setClaim(currentClaim)
+                }
                 setIsAuthorized(true)
             } catch (err) {
                 console.error('Error fetching card details:', err)
@@ -150,11 +191,16 @@ export default function SingleCardPage() {
         verifyAuthAndFetchCardData()
     }, [paramId, phone, router])
 
-    if (loading || isAuthorized === false || isAuthorized === null) {
+    // ⚡ சுத்தும் Spin Loader-க்கு பதிலாக Smooth Skeleton Screen
+    if (loading && !claim) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
-                {/* Updated Loader Color to Emerald Green */}
-                <div className="w-8 h-8 border-3 border-slate-200 border-t-[#00875A] rounded-full animate-spin"></div>
+                <div className="w-full max-w-[430px] bg-white rounded-3xl p-6 space-y-4 shadow-sm border border-slate-100 animate-pulse">
+                    <div className="w-16 h-16 bg-slate-200 rounded-2xl mx-auto"></div>
+                    <div className="h-4 bg-slate-200 rounded w-1/2 mx-auto"></div>
+                    <div className="h-32 bg-slate-100 rounded-2xl w-full mt-4"></div>
+                    <div className="h-10 bg-slate-200 rounded-xl w-full mt-4"></div>
+                </div>
             </div>
         )
     }
