@@ -78,7 +78,15 @@ function IconHistory() {
     );
 }
 
-export default function ClientCardView({ initialClaim, id }: { initialClaim: any, id: string }) {
+export default function ClientCardView({ 
+    initialClaim, 
+    id, 
+    latestTransaction 
+}: { 
+    initialClaim: any, 
+    id: string, 
+    latestTransaction?: any 
+}) {
     const router = useRouter()
     const [claimData, setClaimData] = useState<any>(initialClaim)
     const [offers, setOffers] = useState<any[]>([])
@@ -185,6 +193,11 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
         : 'RC'
 
     const visitsLeft = totalVisits - currentVisits;
+
+    // பில் தொகை மற்றும் சதவீதத்தைக் கணக்கிடுதல்
+    const billAmount = latestTransaction?.bill_amount || 0;
+    const cashbackPercentage = latestTransaction?.cashback_percentage || store?.default_cashback_percent || 0;
+    const earnedCashback = latestTransaction?.cashback_amount ?? claimData?.cashback_amount ?? 0;
 
     const getGridColumnsClass = (count: number) => {
         switch (count) {
@@ -319,10 +332,17 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                     {/* 3. Standalone Details & Actions Card */}
                     <div className="bg-white border border-slate-100 rounded-3xl p-5 relative overflow-hidden shadow-xs space-y-5">
                         
-                        {/* Latest Cashback & History Section */}
-                        <div className="bg-emerald-50/60 border border-emerald-100 p-3 rounded-2xl flex justify-between items-center text-xs gap-2">
-                            <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-slate-600 font-bold uppercase tracking-wider text-[10px]">LATEST CASHBACK</span>
+                        {/* 🆕 Latest Cashback Details Card */}
+                        <div className="bg-emerald-50/60 border border-emerald-100 p-3.5 rounded-2xl space-y-2.5">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-slate-600 font-bold uppercase tracking-wider text-[10px]">LATEST CASHBACK</span>
+                                    {cashbackPercentage > 0 && (
+                                        <span className="text-[10px] font-extrabold bg-emerald-100 text-[#00875A] px-2 py-0.5 rounded-full">
+                                            {cashbackPercentage}% Off
+                                        </span>
+                                    )}
+                                </div>
                                 <button 
                                     onClick={fetchHistory}
                                     className="text-[10px] font-extrabold text-[#00875A] bg-emerald-100 hover:bg-emerald-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
@@ -332,17 +352,26 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                 </button>
                             </div>
 
-                            {/* REDEEMED BADGE முற்றாக நீக்கப்பட்டு தொகை மட்டும் Strike-through செய்யப்பட்டுள்ளது */}
-                            <div className="shrink-0 text-right">
-                                {isRedeemed ? (
-                                    <span className="text-slate-400 text-xs font-extrabold line-through decoration-slate-400">
-                                        Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
-                                    </span>
-                                ) : (
-                                    <span className="text-[#00875A] font-black text-sm">
-                                        + Rs. {Number(claimData?.cashback_amount || 0).toFixed(2)}
-                                    </span>
-                                )}
+                            <div className="flex justify-between items-end pt-1 border-t border-emerald-100/60">
+                                <div>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Bill Amount</p>
+                                    <p className="text-xs font-extrabold text-slate-700 mt-0.5">
+                                        Rs. {Number(billAmount).toFixed(2)}
+                                    </p>
+                                </div>
+
+                                <div className="text-right">
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Earned Cashback</p>
+                                    {isRedeemed ? (
+                                        <span className="text-slate-400 text-sm font-extrabold line-through decoration-slate-400 mt-0.5 inline-block">
+                                            Rs. {Number(earnedCashback).toFixed(2)}
+                                        </span>
+                                    ) : (
+                                        <span className="text-[#00875A] font-black text-sm mt-0.5 inline-block">
+                                            + Rs. {Number(earnedCashback).toFixed(2)}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -472,7 +501,6 @@ export default function ClientCardView({ initialClaim, id }: { initialClaim: any
                                     <div key={item.id} className="bg-slate-50 border border-slate-100/80 rounded-2xl p-3 flex justify-between items-center text-xs">
                                         <div>
                                             <div className="font-extrabold text-slate-700">
-                                                {/* Supabase -இல் உள்ள உண்மையான visit_count / visit_number நேரடியாகக் காட்டப்படுகிறது */}
                                                 Visit #{item.visit_count ?? item.visit_number ?? 1} 
                                                 <span className="text-[10px] text-slate-400 font-semibold ml-2">(Bill: Rs. {Number(item.bill_amount || 0).toFixed(2)})</span>
                                             </div>

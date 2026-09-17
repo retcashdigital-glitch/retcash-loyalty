@@ -19,6 +19,7 @@ export default function SingleCardPage() {
         : ''
 
     const [claim, setClaim] = useState<any>(null)
+    const [latestTransaction, setLatestTransaction] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
     const [accessDenied, setAccessDenied] = useState(false)
@@ -111,7 +112,7 @@ export default function SingleCardPage() {
                     .select(`
                         *,
                         stores:store_id (
-                            id, store_name, store_slug, logo_url, location_url, review_url, target_visits
+                            id, store_name, store_slug, logo_url, location_url, review_url, target_visits, default_cashback_percent
                         )
                     `)
                     .eq('id', paramId)
@@ -126,7 +127,7 @@ export default function SingleCardPage() {
                         .select(`
                             *,
                             stores:store_id (
-                                id, store_name, store_slug, logo_url, location_url, review_url, target_visits
+                                id, store_name, store_slug, logo_url, location_url, review_url, target_visits, default_cashback_percent
                             )
                         `)
                         .eq('store_id', paramId)
@@ -174,6 +175,23 @@ export default function SingleCardPage() {
                         setIsAuthorized(true)
                         setLoading(false)
                         return
+                    }
+                }
+
+                // ==========================================
+                // 🆕 LATEST TRANSACTION FETCH (கடைசி பில் தொகை & % பெறுதல்)
+                // ==========================================
+                if (currentClaim && currentClaim.id) {
+                    const { data: lastTx } = await supabase
+                        .from('cashback_history')
+                        .select('bill_amount, cashback_percentage, cashback_amount, transaction_type, created_at')
+                        .eq('claim_id', currentClaim.id)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle()
+
+                    if (lastTx) {
+                        setLatestTransaction(lastTx)
                     }
                 }
 
@@ -254,6 +272,7 @@ export default function SingleCardPage() {
                 ...claim,
                 customer_phone: claim.customer_phone || ''
             }} 
+            latestTransaction={latestTransaction}
             id={claim.id} 
         />
     )

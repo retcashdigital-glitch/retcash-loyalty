@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useState, useEffect, useRef } from 'react'
-import { MessageCircle, Phone, Gift, ChevronRight, QrCode, Users, WalletCards, Settings2, Search } from 'lucide-react'
+import { MessageCircle, Phone, Gift, ChevronRight, QrCode, Users, WalletCards, Settings2, Search, CheckCircle2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface CashbackClaim {
@@ -30,7 +30,7 @@ interface QuickBillingSectionProps {
   totalClaimableSum: number
   handleGenerateCashback: (e: FormEvent) => void
   startScanner: () => void
-  startPhoneScanner: () => void // 🎯 புதிய Prop
+  startPhoneScanner: () => void
   onOpenProfile: () => void
   merchantStoreId?: string
 }
@@ -63,7 +63,7 @@ export default function QuickBillingSection({
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // 1. Phone number Auto-complete (எப்படி Type செய்தாலும் Supabase-ல் தேடும் சீரான Logic)
+  // 1. Phone number Auto-complete (Supabase Search Logic)
   useEffect(() => {
     let digitsOnly = customerPhone.replace(/\D/g, '')
 
@@ -121,7 +121,7 @@ export default function QuickBillingSection({
 
   return (
     <section className="grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
-      <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-xs sm:p-7">
+      <div className="rounded-3xl border border-[#00875A]/10 bg-white p-5 shadow-xs sm:p-7">
         <div className="mb-7 flex items-start justify-between">
           <div>
             <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-[#00875A]">
@@ -138,7 +138,7 @@ export default function QuickBillingSection({
         <form onSubmit={handleGenerateCashback} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             
-            {/* WhatsApp Number Input & Auto-complete Section */}
+            {/* WhatsApp Number Input Section */}
             <label className="grid gap-2 text-xs font-semibold text-slate-700">
               Customer WhatsApp number
               <div className="flex gap-2">
@@ -154,7 +154,7 @@ export default function QuickBillingSection({
                     required
                   />
 
-                  {/* Auto-complete Filter Dropdown */}
+                  {/* Auto-complete Dropdown */}
                   {showDropdown && (
                     <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl animate-in fade-in duration-150">
                       <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -178,7 +178,7 @@ export default function QuickBillingSection({
                   )}
                 </div>
 
-                {/* 🎯 Input-ன் அருகிலேயே Phone QR Scan செய்யும் பொத்தான் (இங்கு startPhoneScanner பயன்படுத்தப்படுகிறது) */}
+                {/* Scan Phone QR Button */}
                 <button
                   type="button"
                   onClick={startPhoneScanner}
@@ -209,38 +209,35 @@ export default function QuickBillingSection({
             <p className="text-xs text-slate-400 animate-pulse">Checking customer balance...</p>
           )}
 
+          {/* Auto Cashback Display Card */}
           {existingCustomerClaim && currentClaimable > 0 && (
-            <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-3">
+            <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Gift className="size-4 text-amber-600" />
-                  <span className="text-xs font-extrabold text-amber-900">
-                    Available Cashback: <span className="font-mono text-amber-700">Rs. {currentClaimable}</span>
+                  <Gift className="size-4 text-[#00875A]" />
+                  <span className="text-xs font-extrabold text-slate-900">
+                    Accumulated Cashback: <span className="font-mono text-[#00875A]">Rs. {currentClaimable}</span>
                   </span>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={redeemInBill}
-                    onChange={(e) => setRedeemInBill(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00875A]"></div>
-                  <span className="ml-2 text-xs font-bold text-slate-700">Redeem in Bill</span>
-                </label>
+
+                {redeemInBill && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#00875A] px-2.5 py-0.5 text-[10px] font-bold text-white">
+                    <CheckCircle2 className="size-3" /> Target Visit Auto-Redeemed
+                  </span>
+                )}
               </div>
 
               {redeemInBill && billNum > 0 && (
-                <div className="pt-2 border-t border-amber-200/60 text-xs space-y-1 font-mono text-slate-600">
+                <div className="pt-2 border-t border-emerald-200/80 text-xs space-y-1 font-mono text-slate-600">
                   <div className="flex justify-between">
                     <span>Original Bill:</span>
                     <span>Rs. {billNum.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-amber-700 font-bold">
-                    <span>Cashback Discount:</span>
+                  <div className="flex justify-between text-[#00875A] font-bold">
+                    <span>Auto Cashback Discount:</span>
                     <span>- Rs. {actualRedeemAmount.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-slate-900 font-black pt-1 border-t border-amber-200">
+                  <div className="flex justify-between text-slate-900 font-black pt-1 border-t border-emerald-200">
                     <span>Net Bill To Pay:</span>
                     <span className="text-[#00875A]">Rs. {finalToPay.toFixed(2)}</span>
                   </div>
@@ -260,7 +257,6 @@ export default function QuickBillingSection({
           </button>
         </form>
 
-        {/* 🎯 Redeem Scanner (முன்பு இருந்த அதே startScanner பயன்படுத்தப்படுகிறது) */}
         <button
           type="button"
           onClick={startScanner}
