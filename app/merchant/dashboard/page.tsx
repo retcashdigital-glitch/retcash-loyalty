@@ -70,7 +70,7 @@ export default function MerchantDashboardPage() {
   // QR Scanner State
   const [scannedClaimData, setScannedClaimData] = useState<CashbackClaim | null>(null)
   const [isScanning, setIsScanning] = useState(false)
-  const [scanMode, setScanMode] = useState<'REDEEM' | 'PHONE'>('REDEEM') // 🎯 Scanner Mode பிரிப்பிற்காக
+  const [scanMode, setScanMode] = useState<'REDEEM' | 'PHONE'>('REDEEM') 
   const [showRedeemConfirmModal, setShowRedeemConfirmModal] = useState(false)
   const scannerRef = useRef<Html5Qrcode | null>(null)
 
@@ -411,7 +411,6 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // 1. 기존 Redeem QR Scanner (மாற்றம் ஏதும் செய்யப்படவில்லை - சரியாக இயங்கும்)
   const startScanner = async () => {
     setScanMode('REDEEM')
     setIsScanning(true)
@@ -442,7 +441,6 @@ export default function MerchantDashboardPage() {
     }, 100)
   }
 
-  // 2. 🎯 PHONE INPUT SCANNER (தொலைபேசி எண்ணைப் பிரித்தெடுக்கும் புதிய Scanner)
   const startPhoneScanner = async () => {
     setScanMode('PHONE')
     setIsScanning(true)
@@ -463,7 +461,6 @@ export default function MerchantDashboardPage() {
             await stopScannerInstance()
             setIsScanning(false)
 
-            // QR-க்குள் இருக்கும் URL அல்லது Text-லிருந்து 9 இலக்க எண்களை பிரித்தல்
             const digitsOnly = decodedText.replace(/\D/g, '')
 
             if (digitsOnly.length >= 9) {
@@ -518,6 +515,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
+  // 🎯 REDEEM ACTION: Redeem செய்யும் போது Visit Count மாறாது (Target Visits/3-ஆகவே இருக்கும்)
   const executeRedeemReward = async () => {
     if (!scannedClaimData || actionLoading) return
 
@@ -528,6 +526,7 @@ export default function MerchantDashboardPage() {
         .update({
           claimable_amount: 0,
           status: 'REDEEMED',
+          // Visit count மாறாது, 3/3 என்றே அப்படியே இருக்கும்
         })
         .eq('id', scannedClaimData.id)
         .eq('store_id', merchantSession!.id)
@@ -547,6 +546,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
+  // 🎯 ADD BILL / NEW TRANSACTION: புது பில் போடும்போது Redeem செய்திருந்தால் மட்டுமே 1-ல் இருந்து தொடங்கும்
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -584,7 +584,14 @@ export default function MerchantDashboardPage() {
 
       if (existingCustomerClaim) {
         const currentVisits = existingCustomerClaim.visit_count || 1
-        newVisitCount = currentVisits >= targetVisits ? targetVisits : currentVisits + 1
+        const isAlreadyRedeemed = existingCustomerClaim.status === 'REDEEMED'
+
+        // 🟢 புதிய திருத்தம்: ஏற்கனவே Redeem செய்யப்பட்டிருந்தால், அடுத்த பில் போடும் போது மட்டுமே 1-லிருந்து தொடங்கும்!
+        if (isAlreadyRedeemed) {
+          newVisitCount = 1
+        } else {
+          newVisitCount = currentVisits >= targetVisits ? targetVisits : currentVisits + 1
+        }
         
         const remainingAfterRedeem = existingAmount - redeemedAmount
         totalClaimable = Math.round((remainingAfterRedeem + cashbackAmount) * 100) / 100
@@ -599,7 +606,7 @@ export default function MerchantDashboardPage() {
         status: string
       }
 
-      const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
+      const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'ACTIVE'
 
       const payload: Payload = {
         store_id: storeId,
@@ -856,7 +863,7 @@ export default function MerchantDashboardPage() {
             totalClaimableSum={totalClaimableSum}
             handleGenerateCashback={handleGenerateCashback}
             startScanner={startScanner}
-            startPhoneScanner={startPhoneScanner} // 🎯 புதிய ஃபங்க்ஷன் பாஸ் செய்யப்பட்டுள்ளது
+            startPhoneScanner={startPhoneScanner}
             onOpenProfile={() => setIsProfileOpen(true)}
             merchantStoreId={merchantSession?.id}
           />
