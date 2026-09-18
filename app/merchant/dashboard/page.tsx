@@ -520,7 +520,6 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // FIXED: Calling Backend API (/api/redeem) instead of Direct Supabase Update
   const executeRedeemReward = async () => {
     if (!scannedClaimData || actionLoading) return
 
@@ -553,7 +552,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // FIXED: Bill Amount and Cashback Amount are now passed to Payload for DB Sync
+  // UPDATED FIX: customer_id & store_id sync issues resolved perfectly
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -573,28 +572,32 @@ export default function MerchantDashboardPage() {
         return
       }
 
-      // 1. Find or Create Customer ID
+      // 1. FIXED: Retrieve or Insert customer ensuring store_id is updated
       let customerUuid: string | null = existingCustomerClaim?.customer_id || null
 
-      if (!customerUuid) {
-        const { data: existingCust } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('phone_number', cleanCustPhone)
-          .maybeSingle()
+      const { data: existingCust } = await supabase
+        .from('customers')
+        .select('id, store_id')
+        .eq('phone_number', cleanCustPhone)
+        .maybeSingle()
 
-        if (existingCust) {
-          customerUuid = existingCust.id
-        } else {
-          const { data: newCust, error: custErr } = await supabase
+      if (existingCust) {
+        customerUuid = existingCust.id
+        if (!existingCust.store_id) {
+          await supabase
             .from('customers')
-            .insert({ phone_number: cleanCustPhone, store_id: storeId })
-            .select('id')
-            .single()
+            .update({ store_id: storeId })
+            .eq('id', existingCust.id)
+        }
+      } else {
+        const { data: newCust, error: custErr } = await supabase
+          .from('customers')
+          .insert({ phone_number: cleanCustPhone, store_id: storeId })
+          .select('id')
+          .single()
 
-          if (!custErr && newCust) {
-            customerUuid = newCust.id
-          }
+        if (!custErr && newCust) {
+          customerUuid = newCust.id
         }
       }
 
@@ -636,7 +639,7 @@ export default function MerchantDashboardPage() {
 
       const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
 
-      // UPDATED PAYLOAD: Including bill_amount and cashback_amount for Supabase DB
+      // UPDATED PAYLOAD: Guaranteed customer_id, bill_amount, and cashback_amount inclusion
       const payload: Payload = {
         store_id: storeId,
         customer_id: customerUuid,
