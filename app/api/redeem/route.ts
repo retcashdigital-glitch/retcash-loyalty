@@ -9,17 +9,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Claim ID is required' }, { status: 400 })
     }
 
-    // Service Role Key இல்லை என்றால் உடனடியாக Fail Fast செய்ய வேண்டும்
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 
-    if (!serviceKey || !supabaseUrl) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    // எந்த Key விடுபட்டுள்ளது என்று துல்லியமாக அறிய தனித்தனியாகச் சரிபார்க்கிறோம்
+    if (!supabaseUrl) {
+      return NextResponse.json({ error: 'Missing NEXT_PUBLIC_SUPABASE_URL in Vercel' }, { status: 500 })
+    }
+    
+    if (!serviceKey) {
+      return NextResponse.json({ error: 'Missing SUPABASE_SERVICE_ROLE_KEY in Vercel' }, { status: 500 })
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceKey)
+    // Server API-இல் Session warnings வராமல் இருக்க persistSession: false சேர்க்கப்பட்டுள்ளது
+    const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false }
+    })
 
-    // Status-ஐ மாற்றுவதுடன் claimable_amount-ஐயும் 0 ஆக மாற்ற வேண்டும்
+    // Status-ஐ மாற்றுவதுடன் claimable_amount-ஐயும் 0 ஆக மாற்றும் உங்களின் சரியான லாஜிக்
     const { data, error } = await supabaseAdmin
       .from('cashback_claims')
       .update({ 
@@ -28,7 +35,7 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString()
       })
       .eq('id', claimId)
-      .neq('status', 'REDEEMED') // ஏற்கனவே REDEEMED செய்யப்பட்டிருந்தால் மீண்டும் செய்யாது
+      .neq('status', 'REDEEMED')
       .select()
 
     if (error) {
