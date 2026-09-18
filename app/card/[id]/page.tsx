@@ -5,6 +5,10 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import ClientCardView from './ClientCardView'
 
+// ⚡ NEXT.JS ROUTER CACHE-ஐ முற்றிலும் முடக்கும் கட்டளைகள்
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default function SingleCardPage() {
     const params = useParams()
     const searchParams = useSearchParams()
@@ -26,6 +30,8 @@ export default function SingleCardPage() {
 
     useEffect(() => {
         if (!paramId) return
+
+        let channel: any = null
 
         async function verifyAuthAndFetchCardData() {
             try {
@@ -197,6 +203,46 @@ export default function SingleCardPage() {
 
                 if (currentClaim) {
                     setClaim(currentClaim)
+
+                    // ==========================================
+                    // ⚡ SUPABASE REALTIME SUBSCRIPTION (நொடியில் புதுப்பிக்க)
+                    // ==========================================
+                    if (currentClaim.id) {
+                        channel = supabase
+                            .channel(`realtime-card-${currentClaim.id}`)
+                            .on(
+                                'postgres_changes',
+                                {
+                                    event: '*', // UPDATE, INSERT, DELETE எது நடந்தாலும்
+                                    schema: 'public',
+                                    table: 'cashback_claims',
+                                    filter: `id=eq.${currentClaim.id}`
+                                },
+                                async (payload) => {
+                                    if (payload.new) {
+                                        // நேரலையில் புதுப்பித்து Claim State-ஐ மாற்றுதல்
+                                        setClaim((prevClaim: any) => ({
+                                            ...prevClaim,
+                                            ...payload.new
+                                        }))
+
+                                        // கடைசியாக நடந்த பரிவர்த்தனையையும் புதுப்பித்தல்
+                                        const { data: updatedTx } = await supabase
+                                            .from('cashback_history')
+                                            .select('bill_amount, cashback_percentage, cashback_amount, transaction_type, created_at')
+                                            .eq('claim_id', currentClaim.id)
+                                            .order('created_at', { ascending: false })
+                                            .limit(1)
+                                            .maybeSingle()
+
+                                        if (updatedTx) {
+                                            setLatestTransaction(updatedTx)
+                                        }
+                                    }
+                                }
+                            )
+                            .subscribe()
+                    }
                 }
                 setIsAuthorized(true)
             } catch (err) {
@@ -207,6 +253,12 @@ export default function SingleCardPage() {
         }
 
         verifyAuthAndFetchCardData()
+
+        return () => {
+            if (channel) {
+                supabase.removeChannel(channel)
+            }
+        }
     }, [paramId, phone, router])
 
     // ⚡ சுத்தும் Spin Loader-க்கு பதிலாக Smooth Skeleton Screen

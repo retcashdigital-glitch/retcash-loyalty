@@ -35,6 +35,10 @@ import {
   Lock
 } from 'lucide-react'
 
+// ⚡ NEXT.JS ROUTER CACHE-ஐ முற்றிலும் முடக்கும் கட்டளைகள்
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // ─── Types & Dynamic Helper Visuals ───────────────────────────────────────────
 
 const ScissorsIcon = Wrench
@@ -233,7 +237,9 @@ export default function CustomerWalletPage() {
 
     checkAuthAndInit()
 
-    // Realtime changes listener
+    // ==========================================
+    // ⚡ SUPABASE REALTIME LISTENER FOR WALLET
+    // ==========================================
     const cleanPhone = phone.replace(/\D/g, '')
     const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
@@ -242,12 +248,14 @@ export default function CustomerWalletPage() {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: '*', // UPDATE, INSERT, DELETE
           schema: 'public',
           table: 'cashback_claims'
         },
         (payload: any) => {
           const updatedPhone = payload.new?.customer_phone || payload.old?.customer_phone
+          
+          // வாடிக்கையாளரின் போன் நம்பருக்குப் பொருந்தி வந்தால் உடனே புதுப்பிக்கும்
           if (updatedPhone === phone || updatedPhone === phoneWithZero) {
             fetchWalletAndClaimsData()
           }
@@ -333,10 +341,9 @@ export default function CustomerWalletPage() {
         }
       }) || []
 
-      if (JSON.stringify(mergedStores) !== cachedData) {
-        setStores(mergedStores)
-        localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(mergedStores))
-      }
+      // Cache-ஐப் புதுப்பித்தல்
+      setStores(mergedStores)
+      localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(mergedStores))
 
     } catch (err) {
       console.error('Error in fetching wallet data:', err)
@@ -449,7 +456,6 @@ export default function CustomerWalletPage() {
       if (updateError) throw updateError
 
       setAvatarUrl(publicUrl)
-      // திருத்தம்: புகைப்படப் புதுப்பிப்பிற்குரிய சரியான செய்தி
       setProfileMessage({ type: 'success', text: 'Profile picture updated successfully!' })
     } catch (err: any) {
       console.error('Avatar upload error:', err)
@@ -475,7 +481,6 @@ export default function CustomerWalletPage() {
       if (error) throw error
 
       localStorage.setItem(`customer_name_${phone}`, customerName)
-      // திருத்தம்: பெயர் புதுப்பிப்பிற்குரிய சரியான செய்தி
       setProfileMessage({ type: 'success', text: 'Name updated successfully!' })
     } catch (err: any) {
       console.error('Update profile error:', err)
