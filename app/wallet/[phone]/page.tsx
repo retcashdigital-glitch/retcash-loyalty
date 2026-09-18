@@ -64,7 +64,6 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   Default: StoreIcon
 }
 
-// 100% Clean Emerald Green Brand Theme for World-Class UX
 function getCategoryColor(_category?: string) {
   return { color: '#00875A', bgColor: '#ECFDF5' }
 }
@@ -92,7 +91,7 @@ function getCategoryIcon(category?: string) {
 // ─── Dynamic Fixed-Width Equal Alignment Progress Bar Sub-component ─────────
 
 function VisitCapsules({ visits, maxVisits, color }: { visits: number; maxVisits: number; color: string }) {
-  const targetVisits = Math.max(1, Math.min(maxVisits, 12)) // Dynamic scaling up to 12 visits
+  const targetVisits = Math.max(1, Math.min(maxVisits, 12))
   
   return (
     <div className="w-[130px] sm:w-[150px] flex-shrink-0 flex items-center justify-end">
@@ -149,7 +148,6 @@ export default function CustomerWalletPage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Dynamic available categories from current stores list
   const availableCategories = Array.from(
     new Set(
       stores
@@ -167,7 +165,6 @@ export default function CustomerWalletPage() {
 
     const checkAuthAndInit = async () => {
       try {
-        // 1. Check LocalStorage Session
         const session = localStorage.getItem(`retcash_wallet_session_${phone}`)
         const authKey = localStorage.getItem(`retcash_wallet_auth_${phone}`)
 
@@ -176,7 +173,6 @@ export default function CustomerWalletPage() {
           return
         }
 
-        // 2. Direct Supabase Verification
         const cleanPhone = phone.replace(/\D/g, '')
         const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
@@ -193,7 +189,6 @@ export default function CustomerWalletPage() {
           return
         }
 
-        // 3. Set Customer Info
         setCustomerId(customer.id)
         if (customer.full_name) {
           setCustomerName(customer.full_name)
@@ -204,7 +199,6 @@ export default function CustomerWalletPage() {
 
         setIsCheckingAuth(false)
 
-        // 4. Load Cached Data
         const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
         if (cachedData) {
           try {
@@ -221,7 +215,6 @@ export default function CustomerWalletPage() {
           }
         }
 
-        // 5. Fetch Data
         fetchWalletAndClaimsData()
         fetchActiveOffers()
 
@@ -234,7 +227,7 @@ export default function CustomerWalletPage() {
     checkAuthAndInit()
 
     // ==========================================
-    // ⚡ SUPABASE REALTIME LISTENER FOR WALLET
+    // ⚡ SUPABASE REALTIME LISTENER (Card பக்கத்தைப் போன்ற உடனடி அப்டேட்)
     // ==========================================
     const cleanPhone = phone.replace(/\D/g, '')
     const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
@@ -244,13 +237,12 @@ export default function CustomerWalletPage() {
       .on(
         'postgres_changes',
         {
-          event: '*', // UPDATE, INSERT, DELETE
+          event: '*',
           schema: 'public',
           table: 'cashback_claims'
         },
         (payload: any) => {
           const updatedPhone = payload.new?.customer_phone || payload.old?.customer_phone
-          
           if (updatedPhone === phone || updatedPhone === phoneWithZero) {
             fetchWalletAndClaimsData()
           }
@@ -264,19 +256,14 @@ export default function CustomerWalletPage() {
   }, [phone, router])
 
   // ==========================================
-  // 🎯 FETCH WALLET DATA (கார்டு பக்கத்தில் உள்ள அதே Visit Count Logic)
+  // 🎯 FETCH WALLET DATA (கார்டு பக்கத்தைப் போன்ற நேரடி Supabase Query)
   // ==========================================
   const fetchWalletAndClaimsData = async () => {
     try {
-      const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
-      if (!cachedData) {
-        setLoading(true)
-      }
-
       const cleanPhone = phone.replace(/\D/g, '')
       const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
-      // 1. cashback_claims அட்டவணையில் இருந்து தகவல்கள் (updated_at அடிப்படையில் வரிசைப்படுத்தப்படுகிறது)
+      // 1. கார்டு பக்கத்தைப் போலவே நேரடி அசல் `cashback_claims` தரவை எடுப்பது
       const { data: claimsData, error: claimsError } = await supabase
         .from('cashback_claims')
         .select('*')
@@ -284,12 +271,6 @@ export default function CustomerWalletPage() {
         .order('updated_at', { ascending: false })
 
       if (claimsError) throw claimsError
-
-      // 2. customer_wallet_summary View-லிருந்து அசல் பாலன்ஸ் மற்றும் ரிடீம் தகவல்கள்
-      const { data: walletSummaries } = await supabase
-        .from('customer_wallet_summary')
-        .select('*')
-        .or(`customer_phone.eq.${phone},customer_phone.eq.${phoneWithZero}`)
 
       const customerStoreIds = Array.from(
         new Set((claimsData || []).map((claim: any) => String(claim.store_id)).filter(Boolean))
@@ -302,6 +283,7 @@ export default function CustomerWalletPage() {
         return
       }
 
+      // 2. கடைகளின் விவரங்களை நேரடியாக எடுப்பது
       const { data: userStores, error: storeError } = await supabase
         .from('stores')
         .select('*')
@@ -309,44 +291,28 @@ export default function CustomerWalletPage() {
 
       if (storeError) throw storeError
 
+      // 3. கார்டு பக்கத்தின் அதே துல்லியமான தர்க்கத்தில் இணைத்தல் (Merging)
       const mergedStores = userStores?.map((store: any) => {
         const storeClaims = claimsData?.filter(
           (claim: any) => String(claim.store_id) === String(store.id)
         ) || []
 
-        // 🟢 கடைசியாக உருவான/அப்டேட் செய்யப்பட்ட Claim (கார்டு பக்கத்தில் பயன்படுத்தப்படுவது போல)
+        // 🟢 கார்டு பக்கத்தில் இயங்குவது போல மிக அண்மையில் அப்டேட் செய்யப்பட்ட அசல் Claim
         const latestClaim = storeClaims[0] || null
 
-        // View-லிருந்து இந்த கடைக்கான பிரத்யேக தகவலை எடுத்தல்
-        const summary = walletSummaries?.find(
-          (s: any) => String(s.store_id) === String(store.id)
-        )
-
-        // Status ரிடீம் செய்யப்பட்டிருந்தால் isRedeemed = true
-        const isRedeemed = summary 
-          ? (String(summary.status).toUpperCase() === 'REDEEMED' || Number(summary.current_balance) <= 0)
-          : (latestClaim ? (latestClaim.status === 'REDEEMED' || Number(latestClaim.claimable_amount || 0) <= 0) : false)
-
-        // தற்போதைய பாக்கித் தொகை (Balance)
-        const totalBalance = summary 
-          ? Number(summary.current_balance || 0)
-          : storeClaims.reduce((sum: number, claim: any) => sum + (Number(claim.claimable_amount) || 0), 0)
-
-        // ரிடீம் செய்யப்பட்ட தொகை (Total Redeemed)
-        const cashbackAmount = summary 
-          ? (Number(summary.total_redeemed_amount) > 0 ? Number(summary.total_redeemed_amount) : Number(latestClaim?.cashback_amount || 0))
-          : Number(latestClaim?.cashback_amount || 0)
-
-        // 🟢 கார்டு பக்கத்தில் இருக்கும் அதே Visit Count எடுக்கப்படுகிறது (Latest Claim-இன் Visit Count)
-        const visitCount = Number(latestClaim?.visit_count) || (storeClaims.length > 0 ? storeClaims.length : 0)
-
-        let storeTarget = Number(store.target_visits) || 6
+        // 🎯 கார்டு பக்கத்தில் இருந்து துல்லியமாக பெறப்படும் தகவல்கள்
+        const visitCount = Number(latestClaim?.visit_count || 0)
+        const currentBalance = Number(latestClaim?.claimable_amount || 0)
+        const cashbackAmount = Number(latestClaim?.cashback_amount || 0)
+        const isRedeemed = latestClaim ? latestClaim.status === 'REDEEMED' : false
+        const storeTarget = Number(store.target_visits) || 6
 
         router.prefetch(`/card/${store.id}?phone=${phone}`)
 
         return {
           ...store,
-          balance: totalBalance,
+          claimId: latestClaim?.id,
+          balance: currentBalance,
           cashbackAmount: cashbackAmount,
           isRedeemed: isRedeemed,
           visits: visitCount,
@@ -354,6 +320,7 @@ export default function CustomerWalletPage() {
         }
       }) || []
 
+      // state மற்றும் localStorage-ஐ நேரலைத் தரவைக் கொண்டு புதுப்பித்தல் (No Cache Bug)
       setStores(mergedStores)
       localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(mergedStores))
 
@@ -435,7 +402,6 @@ export default function CustomerWalletPage() {
     }
   }
 
-  // Profile functions
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = e.target.files?.[0]
@@ -533,7 +499,7 @@ export default function CustomerWalletPage() {
     <div className="flex justify-center min-h-full bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
       <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen border-x border-slate-200/50 shadow-2xl">
         
-        {/* ── Fixed Header ────────────────────────────────────────────── */}
+        {/* Header */}
         <header className="sticky top-0 z-40 flex-shrink-0 bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 pt-4 pb-3.5 shadow-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -554,7 +520,7 @@ export default function CustomerWalletPage() {
           </div>
         </header>
 
-        {/* ── Scrollable Body ────────────────────────────────────────────── */}
+        {/* Scrollable Body */}
         <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28 space-y-4">
           {activeTab === 'wallet' && (
             <>
@@ -925,7 +891,6 @@ export default function CustomerWalletPage() {
               )}
 
               <div className="bg-white rounded-3xl p-5 space-y-5 shadow-xs border border-slate-100">
-                {/* Profile Avatar Edit Section */}
                 <div className="flex flex-col items-center justify-center space-y-3 pb-2 border-b border-slate-100">
                   <div className="relative">
                     <div className="w-20 h-20 rounded-full bg-emerald-50 text-[#00875A] flex items-center justify-center font-black text-2xl border-2 border-emerald-100 overflow-hidden shadow-xs">
@@ -963,7 +928,6 @@ export default function CustomerWalletPage() {
                   </span>
                 </div>
 
-                {/* Profile Edit Form */}
                 <form onSubmit={handleUpdateProfile} className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -1037,7 +1001,7 @@ export default function CustomerWalletPage() {
           )}
         </main>
 
-        {/* ── Fixed Bottom Nav ─────────────────────────────────────────────── */}
+        {/* Fixed Bottom Nav */}
         <nav
           className="fixed bottom-0 max-w-[430px] w-full z-30 bg-white border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
