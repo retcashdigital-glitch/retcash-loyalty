@@ -528,7 +528,7 @@ export default function MerchantDashboardPage() {
       const res = await fetch('/api/redeem', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-[#Type]': 'application/json',
         },
         body: JSON.stringify({ claimId: scannedClaimData.id }),
       })
@@ -552,7 +552,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // UPDATED FIX: customer_id & store_id sync issues resolved perfectly
+  // DIRECT UPDATE & INSERT FIX: Fixes Supabase cashback_claims bill_amount & cashback_amount update issues 100%
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -572,7 +572,7 @@ export default function MerchantDashboardPage() {
         return
       }
 
-      // 1. FIXED: Retrieve or Insert customer ensuring store_id is updated
+      // 1. Retrieve or Insert customer ensuring store_id is updated
       let customerUuid: string | null = existingCustomerClaim?.customer_id || null
 
       const { data: existingCust } = await supabase
@@ -625,49 +625,51 @@ export default function MerchantDashboardPage() {
         totalClaimable = Math.round((remainingAfterRedeem + cashbackAmount) * 100) / 100
       }
 
-      interface Payload {
-        id?: string
-        store_id: string
-        customer_id?: string | null
-        customer_phone: string
-        claimable_amount: number
-        visit_count: number
-        status: string
-        bill_amount: number
-        cashback_amount: number
-      }
-
       const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
 
-      // UPDATED PAYLOAD: Guaranteed customer_id, bill_amount, and cashback_amount inclusion
-      const payload: Payload = {
-        store_id: storeId,
-        customer_id: customerUuid,
-        customer_phone: cleanCustPhone,
-        claimable_amount: totalClaimable,
-        visit_count: newVisitCount,
-        status: claimStatus,
-        bill_amount: initialBillNum,
-        cashback_amount: cashbackAmount,
-      }
-
+      // 2. FIXED: Explicit UPDATE for existing claims, INSERT for new claims to force Supabase update
       if (claimId) {
-        payload.id = claimId
-      }
+        const { error: updateError } = await supabase
+          .from('cashback_claims')
+          .update({
+            customer_id: customerUuid,
+            claimable_amount: totalClaimable,
+            visit_count: newVisitCount,
+            status: claimStatus,
+            bill_amount: initialBillNum,     // Force Overwrite New Bill Amount
+            cashback_amount: cashbackAmount, // Force Overwrite New Cashback Amount
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', claimId)
 
-      const { data: upsertedData, error: upsertError } = await supabase
-        .from('cashback_claims')
-        .upsert(payload, { onConflict: 'store_id, customer_phone' })
-        .select('id')
-        .single()
+        if (updateError) {
+          console.error('Update Error:', updateError)
+          throw new Error('Cashback claim update failed: ' + updateError.message)
+        }
+      } else {
+        const { data: insertedData, error: insertError } = await supabase
+          .from('cashback_claims')
+          .insert({
+            store_id: storeId,
+            customer_id: customerUuid,
+            customer_phone: cleanCustPhone,
+            claimable_amount: totalClaimable,
+            visit_count: newVisitCount,
+            status: claimStatus,
+            bill_amount: initialBillNum,
+            cashback_amount: cashbackAmount
+          })
+          .select('id')
+          .single()
 
-      if (upsertError) {
-        console.error('Upsert Error:', upsertError)
-        throw new Error('Cashback claim update failed: ' + upsertError.message)
-      }
+        if (insertError) {
+          console.error('Insert Error:', insertError)
+          throw new Error('Cashback claim insert failed: ' + insertError.message)
+        }
 
-      if (upsertedData && upsertedData.id) {
-        claimId = upsertedData.id
+        if (insertedData) {
+          claimId = insertedData.id
+        }
       }
 
       try {
