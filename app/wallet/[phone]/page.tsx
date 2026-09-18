@@ -130,6 +130,23 @@ export default function CustomerWalletPage() {
   )
   const categoryList = ['All', ...availableCategories]
 
+  // ⚡ Local Storage-லிருந்து State-ஐ உடனடியாக வாசிக்கும் Helper
+  const reloadFromCache = () => {
+    if (!phone || typeof window === 'undefined') return
+    const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
+    if (cachedData) {
+      try {
+        const parsed = JSON.parse(cachedData)
+        if (Array.isArray(parsed)) {
+          setStores(parsed)
+          setLoading(false)
+        }
+      } catch (e) {
+        console.error('Error parsing wallet cache reload:', e)
+      }
+    }
+  }
+
   useEffect(() => {
     if (!phone) {
       router.replace('/customer/login')
@@ -172,21 +189,8 @@ export default function CustomerWalletPage() {
 
         setIsCheckingAuth(false)
 
-        const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
-        if (cachedData) {
-          try {
-            const parsed = JSON.parse(cachedData)
-            if (Array.isArray(parsed)) {
-              setStores(parsed)
-              setLoading(false)
-              parsed.forEach((s: any) => {
-                router.prefetch(`/card/${s.id}?phone=${phone}`)
-              })
-            }
-          } catch (e) {
-            console.error('Error parsing wallet cache:', e)
-          }
-        }
+        // ⚡ OPTIMISTIC CACHE READ
+        reloadFromCache()
 
         fetchWalletAndClaimsData()
         fetchActiveOffers()
@@ -198,6 +202,29 @@ export default function CustomerWalletPage() {
     }
 
     checkAuthAndInit()
+
+    // ⚡ 1. BROADCAST CHANNEL LISTENER (கார்டு பக்கத்தில் இருந்து வரும் சிக்னலை உடனடியாகப் பெறுதல்)
+    let syncChannel: BroadcastChannel | null = null
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      syncChannel = new BroadcastChannel('retcash_wallet_sync')
+      syncChannel.onmessage = (event) => {
+        if (event.data && event.data.type === 'WALLET_DATA_UPDATED' && event.data.phone === phone) {
+          reloadFromCache()
+          fetchWalletAndClaimsData()
+        }
+      }
+    }
+
+    // ⚡ 2. MOBILE LIFECYCLE LISTENER (App Background-க்குச் சென்று திரும்பும்போது Auto-Sync)
+    const handleFocusOrVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        reloadFromCache()
+        fetchWalletAndClaimsData()
+      }
+    }
+
+    window.addEventListener('visibilitychange', handleFocusOrVisibility)
+    window.addEventListener('focus', handleFocusOrVisibility)
 
     // Realtime changes listener
     const cleanPhone = phone.replace(/\D/g, '')
@@ -223,11 +250,14 @@ export default function CustomerWalletPage() {
 
     return () => {
       supabase.removeChannel(channel)
+      if (syncChannel) syncChannel.close()
+      window.removeEventListener('visibilitychange', handleFocusOrVisibility)
+      window.removeEventListener('focus', handleFocusOrVisibility)
     }
   }, [phone, router])
 
   // ==========================================
-  // 🎯 FETCH WALLET DATA (கடைசியாக பெறப்பட்ட REDEEMED தொகையை மட்டும் எடுக்கும் திருத்தப்பட்ட லாஜிக்)
+  // 🎯 FETCH WALLET DATA
   // ==========================================
   const fetchWalletAndClaimsData = async () => {
     try {
@@ -261,7 +291,7 @@ export default function CustomerWalletPage() {
         summaryMap.set(String(sum.store_id), sum)
       })
 
-      // 3. ⚡ [முக்கிய மாற்றம்] ஒவ்வொரு claim_id-க்கும் கடைசியாக நடந்த REDEEMED தொகையை மட்டும் cashback_history-லிருந்து எடுத்தல்
+      // 3. ஒவ்வொரு claim_id-க்கும் கடைசியாக நடந்த REDEEMED தொகையை மட்டும் cashback_history-லிருந்து எடுத்தல்
       const claimIds = claimsData.map((c: any) => c.id)
       const { data: lastRedeemedTxs } = await supabase
         .from('cashback_history')
@@ -305,10 +335,9 @@ export default function CustomerWalletPage() {
         const visitCount = Number(latestClaim?.visit_count || 0)
         const claimableAmount = Number(latestClaim?.claimable_amount || 0)
 
-        // நிலையைச் சரிபார்த்தல் (REDEEMED-ஆ இல்லையா?)
+        // நிலையைச் சரிபார்த்தல்
         const isRedeemed = latestClaim?.status === 'REDEEMED' || storeSummary?.status === 'REDEEMED'
 
-        // 🎯 [முக்கிய திருத்தம்]: பழைய முடிவில்லாத கூட்டல் தொகைக்கு பதிலாக, கடைசியாக பெறப்பட்ட Redeem தொகையை மட்டும் அமைப்பது (எ.கா. Rs. 245.00)
         const lastRedeemedVal = latestClaim ? lastRedeemedMap.get(String(latestClaim.id)) : 0
         const displayRedeemedCashback = (lastRedeemedVal && lastRedeemedVal > 0)
           ? lastRedeemedVal
@@ -322,7 +351,7 @@ export default function CustomerWalletPage() {
           ...store,
           claimId: latestClaim?.id,
           balance: claimableAmount,
-          cashbackAmount: displayRedeemedCashback, // 👈 Rs. 245.00 போன்று துல்லியமாக வரும்
+          cashbackAmount: displayRedeemedCashback,
           isRedeemed: isRedeemed,
           visits: visitCount,
           targetVisits: storeTarget

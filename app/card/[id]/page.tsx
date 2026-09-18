@@ -24,6 +24,56 @@ export default function SingleCardPage() {
     const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
     const [accessDenied, setAccessDenied] = useState(false)
 
+    // ==========================================
+    // ⚡ HELPER: WALLET CACHE-ஐ உடனடியாக Sync செய்யும் Function
+    // ==========================================
+    const updateWalletCacheAndNotify = (formattedAuthPhone: string, updatedClaimData: any, updatedSummaryData?: any) => {
+        if (typeof window === 'undefined' || !formattedAuthPhone || !updatedClaimData) return
+
+        try {
+            const cacheKey = `wallet_cache_${formattedAuthPhone}`
+            const cachedWalletRaw = localStorage.getItem(cacheKey)
+            
+            if (cachedWalletRaw) {
+                let parsedStores = JSON.parse(cachedWalletRaw)
+                const storeIdToFind = updatedClaimData.store_id || updatedClaimData.stores?.id
+
+                // 1. Cache-இல் இருக்கும் குறித்த கடைக் கார்டைப் புதுப்பித்தல்
+                let updated = false
+                parsedStores = parsedStores.map((s: any) => {
+                    if (String(s.id) === String(storeIdToFind) || String(s.claimId) === String(updatedClaimData.id)) {
+                        updated = true
+                        return {
+                            ...s,
+                            claimId: updatedClaimData.id,
+                            cashbackAmount: updatedClaimData.cashback_amount ?? s.cashbackAmount,
+                            balance: updatedSummaryData?.current_balance ?? updatedClaimData.claimable_amount ?? s.balance,
+                            visits: updatedClaimData.visit_count ?? s.visits,
+                            isRedeemed: (updatedSummaryData?.status || updatedClaimData.status) === 'REDEEMED'
+                        }
+                    }
+                    return s
+                })
+
+                // 2. புதுப்பித்த Cache-ஐ LocalStorage-இல் சேமித்தல்
+                if (updated) {
+                    localStorage.setItem(cacheKey, JSON.stringify(parsedStores))
+                }
+            }
+
+            // 3. ⚡ BROADCAST CHANNEL: வாலட் பக்கத்திற்கு உடனடி சிக்னல் அனுப்புதல்
+            const walletChannel = new BroadcastChannel('retcash_wallet_sync')
+            walletChannel.postMessage({
+                type: 'WALLET_DATA_UPDATED',
+                phone: formattedAuthPhone,
+                updatedClaim: updatedClaimData
+            })
+            walletChannel.close()
+        } catch (e) {
+            console.error('Error updating wallet cache from card page:', e)
+        }
+    }
+
     useEffect(() => {
         if (!paramId) return
 
@@ -232,7 +282,6 @@ export default function SingleCardPage() {
                     if (lastTx) {
                         setLatestTransaction({
                             ...lastTx,
-                            // பில் தொகை 0 ஆக இருந்தாலும் View-லிருந்து அசல் பில் தொகையை மாற்றியமைத்தல்
                             bill_amount: (walletSummary?.last_bill_amount && walletSummary.last_bill_amount > 0) 
                                 ? walletSummary.last_bill_amount 
                                 : lastTx.bill_amount,
@@ -240,6 +289,9 @@ export default function SingleCardPage() {
                             summary_status: walletSummary?.status || currentClaim.status
                         })
                     }
+
+                    // ⚡ வாலட் கேஷை உடனடி அப்டேட் செய்தல்
+                    updateWalletCacheAndNotify(formattedAuthPhone, currentClaim, walletSummary)
                 }
 
                 if (currentClaim) {
@@ -261,6 +313,11 @@ export default function SingleCardPage() {
                                 },
                                 async (payload) => {
                                     if (payload.new) {
+                                        const updatedClaimObj = {
+                                            ...currentClaim,
+                                            ...payload.new
+                                        }
+
                                         setClaim((prevClaim: any) => ({
                                             ...prevClaim,
                                             ...payload.new,
@@ -277,7 +334,7 @@ export default function SingleCardPage() {
 
                                         const { data: updatedSummary } = await supabase
                                             .from('customer_wallet_summary')
-                                            .select('last_bill_amount, total_redeemed_amount, status')
+                                            .select('last_bill_amount, total_redeemed_amount, current_balance, status')
                                             .eq('store_id', currentClaim.store_id)
                                             .eq('customer_phone', formattedAuthPhone)
                                             .maybeSingle()
@@ -292,6 +349,9 @@ export default function SingleCardPage() {
                                                 summary_status: (updatedSummary as { status?: string } | null)?.status || (payload.new as { status?: string }).status
                                             })
                                         }
+
+                                        // ⚡ REALTIME UPDATE வந்தவுடன் Cache + Broadcast Sync
+                                        updateWalletCacheAndNotify(formattedAuthPhone, updatedClaimObj, updatedSummary)
                                     }
                                 }
                             )
