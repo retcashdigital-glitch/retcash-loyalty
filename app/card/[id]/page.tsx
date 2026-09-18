@@ -209,9 +209,10 @@ export default function SingleCardPage() {
                 }
 
                 // ==========================================
-                // 🆕 LATEST TRANSACTION FETCH
+                // 🎯 LATEST TRANSACTION FETCH (customer_wallet_summary View-லிருந்து எடுத்தல்)
                 // ==========================================
-                if (currentClaim && currentClaim.id) {
+                if (currentClaim && currentClaim.store_id) {
+                    // 1. கடைசியாக நடந்த அசல் பில் மற்றும் கேஷ்பேக் விவரத்தை எடுப்பது
                     const { data: lastTx } = await supabase
                         .from('cashback_history')
                         .select('bill_amount, cashback_percentage, cashback_amount, transaction_type, created_at')
@@ -220,8 +221,24 @@ export default function SingleCardPage() {
                         .limit(1)
                         .maybeSingle()
 
+                    // 2. customer_wallet_summary View-லிருந்து அசல் பில் தொகையை மட்டும் எடுப்பது
+                    const { data: walletSummary } = await supabase
+                        .from('customer_wallet_summary')
+                        .select('last_bill_amount, total_redeemed_amount, current_balance, status')
+                        .eq('store_id', currentClaim.store_id)
+                        .eq('customer_phone', formattedAuthPhone)
+                        .maybeSingle()
+
                     if (lastTx) {
-                        setLatestTransaction(lastTx)
+                        setLatestTransaction({
+                            ...lastTx,
+                            // பில் தொகை 0 ஆக இருந்தாலும் View-லிருந்து அசல் பில் தொகையை மாற்றியமைத்தல்
+                            bill_amount: (walletSummary?.last_bill_amount && walletSummary.last_bill_amount > 0) 
+                                ? walletSummary.last_bill_amount 
+                                : lastTx.bill_amount,
+                            total_redeemed: walletSummary?.total_redeemed_amount || 0,
+                            summary_status: walletSummary?.status || currentClaim.status
+                        })
                     }
                 }
 
@@ -229,7 +246,7 @@ export default function SingleCardPage() {
                     setClaim(currentClaim)
 
                     // ==========================================
-                    // ⚡ SUPABASE REALTIME SUBSCRIPTION (QR மறைவதற்கு இது மிக முக்கியம்)
+                    // ⚡ SUPABASE REALTIME SUBSCRIPTION
                     // ==========================================
                     if (currentClaim.id) {
                         channel = supabase
@@ -258,8 +275,22 @@ export default function SingleCardPage() {
                                             .limit(1)
                                             .maybeSingle()
 
+                                        const { data: updatedSummary } = await supabase
+                                            .from('customer_wallet_summary')
+                                            .select('last_bill_amount, total_redeemed_amount, status')
+                                            .eq('store_id', currentClaim.store_id)
+                                            .eq('customer_phone', formattedAuthPhone)
+                                            .maybeSingle()
+
                                         if (updatedTx) {
-                                            setLatestTransaction(updatedTx)
+                                            setLatestTransaction({
+                                                ...updatedTx,
+                                                bill_amount: (updatedSummary?.last_bill_amount && updatedSummary.last_bill_amount > 0) 
+                                                    ? updatedSummary.last_bill_amount 
+                                                    : updatedTx.bill_amount,
+                                                total_redeemed: updatedSummary?.total_redeemed_amount || 0,
+                                                summary_status: (updatedSummary as { status?: string } | null)?.status || (payload.new as { status?: string }).status
+                                            })
                                         }
                                     }
                                 }
@@ -346,7 +377,7 @@ export default function SingleCardPage() {
                 customer_phone: claim.customer_phone || ''
             }} 
             latestTransaction={latestTransaction}
-            id={claim.id} // 🎯 Claim UUID வெற்றிகரமாக அனுப்பப்படுகிறது
+            id={claim.id} 
         />
     )
 }

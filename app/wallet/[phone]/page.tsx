@@ -263,6 +263,9 @@ export default function CustomerWalletPage() {
     }
   }, [phone, router])
 
+  // ==========================================
+  // 🎯 FETCH WALLET DATA (customer_wallet_summary View பயன்படுத்துமாறு மாற்றப்பட்டது)
+  // ==========================================
   const fetchWalletAndClaimsData = async () => {
     try {
       const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
@@ -273,6 +276,7 @@ export default function CustomerWalletPage() {
       const cleanPhone = phone.replace(/\D/g, '')
       const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
+      // 1. cashback_claims அட்டவணையில் இருந்து தகவல்கள்
       const { data: claimsData, error: claimsError } = await supabase
         .from('cashback_claims')
         .select('*')
@@ -280,6 +284,12 @@ export default function CustomerWalletPage() {
         .order('updated_at', { ascending: false })
 
       if (claimsError) throw claimsError
+
+      // 2. customer_wallet_summary View-லிருந்து அசல் ബാലன்ஸ் மற்றும் ரிடீம் தகவல்கள்
+      const { data: walletSummaries } = await supabase
+        .from('customer_wallet_summary')
+        .select('*')
+        .or(`customer_phone.eq.${phone},customer_phone.eq.${phoneWithZero}`)
 
       const customerStoreIds = Array.from(
         new Set((claimsData || []).map((claim: any) => String(claim.store_id)).filter(Boolean))
@@ -306,17 +316,25 @@ export default function CustomerWalletPage() {
 
         const latestClaim = storeClaims[0] || null
 
-        const isRedeemed = latestClaim
-          ? (latestClaim.status === 'REDEEMED' || Number(latestClaim.claimable_amount || 0) <= 0)
-          : false
+        // View-லிருந்து இந்த கடைக்கான பிரத்யேக தகவலை எடுத்தல்
+        const summary = walletSummaries?.find(
+          (s: any) => String(s.store_id) === String(store.id)
+        )
 
-        const cashbackAmount = latestClaim
-          ? Number(latestClaim.cashback_amount || 0)
-          : 0
+        // Status ரிடீம் செய்யப்பட்டிருந்தால் isRedeemed = true
+        const isRedeemed = summary 
+          ? (String(summary.status).toUpperCase() === 'REDEEMED' || Number(summary.current_balance) <= 0)
+          : (latestClaim ? (latestClaim.status === 'REDEEMED' || Number(latestClaim.claimable_amount || 0) <= 0) : false)
 
-        const totalBalance = storeClaims.reduce((sum: number, claim: any) => {
-          return sum + (Number(claim.claimable_amount) || 0)
-        }, 0)
+        // தற்போதைய பாக்கித் தொகை (Balance)
+        const totalBalance = summary 
+          ? Number(summary.current_balance || 0)
+          : storeClaims.reduce((sum: number, claim: any) => sum + (Number(claim.claimable_amount) || 0), 0)
+
+        // ரிடீம் செய்யப்பட்ட தொகை (Total Redeemed)
+        const cashbackAmount = summary 
+          ? (Number(summary.total_redeemed_amount) > 0 ? Number(summary.total_redeemed_amount) : Number(latestClaim?.cashback_amount || 0))
+          : Number(latestClaim?.cashback_amount || 0)
 
         const visitCount = storeClaims.reduce((max: number, claim: any) => {
           return Math.max(max, Number(claim.visit_count) || 1)
