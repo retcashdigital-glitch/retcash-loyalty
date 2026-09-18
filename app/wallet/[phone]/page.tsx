@@ -227,7 +227,7 @@ export default function CustomerWalletPage() {
     checkAuthAndInit()
 
     // ==========================================
-    // ⚡ SUPABASE REALTIME LISTENER (Card பக்கத்தைப் போன்ற உடனடி அப்டேட்)
+    // ⚡ SUPABASE REALTIME LISTENER
     // ==========================================
     const cleanPhone = phone.replace(/\D/g, '')
     const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
@@ -256,14 +256,14 @@ export default function CustomerWalletPage() {
   }, [phone, router])
 
   // ==========================================
-  // 🎯 FETCH WALLET DATA (கார்டு பக்கத்தைப் போன்ற நேரடி Supabase Query)
+  // 🎯 FETCH WALLET DATA (கார்டு பக்கத்தின் அதே customer_wallet_summary View லாஜிக்)
   // ==========================================
   const fetchWalletAndClaimsData = async () => {
     try {
       const cleanPhone = phone.replace(/\D/g, '')
       const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
-      // 1. கார்டு பக்கத்தைப் போலவே நேரடி அசல் `cashback_claims` தரவை எடுப்பது
+      // 1. cashback_claims தரவை எடுப்பது
       const { data: claimsData, error: claimsError } = await supabase
         .from('cashback_claims')
         .select('*')
@@ -291,20 +291,37 @@ export default function CustomerWalletPage() {
 
       if (storeError) throw storeError
 
-      // 3. கார்டு பக்கத்தின் அதே துல்லியமான தர்க்கத்தில் இணைத்தல் (Merging)
+      // 3. கார்டு பக்கத்தைப் போலவே customer_wallet_summary View-லிருந்து துல்லியமான தகவல்களை எடுப்பது
+      const { data: walletSummaries } = await supabase
+        .from('customer_wallet_summary')
+        .select('store_id, total_redeemed_amount, current_balance, status')
+        .or(`customer_phone.eq.${phone},customer_phone.eq.${phoneWithZero}`)
+
+      // 4. தரவுகளை இணைத்தல் (Merging Data)
       const mergedStores = userStores?.map((store: any) => {
         const storeClaims = claimsData?.filter(
           (claim: any) => String(claim.store_id) === String(store.id)
         ) || []
 
-        // 🟢 கார்டு பக்கத்தில் இயங்குவது போல மிக அண்மையில் அப்டேட் செய்யப்பட்ட அசல் Claim
         const latestClaim = storeClaims[0] || null
 
-        // 🎯 கார்டு பக்கத்தில் இருந்து துல்லியமாக பெறப்படும் தகவல்கள்
+        // customer_wallet_summary View-லிருந்து இந்த கடைக்கான அசல் தரவைப் பெறுதல்
+        const storeSummary = walletSummaries?.find(
+          (s: any) => String(s.store_id) === String(store.id)
+        )
+
         const visitCount = Number(latestClaim?.visit_count || 0)
-        const currentBalance = Number(latestClaim?.claimable_amount || 0)
-        const cashbackAmount = Number(latestClaim?.cashback_amount || 0)
-        const isRedeemed = latestClaim ? latestClaim.status === 'REDEEMED' : false
+        
+        // கார்டு பக்கத்தைப் போல View-இல் இருந்து அல்லது Claim-இல் இருந்து துல்லியமான தகவல்களை எடுப்பது
+        const currentBalance = storeSummary?.current_balance !== undefined 
+          ? Number(storeSummary.current_balance || 0) 
+          : Number(latestClaim?.claimable_amount || 0)
+
+        const redeemedAmount = storeSummary?.total_redeemed_amount !== undefined 
+          ? Number(storeSummary.total_redeemed_amount || 0) 
+          : Number(latestClaim?.cashback_amount || 0)
+
+        const isRedeemed = (storeSummary?.status || latestClaim?.status) === 'REDEEMED'
         const storeTarget = Number(store.target_visits) || 6
 
         router.prefetch(`/card/${store.id}?phone=${phone}`)
@@ -313,14 +330,13 @@ export default function CustomerWalletPage() {
           ...store,
           claimId: latestClaim?.id,
           balance: currentBalance,
-          cashbackAmount: cashbackAmount,
+          cashbackAmount: redeemedAmount,
           isRedeemed: isRedeemed,
           visits: visitCount,
           targetVisits: storeTarget
         }
       }) || []
 
-      // state மற்றும் localStorage-ஐ நேரலைத் தரவைக் கொண்டு புதுப்பித்தல் (No Cache Bug)
       setStores(mergedStores)
       localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(mergedStores))
 
