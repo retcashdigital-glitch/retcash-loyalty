@@ -28,6 +28,8 @@ interface CashbackClaim {
   visit_count: number
   status: string
   customer_id?: string
+  bill_amount?: number
+  cashback_amount?: number
 }
 
 interface Offer {
@@ -551,6 +553,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
+  // FIXED: Bill Amount and Cashback Amount are now passed to Payload for DB Sync
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -570,7 +573,7 @@ export default function MerchantDashboardPage() {
         return
       }
 
-      // --- FIX 1: Find or Create Customer ID ---
+      // 1. Find or Create Customer ID
       let customerUuid: string | null = existingCustomerClaim?.customer_id || null
 
       if (!customerUuid) {
@@ -583,7 +586,6 @@ export default function MerchantDashboardPage() {
         if (existingCust) {
           customerUuid = existingCust.id
         } else {
-          // If customer doesn't exist, create a new record in customers table
           const { data: newCust, error: custErr } = await supabase
             .from('customers')
             .insert({ phone_number: cleanCustPhone, store_id: storeId })
@@ -628,11 +630,13 @@ export default function MerchantDashboardPage() {
         claimable_amount: number
         visit_count: number
         status: string
+        bill_amount: number
+        cashback_amount: number
       }
 
       const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
 
-      // --- FIX 2: Attach customer_id to payload ---
+      // UPDATED PAYLOAD: Including bill_amount and cashback_amount for Supabase DB
       const payload: Payload = {
         store_id: storeId,
         customer_id: customerUuid,
@@ -640,6 +644,8 @@ export default function MerchantDashboardPage() {
         claimable_amount: totalClaimable,
         visit_count: newVisitCount,
         status: claimStatus,
+        bill_amount: initialBillNum,
+        cashback_amount: cashbackAmount,
       }
 
       if (claimId) {
