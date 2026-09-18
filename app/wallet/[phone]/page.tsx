@@ -227,7 +227,7 @@ export default function CustomerWalletPage() {
   }, [phone, router])
 
   // ==========================================
-  // 🎯 FETCH WALLET DATA (கார்டு பக்கத்தைப் போன்று துல்லியமாக எடுக்கும் லாஜிக்)
+  // 🎯 FETCH WALLET DATA (கடைசியாக பெறப்பட்ட REDEEMED தொகையை மட்டும் எடுக்கும் திருத்தப்பட்ட லாஜிக்)
   // ==========================================
   const fetchWalletAndClaimsData = async () => {
     try {
@@ -250,10 +250,10 @@ export default function CustomerWalletPage() {
         return
       }
 
-      // 2. customer_wallet_summary View-லிருந்து மொத்த Redeem / Balance தொகைகளை எடுத்தல்
+      // 2. customer_wallet_summary View-லிருந்து நிலையைக் கண்டறிய தரவு எடுத்தல்
       const { data: walletSummaries } = await supabase
         .from('customer_wallet_summary')
-        .select('store_id, total_redeemed_amount, current_balance, status')
+        .select('store_id, current_balance, status')
         .or(`customer_phone.eq.${phone},customer_phone.eq.${phoneWithZero}`)
 
       const summaryMap = new Map<string, any>()
@@ -261,7 +261,24 @@ export default function CustomerWalletPage() {
         summaryMap.set(String(sum.store_id), sum)
       })
 
-      // ஒவ்வொரு கடைக்கும் சமீபத்திய Claim தரவை மட்டும் பிரித்தெடுத்தல்
+      // 3. ⚡ [முக்கிய மாற்றம்] ஒவ்வொரு claim_id-க்கும் கடைசியாக நடந்த REDEEMED தொகையை மட்டும் cashback_history-லிருந்து எடுத்தல்
+      const claimIds = claimsData.map((c: any) => c.id)
+      const { data: lastRedeemedTxs } = await supabase
+        .from('cashback_history')
+        .select('claim_id, cashback_amount, created_at')
+        .in('claim_id', claimIds)
+        .eq('transaction_type', 'REDEEMED')
+        .order('created_at', { ascending: false })
+
+      const lastRedeemedMap = new Map<string, number>()
+      lastRedeemedTxs?.forEach((tx: any) => {
+        const claimIdStr = String(tx.claim_id)
+        if (!lastRedeemedMap.has(claimIdStr)) {
+          lastRedeemedMap.set(claimIdStr, Number(tx.cashback_amount || 0))
+        }
+      })
+
+      // ஒவ்வொரு கடைக்கும் சமீபத்திய Claim தரவை பிரித்தெடுத்தல்
       const latestClaimsMap = new Map<string, any>()
       claimsData.forEach((claim: any) => {
         const storeIdStr = String(claim.store_id)
@@ -272,7 +289,7 @@ export default function CustomerWalletPage() {
 
       const customerStoreIds = Array.from(latestClaimsMap.keys())
 
-      // 3. கடைகளின் விவரங்களை எடுக்கிறது
+      // 4. கடைகளின் விவரங்களை எடுக்கிறது
       const { data: userStores, error: storeError } = await supabase
         .from('stores')
         .select('*')
@@ -280,7 +297,7 @@ export default function CustomerWalletPage() {
 
       if (storeError) throw storeError
 
-      // 4. கார்டு பக்கத்தைப் போன்று நேரடி தரவுகளுடன் இணைத்தல்
+      // 5. கார்டு பக்கத்தைப் போன்று துல்லியமான அசல் கடைசியாக கிடைத்த Redeem தொகையுடன் இணைத்தல்
       const mergedStores = userStores?.map((store: any) => {
         const latestClaim = latestClaimsMap.get(String(store.id))
         const storeSummary = summaryMap.get(String(store.id))
@@ -291,12 +308,11 @@ export default function CustomerWalletPage() {
         // நிலையைச் சரிபார்த்தல் (REDEEMED-ஆ இல்லையா?)
         const isRedeemed = latestClaim?.status === 'REDEEMED' || storeSummary?.status === 'REDEEMED'
 
-        // அசல் மொத்தக் கேஷ்பேக் தொகையைக் கணக்கிடுதல் (Rs. 245.00 சரியாக வருவதற்கு)
-        const displayRedeemedCashback = Number(
-          storeSummary?.total_redeemed_amount > 0 
-            ? storeSummary.total_redeemed_amount 
-            : (latestClaim?.cashback_amount || latestClaim?.claimable_amount || 0)
-        )
+        // 🎯 [முக்கிய திருத்தம்]: பழைய முடிவில்லாத கூட்டல் தொகைக்கு பதிலாக, கடைசியாக பெறப்பட்ட Redeem தொகையை மட்டும் அமைப்பது (எ.கா. Rs. 245.00)
+        const lastRedeemedVal = latestClaim ? lastRedeemedMap.get(String(latestClaim.id)) : 0
+        const displayRedeemedCashback = (lastRedeemedVal && lastRedeemedVal > 0)
+          ? lastRedeemedVal
+          : Number(latestClaim?.cashback_amount || 0)
 
         const storeTarget = Number(store.target_visits) || 6
 
@@ -306,7 +322,7 @@ export default function CustomerWalletPage() {
           ...store,
           claimId: latestClaim?.id,
           balance: claimableAmount,
-          cashbackAmount: displayRedeemedCashback,
+          cashbackAmount: displayRedeemedCashback, // 👈 Rs. 245.00 போன்று துல்லியமாக வரும்
           isRedeemed: isRedeemed,
           visits: visitCount,
           targetVisits: storeTarget
