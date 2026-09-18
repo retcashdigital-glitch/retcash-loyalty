@@ -35,34 +35,9 @@ import {
   Lock
 } from 'lucide-react'
 
-// ─── Types & Dynamic Helper Visuals ───────────────────────────────────────────
+// ─── Visual Helpers ───────────────────────────────────────────────────────────
 
 const ScissorsIcon = Wrench
-
-const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  Food: Utensils,
-  Dining: Utensils,
-  'Food & Dining': Utensils,
-  Groceries: ShoppingCart,
-  Supermarket: ShoppingCart,
-  'Supermarket & Grocery': ShoppingCart,
-  Fashion: Shirt,
-  'Fashion & Clothing': Shirt,
-  Electronics: Tv,
-  Beauty: Sparkle,
-  Services: Wrench,
-  'Services & Beauty': ScissorsIcon,
-  Fitness: Dumbbell,
-  Gym: Dumbbell,
-  Gaming: Gamepad2,
-  Entertainment: Gamepad2,
-  Healthcare: Pill,
-  Pharmacy: Pill,
-  Education: BookOpen,
-  Automobile: Car,
-  Retail: ShoppingBag,
-  Default: StoreIcon
-}
 
 function getCategoryColor(_category?: string) {
   return { color: '#00875A', bgColor: '#ECFDF5' }
@@ -87,8 +62,6 @@ function getCategoryIcon(category?: string) {
 
   return StoreIcon
 }
-
-// ─── Dynamic Fixed-Width Equal Alignment Progress Bar Sub-component ─────────
 
 function VisitCapsules({ visits, maxVisits, color }: { visits: number; maxVisits: number; color: string }) {
   const targetVisits = Math.max(1, Math.min(maxVisits, 12))
@@ -226,9 +199,7 @@ export default function CustomerWalletPage() {
 
     checkAuthAndInit()
 
-    // ==========================================
-    // ⚡ SUPABASE REALTIME LISTENER
-    // ==========================================
+    // Realtime changes listener
     const cleanPhone = phone.replace(/\D/g, '')
     const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
@@ -256,14 +227,14 @@ export default function CustomerWalletPage() {
   }, [phone, router])
 
   // ==========================================
-  // 🎯 FETCH WALLET DATA (கார்டு பக்கத்தின் அதே customer_wallet_summary View லாஜிக்)
+  // 🎯 FETCH WALLET DATA (கார்டு பக்கத்தைப் போன்று துல்லியமாக எடுக்கும் லாஜிக்)
   // ==========================================
   const fetchWalletAndClaimsData = async () => {
     try {
       const cleanPhone = phone.replace(/\D/g, '')
       const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
-      // 1. cashback_claims தரவை எடுப்பது
+      // 1. பயனரின் அனைத்து cashback_claims தரவுகளை எடுக்கிறது
       const { data: claimsData, error: claimsError } = await supabase
         .from('cashback_claims')
         .select('*')
@@ -272,18 +243,25 @@ export default function CustomerWalletPage() {
 
       if (claimsError) throw claimsError
 
-      const customerStoreIds = Array.from(
-        new Set((claimsData || []).map((claim: any) => String(claim.store_id)).filter(Boolean))
-      )
-
-      if (customerStoreIds.length === 0) {
+      if (!claimsData || claimsData.length === 0) {
         setStores([])
         localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify([]))
         setLoading(false)
         return
       }
 
-      // 2. கடைகளின் விவரங்களை நேரடியாக எடுப்பது
+      // ஒவ்வொரு கடைக்கும் சமீபத்திய Claim தரவை மட்டும் பிரித்தெடுத்தல்
+      const latestClaimsMap = new Map<string, any>()
+      claimsData.forEach((claim: any) => {
+        const storeIdStr = String(claim.store_id)
+        if (!latestClaimsMap.has(storeIdStr)) {
+          latestClaimsMap.set(storeIdStr, claim)
+        }
+      })
+
+      const customerStoreIds = Array.from(latestClaimsMap.keys())
+
+      // 2. கடைகளின் விவரங்களை எடுக்கிறது
       const { data: userStores, error: storeError } = await supabase
         .from('stores')
         .select('*')
@@ -291,37 +269,14 @@ export default function CustomerWalletPage() {
 
       if (storeError) throw storeError
 
-      // 3. கார்டு பக்கத்தைப் போலவே customer_wallet_summary View-லிருந்து துல்லியமான தகவல்களை எடுப்பது
-      const { data: walletSummaries } = await supabase
-        .from('customer_wallet_summary')
-        .select('store_id, total_redeemed_amount, current_balance, status')
-        .or(`customer_phone.eq.${phone},customer_phone.eq.${phoneWithZero}`)
-
-      // 4. தரவுகளை இணைத்தல் (Merging Data)
+      // 3. கார்டு பக்கத்தைப் போன்று நேரடி தரவுகளுடன் இணைத்தல்
       const mergedStores = userStores?.map((store: any) => {
-        const storeClaims = claimsData?.filter(
-          (claim: any) => String(claim.store_id) === String(store.id)
-        ) || []
-
-        const latestClaim = storeClaims[0] || null
-
-        // customer_wallet_summary View-லிருந்து இந்த கடைக்கான அசல் தரவைப் பெறுதல்
-        const storeSummary = walletSummaries?.find(
-          (s: any) => String(s.store_id) === String(store.id)
-        )
+        const latestClaim = latestClaimsMap.get(String(store.id))
 
         const visitCount = Number(latestClaim?.visit_count || 0)
-        
-        // கார்டு பக்கத்தைப் போல View-இல் இருந்து அல்லது Claim-இல் இருந்து துல்லியமான தகவல்களை எடுப்பது
-        const currentBalance = storeSummary?.current_balance !== undefined 
-          ? Number(storeSummary.current_balance || 0) 
-          : Number(latestClaim?.claimable_amount || 0)
-
-        const redeemedAmount = storeSummary?.total_redeemed_amount !== undefined 
-          ? Number(storeSummary.total_redeemed_amount || 0) 
-          : Number(latestClaim?.cashback_amount || 0)
-
-        const isRedeemed = (storeSummary?.status || latestClaim?.status) === 'REDEEMED'
+        const claimableAmount = Number(latestClaim?.claimable_amount || 0)
+        const cashbackAmount = Number(latestClaim?.cashback_amount || 0)
+        const isRedeemed = latestClaim?.status === 'REDEEMED'
         const storeTarget = Number(store.target_visits) || 6
 
         router.prefetch(`/card/${store.id}?phone=${phone}`)
@@ -329,8 +284,8 @@ export default function CustomerWalletPage() {
         return {
           ...store,
           claimId: latestClaim?.id,
-          balance: currentBalance,
-          cashbackAmount: redeemedAmount,
+          balance: claimableAmount,
+          cashbackAmount: cashbackAmount,
           isRedeemed: isRedeemed,
           visits: visitCount,
           targetVisits: storeTarget
