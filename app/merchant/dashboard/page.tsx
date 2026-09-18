@@ -182,12 +182,14 @@ export default function MerchantDashboardPage() {
         .select('*')
         .eq('store_id', merchantSession.id)
         .eq('customer_phone', phoneNum)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle()
 
       if (data && Number(data.claimable_amount) > 0) {
         setExistingCustomerClaim(data)
       } else {
-        setExistingCustomerClaim(null)
+        setExistingCustomerClaim(data || null)
         setRedeemInBill(false)
       }
     } catch (err) {
@@ -221,7 +223,7 @@ export default function MerchantDashboardPage() {
         .from('cashback_claims')
         .select('*')
         .eq('store_id', storeId)
-        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
 
       if (!error && data) {
         setCustomersList(data)
@@ -600,7 +602,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // DIRECT UPDATE & INSERT
+  // PROFESSIONAL BILLING GENERATION & TRANSACTION CREATION
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -663,11 +665,10 @@ export default function MerchantDashboardPage() {
 
       let newVisitCount = 1
       let totalClaimable = cashbackAmount
-      let claimId: string | undefined = existingCustomerClaim?.id
 
       if (existingCustomerClaim) {
-        const currentVisits = existingCustomerClaim.visit_count || 1
-        newVisitCount = currentVisits >= targetVisits ? targetVisits : currentVisits + 1
+        const currentVisits = existingCustomerClaim.visit_count || 0
+        newVisitCount = currentVisits >= targetVisits ? 1 : currentVisits + 1
         
         const remainingAfterRedeem = existingAmount - redeemedAmount
         totalClaimable = Math.round((remainingAfterRedeem + cashbackAmount) * 100) / 100
@@ -675,50 +676,28 @@ export default function MerchantDashboardPage() {
 
       const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
 
-      // 2. Explicit UPDATE for existing claims, INSERT for new claims
-      if (claimId) {
-        const { error: updateError } = await supabase
-          .from('cashback_claims')
-          .update({
-            customer_id: customerUuid,
-            claimable_amount: totalClaimable,
-            visit_count: newVisitCount,
-            status: claimStatus,
-            bill_amount: initialBillNum,
-            cashback_amount: cashbackAmount,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', claimId)
+      // 2. 100% Professional Approach: Always INSERT a new claim record for historical ledger
+      const { data: insertedData, error: insertError } = await supabase
+        .from('cashback_claims')
+        .insert({
+          store_id: storeId,
+          customer_id: customerUuid,
+          customer_phone: cleanCustPhone,
+          claimable_amount: totalClaimable,
+          visit_count: newVisitCount,
+          status: claimStatus,
+          bill_amount: initialBillNum,
+          cashback_amount: cashbackAmount
+        })
+        .select('id')
+        .single()
 
-        if (updateError) {
-          console.error('Update Error:', updateError)
-          throw new Error('Cashback claim update failed: ' + updateError.message)
-        }
-      } else {
-        const { data: insertedData, error: insertError } = await supabase
-          .from('cashback_claims')
-          .insert({
-            store_id: storeId,
-            customer_id: customerUuid,
-            customer_phone: cleanCustPhone,
-            claimable_amount: totalClaimable,
-            visit_count: newVisitCount,
-            status: claimStatus,
-            bill_amount: initialBillNum,
-            cashback_amount: cashbackAmount
-          })
-          .select('id')
-          .single()
-
-        if (insertError) {
-          console.error('Insert Error:', insertError)
-          throw new Error('Cashback claim insert failed: ' + insertError.message)
-        }
-
-        if (insertedData) {
-          claimId = insertedData.id
-        }
+      if (insertError) {
+        console.error('Insert Error:', insertError)
+        throw new Error('Cashback claim insert failed: ' + insertError.message)
       }
+
+      const claimId = insertedData?.id
 
       try {
         const { error: historyError } = await supabase
