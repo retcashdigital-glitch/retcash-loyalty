@@ -35,10 +35,6 @@ import {
   Lock
 } from 'lucide-react'
 
-// ⚡ NEXT.JS ROUTER CACHE-ஐ முற்றிலும் முடக்கும் கட்டளைகள்
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 // ─── Types & Dynamic Helper Visuals ───────────────────────────────────────────
 
 const ScissorsIcon = Wrench
@@ -255,7 +251,6 @@ export default function CustomerWalletPage() {
         (payload: any) => {
           const updatedPhone = payload.new?.customer_phone || payload.old?.customer_phone
           
-          // வாடிக்கையாளரின் போன் நம்பருக்குப் பொருந்தி வந்தால் உடனே புதுப்பிக்கும்
           if (updatedPhone === phone || updatedPhone === phoneWithZero) {
             fetchWalletAndClaimsData()
           }
@@ -341,7 +336,6 @@ export default function CustomerWalletPage() {
         }
       }) || []
 
-      // Cache-ஐப் புதுப்பித்தல்
       setStores(mergedStores)
       localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(mergedStores))
 
@@ -435,7 +429,6 @@ export default function CustomerWalletPage() {
       const fileExt = file.name.split('.').pop()
       const filePath = `${customerId}/avatar.${fileExt}`
 
-      // Upload or replace image in Supabase storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file, { upsert: true })

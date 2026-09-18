@@ -5,10 +5,6 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import ClientCardView from './ClientCardView'
 
-// ⚡ NEXT.JS ROUTER CACHE-ஐ முற்றிலும் முடக்கும் கட்டளைகள்
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 export default function SingleCardPage() {
     const params = useParams()
     const searchParams = useSearchParams()
