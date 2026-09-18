@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function POST(request: Request) {
     try {
+        const apiKey = process.env.RESEND_API_KEY
+
+        // API Key இல்லையெனில் பிழை வராமல் பாதுகாப்பாகத் தடுக்கிறது
+        if (!apiKey) {
+            return NextResponse.json({ error: 'RESEND_API_KEY is missing' }, { status: 500 })
+        }
+
+        // Resend-ஐ POST ஃபங்ஷனுக்கு உள்ளே உருவாக்குவதால் Build பிழை வராது
+        const resend = new Resend(apiKey)
+
         const { email, otp } = await request.json()
 
         const { data, error } = await resend.emails.send({
@@ -37,7 +45,7 @@ export async function POST(request: Request) {
 
                     <!-- Email Footer -->
                     <div style="text-align: center; margin-top: 20px;">
-                        <p style="color: #94a3b8; font-size: 11px; margin: 0;">© ${new Date().getFullYear()} RETCASH. All rights reserved.</p>
+                        <p style="color: #94a3b8; font-size: 11px; margin: 0;">©️ ${new Date().getFullYear()} RETCASH. All rights reserved.</p>
                     </div>
 
                 </div>
