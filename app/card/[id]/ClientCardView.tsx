@@ -199,6 +199,16 @@ export default function ClientCardView({
     const cashbackPercentage = latestTransaction?.cashback_percentage || store?.default_cashback_percent || 0;
     const earnedCashback = latestTransaction?.cashback_amount ?? claimData?.cashback_amount ?? 0;
 
+    // ⚡ FIX: மெர்சண்ட் ஸ்கேனர் துல்லியமாகச் சலுகையை அடையாளம் காண உருவாக்கப்படும் QR Payload
+    const qrPayloadData = encodeURIComponent(
+        JSON.stringify({
+            claim_id: id,
+            phone: customerPhone,
+            store_id: store?.id || claimData?.store_id,
+            type: 'REDEEM'
+        })
+    );
+
     const getGridColumnsClass = (count: number) => {
         switch (count) {
             case 1: return 'grid-cols-1 max-w-[120px] mx-auto';
@@ -375,7 +385,7 @@ export default function ClientCardView({
                             </div>
                         </div>
 
-                        {/* QR Code Section */}
+                        {/* ⚡ FIX: REDEMPTION QR CODE SECTION */}
                         {isRewardReady && (
                             <div className="w-full text-center animate-fade-in pt-1">
                                 <div className="bg-emerald-50 border border-emerald-200 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
@@ -383,9 +393,9 @@ export default function ClientCardView({
                                 </div>
                                 <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-100">
                                     <img
-                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${id}`}
+                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrPayloadData}`}
                                         alt="Redemption QR"
-                                        className="w-36 h-36 object-contain"
+                                        className="w-40 h-40 object-contain"
                                     />
                                 </div>
                             </div>

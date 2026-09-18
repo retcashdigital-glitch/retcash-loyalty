@@ -217,9 +217,11 @@ export default function SingleCardPage() {
                                 async (payload) => {
                                     if (payload.new) {
                                         // நேரலையில் புதுப்பித்து Claim State-ஐ மாற்றுதல்
+                                        // 💡 FIX: payload.new-இல் store விவரங்கள் இராது என்பதால் பழைய stores ஆப்ஜெக்ட்டைத் தக்கவைத்தல்
                                         setClaim((prevClaim: any) => ({
                                             ...prevClaim,
-                                            ...payload.new
+                                            ...payload.new,
+                                            stores: prevClaim?.stores || (payload.new as any).stores
                                         }))
 
                                         // கடைசியாக நடந்த பரிவர்த்தனையையும் புதுப்பித்தல்
