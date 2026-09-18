@@ -346,7 +346,7 @@ export default function SingleCardPage() {
                 customer_phone: claim.customer_phone || ''
             }} 
             latestTransaction={latestTransaction}
-            id={claim.id} // 🎯 நிச்சயமாக Claim-ன் UUID தான் செல்கிறது
+            id={claim.id} // 🎯 Claim UUID வெற்றிகரமாக அனுப்பப்படுகிறது
         />
     )
 }

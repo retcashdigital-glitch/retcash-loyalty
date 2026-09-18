@@ -228,16 +228,9 @@ export default function ClientCardView({
     const cashbackPercentage = latestTransaction?.cashback_percentage || store?.default_cashback_percent || 0;
     const earnedCashback = latestTransaction?.cashback_amount ?? claimData?.cashback_amount ?? 0;
 
-    // ⚡ துல்லியமான Claim ID மற்றும் Phone-ஐ வைத்து உருவாக்கப்படும் QR Payload
+    // ⚡ பழைய QR முறைப்படி நேரடி UUID String மட்டுமே உருவாக்கப்படுகிறது
     const currentClaimId = id || claimData?.id;
-    const qrPayloadData = encodeURIComponent(
-        JSON.stringify({
-            claim_id: currentClaimId,
-            phone: customerPhone,
-            store_id: store?.id || claimData?.store_id,
-            type: 'REDEEM'
-        })
-    );
+    const qrPayloadData = currentClaimId || '';
 
     const getGridColumnsClass = (count: number) => {
         switch (count) {
@@ -415,7 +408,7 @@ export default function ClientCardView({
                             </div>
                         </div>
 
-                        {/* REDEMPTION QR CODE SECTION (கடைசி விசிட் முடிந்து, Redeem ஆகாத வரை மட்டுமே QR தோன்றும்) */}
+                        {/* REDEMPTION QR CODE SECTION (UUID மட்டும் பயன்படுத்தப்படுகிறது) */}
                         {isRewardReady && (
                             <div className="w-full text-center animate-fade-in pt-1">
                                 <div className="bg-emerald-50 border border-emerald-200 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
