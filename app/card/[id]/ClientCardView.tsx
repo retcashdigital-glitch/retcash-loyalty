@@ -117,6 +117,8 @@ export default function ClientCardView({
 
     // Realtime Claim Status Logic
     useEffect(() => {
+        if (!id) return;
+
         const channel = supabase
             .channel(`card_status_${id}`)
             .on(
@@ -139,14 +141,19 @@ export default function ClientCardView({
                                 logo_url,
                                 location_url,
                                 review_url,
-                                target_visits
+                                target_visits,
+                                default_cashback_percent
                             )
                         `)
                         .eq('id', id)
                         .maybeSingle()
 
                     if (updatedClaim) {
-                        setClaimData(updatedClaim)
+                        setClaimData((prev: any) => ({
+                            ...prev,
+                            ...updatedClaim,
+                            stores: updatedClaim.stores || prev?.stores
+                        }))
                     }
                 }
             )
@@ -199,10 +206,11 @@ export default function ClientCardView({
     const cashbackPercentage = latestTransaction?.cashback_percentage || store?.default_cashback_percent || 0;
     const earnedCashback = latestTransaction?.cashback_amount ?? claimData?.cashback_amount ?? 0;
 
-    // ⚡ FIX: மெர்சண்ட் ஸ்கேனர் துல்லியமாகச் சலுகையை அடையாளம் காண உருவாக்கப்படும் QR Payload
+    // ⚡ FIX: உண்மையான Claim ID மற்றும் Phone-ஐ வைத்து உருவாக்கப்படும் துல்லியமான QR Payload
+    const currentClaimId = claimData?.id || id;
     const qrPayloadData = encodeURIComponent(
         JSON.stringify({
-            claim_id: id,
+            claim_id: currentClaimId,
             phone: customerPhone,
             store_id: store?.id || claimData?.store_id,
             type: 'REDEEM'
@@ -342,7 +350,7 @@ export default function ClientCardView({
                     {/* 3. Standalone Details & Actions Card */}
                     <div className="bg-white border border-slate-100 rounded-3xl p-5 relative overflow-hidden shadow-xs space-y-5">
                         
-                        {/* 🆕 Latest Cashback Details Card */}
+                        {/* Latest Cashback Details Card */}
                         <div className="bg-emerald-50/60 border border-emerald-100 p-3.5 rounded-2xl space-y-2.5">
                             <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-2">
@@ -385,7 +393,7 @@ export default function ClientCardView({
                             </div>
                         </div>
 
-                        {/* ⚡ FIX: REDEMPTION QR CODE SECTION */}
+                        {/* REDEMPTION QR CODE SECTION */}
                         {isRewardReady && (
                             <div className="w-full text-center animate-fade-in pt-1">
                                 <div className="bg-emerald-50 border border-emerald-200 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
