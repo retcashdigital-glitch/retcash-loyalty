@@ -27,6 +27,7 @@ interface CashbackClaim {
   claimable_amount: number
   visit_count: number
   status: string
+  customer_id?: string
 }
 
 interface Offer {
@@ -517,30 +518,34 @@ export default function MerchantDashboardPage() {
     }
   }
 
+  // FIXED: Calling Backend API (/api/redeem) instead of Direct Supabase Update
   const executeRedeemReward = async () => {
     if (!scannedClaimData || actionLoading) return
 
     setActionLoading(true)
     try {
-      const { error } = await supabase
-        .from('cashback_claims')
-        .update({
-          claimable_amount: 0,
-          status: 'REDEEMED',
-        })
-        .eq('id', scannedClaimData.id)
-        .eq('store_id', merchantSession!.id)
+      const res = await fetch('/api/redeem', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ claimId: scannedClaimData.id }),
+      })
 
-      if (error) throw error
+      const result = await res.json()
+
+      if (!res.ok) {
+        throw new Error(result.error || 'Redemption failed')
+      }
 
       setShowRedeemConfirmModal(false)
       setScannedClaimData(null)
       setIsScanning(false)
       showToast('success', '🎉 Reward successfully redeemed! Balance cleared.')
       fetchStoreCustomers(merchantSession!.id)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      showToast('error', 'Failed to process redemption.')
+      showToast('error', err.message || 'Failed to process redemption.')
     } finally {
       setActionLoading(false)
     }
@@ -563,6 +568,32 @@ export default function MerchantDashboardPage() {
         showToast('error', 'Merchant session not found. Please log in again.')
         setActionLoading(false)
         return
+      }
+
+      // --- FIX 1: Find or Create Customer ID ---
+      let customerUuid: string | null = existingCustomerClaim?.customer_id || null
+
+      if (!customerUuid) {
+        const { data: existingCust } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('phone_number', cleanCustPhone)
+          .maybeSingle()
+
+        if (existingCust) {
+          customerUuid = existingCust.id
+        } else {
+          // If customer doesn't exist, create a new record in customers table
+          const { data: newCust, error: custErr } = await supabase
+            .from('customers')
+            .insert({ phone_number: cleanCustPhone, store_id: storeId })
+            .select('id')
+            .single()
+
+          if (!custErr && newCust) {
+            customerUuid = newCust.id
+          }
+        }
       }
 
       const existingAmount = existingCustomerClaim ? Number(existingCustomerClaim.claimable_amount || 0) : 0
@@ -592,6 +623,7 @@ export default function MerchantDashboardPage() {
       interface Payload {
         id?: string
         store_id: string
+        customer_id?: string | null
         customer_phone: string
         claimable_amount: number
         visit_count: number
@@ -600,8 +632,10 @@ export default function MerchantDashboardPage() {
 
       const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
 
+      // --- FIX 2: Attach customer_id to payload ---
       const payload: Payload = {
         store_id: storeId,
+        customer_id: customerUuid,
         customer_phone: cleanCustPhone,
         claimable_amount: totalClaimable,
         visit_count: newVisitCount,

@@ -10,6 +10,7 @@ interface CashbackClaim {
   claimable_amount: number
   visit_count: number
   status: string
+  customer_id?: string
 }
 
 interface QuickBillingSectionProps {
@@ -65,7 +66,7 @@ export default function QuickBillingSection({
 
   // 1. Phone number Auto-complete (Supabase Search Logic)
   useEffect(() => {
-    let digitsOnly = customerPhone.replace(/\D/g, '')
+    let digitsOnly = customerPhone.trim().replace(/\D/g, '')
 
     if (digitsOnly.startsWith('94')) {
       digitsOnly = digitsOnly.slice(2)
@@ -77,7 +78,7 @@ export default function QuickBillingSection({
       const fetchSuggestions = async () => {
         let query = supabase
           .from('cashback_claims')
-          .select('customer_phone')
+          .select('customer_phone, customer_id')
           .ilike('customer_phone', `%${digitsOnly}%`)
           .limit(15)
 
