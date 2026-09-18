@@ -79,7 +79,7 @@ export default function SingleCardPage() {
                             
                             if (cachedStore) {
                                 setClaim({
-                                    id: cachedStore.id,
+                                    id: cachedStore.claimId || cachedStore.id,
                                     store_id: cachedStore.id,
                                     customer_phone: formattedAuthPhone,
                                     cashback_amount: cachedStore.cashbackAmount || 0,
@@ -141,7 +141,7 @@ export default function SingleCardPage() {
                     currentClaim = claimByStore;
                 }
 
-                // C. 💡 FIXED: Claim இல்லை என்றால், போலி Claim உருவாக்காமல் Supabase-இல் உண்மையான Claim-ஐ Insert செய்து பெறுதல்
+                // C. Claim இல்லை என்றால் Supabase-இல் உண்மையான Claim-ஐ Insert செய்து பெறுதல்
                 if (!currentClaim) {
                     const { data: storeData } = await supabase
                         .from('stores')
@@ -150,7 +150,7 @@ export default function SingleCardPage() {
                         .maybeSingle()
 
                     if (storeData) {
-                        // 1. Customer record உள்ளதா அல்லது உருவாக்குகிறோமா எனப் பார்த்தல்
+                        // 1. Customer record உள்ளதா எனப் பார்த்தல்
                         let customerUuid: string | null = null
                         const { data: existingCust } = await supabase
                             .from('customers')
@@ -169,7 +169,7 @@ export default function SingleCardPage() {
                             if (newCust) customerUuid = newCust.id
                         }
 
-                        // 2. புதிய Claim உருவாக்கம் (Real Database Claim ID பெறப்படுகிறது)
+                        // 2. புதிய Claim உருவாக்கம்
                         const { data: newClaimData } = await supabase
                             .from('cashback_claims')
                             .insert({
@@ -191,7 +191,6 @@ export default function SingleCardPage() {
                         if (newClaimData) {
                             currentClaim = newClaimData
                         } else {
-                            // Fallback (ஒருவேளை Insert தோல்வியுற்றால் மட்டும்)
                             currentClaim = {
                                 id: storeData.id,
                                 store_id: storeData.id,
@@ -207,7 +206,7 @@ export default function SingleCardPage() {
                 }
 
                 // ==========================================
-                // STRICT OWNERSHIP CHECK: கார்டு சொந்தக்காரர் தானா எனச் சரிபார்த்தல்
+                // STRICT OWNERSHIP CHECK
                 // ==========================================
                 if (currentClaim && currentClaim.customer_phone) {
                     const claimPhoneFormatted = currentClaim.customer_phone.startsWith('94')
@@ -224,7 +223,7 @@ export default function SingleCardPage() {
                 }
 
                 // ==========================================
-                // 🆕 LATEST TRANSACTION FETCH (கடைசி பில் தொகை & % பெறுதல்)
+                // 🆕 LATEST TRANSACTION FETCH
                 // ==========================================
                 if (currentClaim && currentClaim.id) {
                     const { data: lastTx } = await supabase
@@ -244,7 +243,7 @@ export default function SingleCardPage() {
                     setClaim(currentClaim)
 
                     // ==========================================
-                    // ⚡ SUPABASE REALTIME SUBSCRIPTION (நொடியில் புதுப்பிக்க)
+                    // ⚡ SUPABASE REALTIME SUBSCRIPTION
                     // ==========================================
                     if (currentClaim.id) {
                         channel = supabase
@@ -252,22 +251,19 @@ export default function SingleCardPage() {
                             .on(
                                 'postgres_changes',
                                 {
-                                    event: '*', // UPDATE, INSERT, DELETE எது நடந்தாலும்
+                                    event: '*',
                                     schema: 'public',
                                     table: 'cashback_claims',
                                     filter: `id=eq.${currentClaim.id}`
                                 },
                                 async (payload) => {
                                     if (payload.new) {
-                                        // நேரலையில் புதுப்பித்து Claim State-ஐ மாற்றுதல்
-                                        // 💡 FIX: payload.new-இல் store விவரங்கள் இராது என்பதால் பழைய stores ஆப்ஜெக்ட்டைத் தக்கவைத்தல்
                                         setClaim((prevClaim: any) => ({
                                             ...prevClaim,
                                             ...payload.new,
                                             stores: prevClaim?.stores || (payload.new as any).stores
                                         }))
 
-                                        // கடைசியாக நடந்த பரிவர்த்தனையையும் புதுப்பித்தல்
                                         const { data: updatedTx } = await supabase
                                             .from('cashback_history')
                                             .select('bill_amount, cashback_percentage, cashback_amount, transaction_type, created_at')
@@ -302,7 +298,6 @@ export default function SingleCardPage() {
         }
     }, [paramId, phone, router])
 
-    // ⚡ சுத்தும் Spin Loader-க்கு பதிலாக Smooth Skeleton Screen
     if (loading && !claim) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
@@ -316,7 +311,6 @@ export default function SingleCardPage() {
         )
     }
 
-    // Professional English UI for Access Denied Screen with Emerald Primary Button
     if (accessDenied) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center items-center p-6 text-center space-y-4">
