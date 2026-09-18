@@ -264,7 +264,7 @@ export default function CustomerWalletPage() {
   }, [phone, router])
 
   // ==========================================
-  // 🎯 FETCH WALLET DATA (customer_wallet_summary View பயன்படுத்துமாறு மாற்றப்பட்டது)
+  // 🎯 FETCH WALLET DATA (கார்டு பக்கத்தில் உள்ள அதே Visit Count Logic)
   // ==========================================
   const fetchWalletAndClaimsData = async () => {
     try {
@@ -276,7 +276,7 @@ export default function CustomerWalletPage() {
       const cleanPhone = phone.replace(/\D/g, '')
       const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
-      // 1. cashback_claims அட்டவணையில் இருந்து தகவல்கள்
+      // 1. cashback_claims அட்டவணையில் இருந்து தகவல்கள் (updated_at அடிப்படையில் வரிசைப்படுத்தப்படுகிறது)
       const { data: claimsData, error: claimsError } = await supabase
         .from('cashback_claims')
         .select('*')
@@ -285,7 +285,7 @@ export default function CustomerWalletPage() {
 
       if (claimsError) throw claimsError
 
-      // 2. customer_wallet_summary View-லிருந்து அசல் ബാലன்ஸ் மற்றும் ரிடீம் தகவல்கள்
+      // 2. customer_wallet_summary View-லிருந்து அசல் பாலன்ஸ் மற்றும் ரிடீம் தகவல்கள்
       const { data: walletSummaries } = await supabase
         .from('customer_wallet_summary')
         .select('*')
@@ -314,6 +314,7 @@ export default function CustomerWalletPage() {
           (claim: any) => String(claim.store_id) === String(store.id)
         ) || []
 
+        // 🟢 கடைசியாக உருவான/அப்டேட் செய்யப்பட்ட Claim (கார்டு பக்கத்தில் பயன்படுத்தப்படுவது போல)
         const latestClaim = storeClaims[0] || null
 
         // View-லிருந்து இந்த கடைக்கான பிரத்யேக தகவலை எடுத்தல்
@@ -336,9 +337,8 @@ export default function CustomerWalletPage() {
           ? (Number(summary.total_redeemed_amount) > 0 ? Number(summary.total_redeemed_amount) : Number(latestClaim?.cashback_amount || 0))
           : Number(latestClaim?.cashback_amount || 0)
 
-        const visitCount = storeClaims.reduce((max: number, claim: any) => {
-          return Math.max(max, Number(claim.visit_count) || 1)
-        }, storeClaims.length > 0 ? storeClaims.length : 0)
+        // 🟢 கார்டு பக்கத்தில் இருக்கும் அதே Visit Count எடுக்கப்படுகிறது (Latest Claim-இன் Visit Count)
+        const visitCount = Number(latestClaim?.visit_count) || (storeClaims.length > 0 ? storeClaims.length : 0)
 
         let storeTarget = Number(store.target_visits) || 6
 
