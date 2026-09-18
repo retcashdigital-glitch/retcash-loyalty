@@ -141,7 +141,7 @@ export default function SingleCardPage() {
                     currentClaim = claimByStore;
                 }
 
-                // C. ஒருவேளை Claim இல்லை என்றால், இந்த Store-க்கான விவரங்களை நேரடியாக எடுத்து போலி Claim உருவாக்குதல்
+                // C. 💡 FIXED: Claim இல்லை என்றால், போலி Claim உருவாக்காமல் Supabase-இல் உண்மையான Claim-ஐ Insert செய்து பெறுதல்
                 if (!currentClaim) {
                     const { data: storeData } = await supabase
                         .from('stores')
@@ -150,15 +150,58 @@ export default function SingleCardPage() {
                         .maybeSingle()
 
                     if (storeData) {
-                        currentClaim = {
-                            id: storeData.id,
-                            store_id: storeData.id,
-                            customer_phone: formattedAuthPhone,
-                            cashback_amount: 0,
-                            claimable_amount: 0,
-                            visit_count: 1,
-                            status: 'ACTIVE',
-                            stores: storeData
+                        // 1. Customer record உள்ளதா அல்லது உருவாக்குகிறோமா எனப் பார்த்தல்
+                        let customerUuid: string | null = null
+                        const { data: existingCust } = await supabase
+                            .from('customers')
+                            .select('id')
+                            .eq('phone_number', formattedAuthPhone)
+                            .maybeSingle()
+
+                        if (existingCust) {
+                            customerUuid = existingCust.id
+                        } else {
+                            const { data: newCust } = await supabase
+                                .from('customers')
+                                .insert({ phone_number: formattedAuthPhone, store_id: storeData.id })
+                                .select('id')
+                                .maybeSingle()
+                            if (newCust) customerUuid = newCust.id
+                        }
+
+                        // 2. புதிய Claim உருவாக்கம் (Real Database Claim ID பெறப்படுகிறது)
+                        const { data: newClaimData } = await supabase
+                            .from('cashback_claims')
+                            .insert({
+                                store_id: storeData.id,
+                                customer_id: customerUuid,
+                                customer_phone: formattedAuthPhone,
+                                claimable_amount: 0,
+                                visit_count: 1,
+                                status: 'PENDING'
+                            })
+                            .select(`
+                                *,
+                                stores:store_id (
+                                    id, store_name, store_slug, logo_url, location_url, review_url, target_visits, default_cashback_percent
+                                )
+                            `)
+                            .maybeSingle()
+
+                        if (newClaimData) {
+                            currentClaim = newClaimData
+                        } else {
+                            // Fallback (ஒருவேளை Insert தோல்வியுற்றால் மட்டும்)
+                            currentClaim = {
+                                id: storeData.id,
+                                store_id: storeData.id,
+                                customer_phone: formattedAuthPhone,
+                                cashback_amount: 0,
+                                claimable_amount: 0,
+                                visit_count: 1,
+                                status: 'ACTIVE',
+                                stores: storeData
+                            }
                         }
                     }
                 }
