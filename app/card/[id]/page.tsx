@@ -75,7 +75,7 @@ export default function SingleCardPage() {
                     if (cachedWallet) {
                         try {
                             const parsedStores = JSON.parse(cachedWallet)
-                            const cachedStore = parsedStores.find((s: any) => String(s.id) === String(paramId))
+                            const cachedStore = parsedStores.find((s: any) => String(s.id) === String(paramId) || String(s.claimId) === String(paramId))
                             
                             if (cachedStore) {
                                 setClaim({
@@ -89,7 +89,7 @@ export default function SingleCardPage() {
                                     stores: cachedStore
                                 })
                                 setIsAuthorized(true)
-                                setLoading(false) // Cache கிடைத்தவுடன் Spinner நிற்கும்!
+                                setLoading(false)
                                 hasLoadedFromCache = true
                             }
                         } catch (e) {
@@ -98,7 +98,6 @@ export default function SingleCardPage() {
                     }
                 }
 
-                // Cache இல்லாத போது மட்டுமே UI லோடிங் சுழலியைக் காட்டும்
                 if (!hasLoadedFromCache) {
                     setLoading(true)
                 }
@@ -150,7 +149,6 @@ export default function SingleCardPage() {
                         .maybeSingle()
 
                     if (storeData) {
-                        // 1. Customer record உள்ளதா எனப் பார்த்தல்
                         let customerUuid: string | null = null
                         const { data: existingCust } = await supabase
                             .from('customers')
@@ -169,7 +167,6 @@ export default function SingleCardPage() {
                             if (newCust) customerUuid = newCust.id
                         }
 
-                        // 2. புதிய Claim உருவாக்கம்
                         const { data: newClaimData } = await supabase
                             .from('cashback_claims')
                             .insert({
@@ -190,17 +187,6 @@ export default function SingleCardPage() {
 
                         if (newClaimData) {
                             currentClaim = newClaimData
-                        } else {
-                            currentClaim = {
-                                id: storeData.id,
-                                store_id: storeData.id,
-                                customer_phone: formattedAuthPhone,
-                                cashback_amount: 0,
-                                claimable_amount: 0,
-                                visit_count: 1,
-                                status: 'ACTIVE',
-                                stores: storeData
-                            }
                         }
                     }
                 }
@@ -243,7 +229,7 @@ export default function SingleCardPage() {
                     setClaim(currentClaim)
 
                     // ==========================================
-                    // ⚡ SUPABASE REALTIME SUBSCRIPTION
+                    // ⚡ SUPABASE REALTIME SUBSCRIPTION (QR மறைவதற்கு இது மிக முக்கியம்)
                     // ==========================================
                     if (currentClaim.id) {
                         channel = supabase
@@ -360,7 +346,7 @@ export default function SingleCardPage() {
                 customer_phone: claim.customer_phone || ''
             }} 
             latestTransaction={latestTransaction}
-            id={claim.id} 
+            id={claim.id} // 🎯 நிச்சயமாக Claim-ன் UUID தான் செல்கிறது
         />
     )
 }

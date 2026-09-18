@@ -94,6 +94,13 @@ export default function ClientCardView({
     const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false)
     const [loadingHistory, setLoadingHistory] = useState<boolean>(false)
 
+    // initialClaim மாறும்போது claimData-வை அப்டேட் செய்தல்
+    useEffect(() => {
+        if (initialClaim) {
+            setClaimData(initialClaim)
+        }
+    }, [initialClaim])
+
     // Store Offers Fetching Logic
     useEffect(() => {
         const storeId = claimData?.stores?.id || claimData?.store_id;
@@ -113,47 +120,55 @@ export default function ClientCardView({
         }
 
         fetchOffers()
-    }, [claimData])
+    }, [claimData?.stores?.id, claimData?.store_id])
 
-    // Realtime Claim Status Logic
+    // Realtime Claim Status Logic (உடனடி QR மறைதல் மற்றும் Balances Update பெற)
     useEffect(() => {
-        if (!id) return;
+        const activeId = id || claimData?.id;
+        if (!activeId) return;
 
         const channel = supabase
-            .channel(`card_status_${id}`)
+            .channel(`card_status_${activeId}`)
             .on(
                 'postgres_changes',
                 {
                     event: 'UPDATE',
                     schema: 'public',
                     table: 'cashback_claims',
-                    filter: `id=eq.${id}`,
+                    filter: `id=eq.${activeId}`,
                 },
-                async () => {
-                    const { data: updatedClaim } = await supabase
-                        .from('cashback_claims')
-                        .select(`
-                            *,
-                            stores:store_id (
-                                id,
-                                store_name,
-                                store_slug,
-                                logo_url,
-                                location_url,
-                                review_url,
-                                target_visits,
-                                default_cashback_percent
-                            )
-                        `)
-                        .eq('id', id)
-                        .maybeSingle()
+                async (payload) => {
+                    if (payload.new) {
+                        const { data: updatedClaim } = await supabase
+                            .from('cashback_claims')
+                            .select(`
+                                *,
+                                stores:store_id (
+                                    id,
+                                    store_name,
+                                    store_slug,
+                                    logo_url,
+                                    location_url,
+                                    review_url,
+                                    target_visits,
+                                    default_cashback_percent
+                                )
+                            `)
+                            .eq('id', activeId)
+                            .maybeSingle()
 
-                    if (updatedClaim) {
-                        setClaimData((prev: any) => ({
-                            ...prev,
-                            ...updatedClaim,
-                            stores: updatedClaim.stores || prev?.stores
-                        }))
+                        if (updatedClaim) {
+                            setClaimData((prev: any) => ({
+                                ...prev,
+                                ...updatedClaim,
+                                stores: updatedClaim.stores || prev?.stores
+                            }))
+                        } else {
+                            setClaimData((prev: any) => ({
+                                ...prev,
+                                ...payload.new
+                            }))
+                        }
                     }
                 }
             )
@@ -162,7 +177,7 @@ export default function ClientCardView({
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [id])
+    }, [id, claimData?.id])
 
     // Fetch Full Customer Cashback History from cashback_history table
     const fetchHistory = async () => {
@@ -192,8 +207,15 @@ export default function ClientCardView({
     const rawTotalVisits = Number(store?.target_visits) || 6
     const totalVisits = Math.min(Math.max(rawTotalVisits, 1), 10)
 
-    const isRedeemed = claimData?.status === 'REDEEMED' || Number(claimData?.claimable_amount || 0) <= 0;
-    const isRewardReady = (currentVisits >= totalVisits) && !isRedeemed;
+    // 🎯 REDEEM & REWARD LOGIC FIX:
+    const claimableBalance = Number(claimData?.claimable_amount || 0);
+    const claimStatus = String(claimData?.status || '').toUpperCase();
+
+    // 1. Redeem செய்யப்பட்டதா என அறிதல்
+    const isRedeemed = claimStatus === 'REDEEMED' || claimableBalance <= 0;
+    
+    // 2. Target Visits முடிந்திருந்தாலும், Redeem செய்யப்படாமல், Balance > 0 ஆக இருந்தால் மட்டுமே QR தோன்றும்
+    const isRewardReady = (currentVisits >= totalVisits) && claimableBalance > 0 && claimStatus !== 'REDEEMED';
 
     const storeInitials = store?.store_name
         ? store.store_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
@@ -206,8 +228,8 @@ export default function ClientCardView({
     const cashbackPercentage = latestTransaction?.cashback_percentage || store?.default_cashback_percent || 0;
     const earnedCashback = latestTransaction?.cashback_amount ?? claimData?.cashback_amount ?? 0;
 
-    // ⚡ FIX: உண்மையான Claim ID மற்றும் Phone-ஐ வைத்து உருவாக்கப்படும் துல்லியமான QR Payload
-    const currentClaimId = claimData?.id || id;
+    // ⚡ துல்லியமான Claim ID மற்றும் Phone-ஐ வைத்து உருவாக்கப்படும் QR Payload
+    const currentClaimId = id || claimData?.id;
     const qrPayloadData = encodeURIComponent(
         JSON.stringify({
             claim_id: currentClaimId,
@@ -284,7 +306,7 @@ export default function ClientCardView({
                             <div className="mb-5">
                                 <span className="text-[10px] text-emerald-100 font-bold uppercase tracking-widest block mb-1">STORE CREDIT BALANCE</span>
                                 <div className="text-3xl font-black text-white tracking-tight">
-                                    Rs. {Number(claimData?.claimable_amount || 0).toFixed(2)}
+                                    Rs. {claimableBalance.toFixed(2)}
                                 </div>
                             </div>
 
@@ -393,7 +415,7 @@ export default function ClientCardView({
                             </div>
                         </div>
 
-                        {/* REDEMPTION QR CODE SECTION */}
+                        {/* REDEMPTION QR CODE SECTION (கடைசி விசிட் முடிந்து, Redeem ஆகாத வரை மட்டுமே QR தோன்றும்) */}
                         {isRewardReady && (
                             <div className="w-full text-center animate-fade-in pt-1">
                                 <div className="bg-emerald-50 border border-emerald-200 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
