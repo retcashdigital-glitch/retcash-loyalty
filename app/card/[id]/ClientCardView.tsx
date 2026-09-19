@@ -362,11 +362,13 @@ export default function ClientCardView({
                     {/* 3. Standalone Details & Actions Card */}
                     <div className="bg-white border border-slate-100 rounded-3xl p-5 relative overflow-hidden shadow-xs space-y-5">
                         
-                        {/* Latest Cashback Details Card (Net Paid சேர்க்கப்பட்டது) */}
-                        <div className="bg-emerald-50/60 border border-emerald-100 p-3.5 rounded-2xl space-y-2.5">
-                            <div className="flex justify-between items-center">
+                        {/* 🎯 LATEST TRANSACTION & LIVE RECEIPT BREAKDOWN */}
+                        <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl space-y-3 shadow-xs">
+                            <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-slate-600 font-bold uppercase tracking-wider text-[10px]">LATEST TRANSACTION</span>
+                                    <span className="text-slate-700 font-extrabold text-[11px] uppercase tracking-wider">
+                                        {isRedeemed ? "LATEST TRANSACTION RECEIPT" : "🧾 TODAY'S BILL SUMMARY"}
+                                    </span>
                                     {cashbackPercentage > 0 && (
                                         <span className="text-[10px] font-extrabold bg-emerald-100 text-[#00875A] px-2 py-0.5 rounded-full">
                                             {cashbackPercentage}% Off
@@ -375,58 +377,68 @@ export default function ClientCardView({
                                 </div>
                                 <button 
                                     onClick={fetchHistory}
-                                    className="text-[10px] font-extrabold text-[#00875A] bg-emerald-100 hover:bg-emerald-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                                    className="text-[10px] font-extrabold text-[#00875A] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
                                 >
                                     <IconHistory />
                                     <span>SEE ALL</span>
                                 </button>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-2 pt-1 border-t border-emerald-100/60 text-center sm:text-left">
-                                <div>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Bill</p>
-                                    <p className="text-xs font-extrabold text-slate-700 mt-0.5">
-                                        Rs. {Number(billAmount).toFixed(2)}
-                                    </p>
+                            {/* செங்குத்தான கணக்கீடு (Vertical Invoice Breakdown) */}
+                            <div className="space-y-2 text-xs font-semibold">
+                                <div className="flex justify-between text-slate-600">
+                                    <span>Bill Amount</span>
+                                    <span>Rs. {Number(billAmount).toFixed(2)}</span>
                                 </div>
 
-                                <div>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Paid</p>
-                                    <p className="text-xs font-extrabold text-emerald-800 mt-0.5">
-                                        Rs. {Number(netPaidAmount).toFixed(2)}
-                                    </p>
-                                </div>
+                                {earnedCashback > 0 && (
+                                    <div className="flex justify-between text-rose-600 font-bold bg-rose-50/80 px-2 py-1 rounded-lg border border-rose-100">
+                                        <span>Cashback Applied</span>
+                                        <span>- Rs. {Number(earnedCashback).toFixed(2)}</span>
+                                    </div>
+                                )}
 
-                                <div className="text-right">
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Earned</p>
-                                    {isRedeemed ? (
-                                        <span className="text-slate-400 text-xs font-extrabold line-through mt-0.5 inline-block">
-                                            Rs. {Number(earnedCashback).toFixed(2)}
-                                        </span>
-                                    ) : (
-                                        <span className="text-[#00875A] font-black text-xs mt-0.5 inline-block">
+                                <div className="flex justify-between text-slate-900 font-black text-sm pt-2 border-t border-slate-200/80">
+                                    <span>{isRedeemed ? "Net Amount Paid" : "Net Amount to Pay"}</span>
+                                    <span className="text-[#00875A]">Rs. {Number(netPaidAmount).toFixed(2)}</span>
+                                </div>
+                            </div>
+
+                            {/* ⚡ DYNAMIC STATUS & REDEMPTION QR CODE SECTION */}
+                            <div className="pt-2 border-t border-dashed border-slate-200 text-center space-y-3">
+                                {!isRedeemed && isRewardReady ? (
+                                    /* 1. REDEEM செய்வதற்கு முன்: QR CODE + வழிகாட்டுதல் */
+                                    <div className="space-y-3 animate-fade-in pt-1">
+                                        <div className="bg-amber-50 border border-amber-200/80 text-amber-800 font-bold text-xs py-2.5 px-3 rounded-xl shadow-xs">
+                                            ⏳ Show this QR code below to cashier to redeem <strong>Rs. {Number(earnedCashback).toFixed(2)}</strong>
+                                        </div>
+                                        <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-100">
+                                            <img
+                                                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrPayloadData}`}
+                                                alt="Redemption QR"
+                                                className="w-40 h-40 object-contain mx-auto"
+                                            />
+                                        </div>
+                                    </div>
+                                ) : isRedeemed ? (
+                                    /* 2. REDEEM செய்த பின்: SUCCESS BANNER (QR மறைந்துவிடும்) */
+                                    <div className="bg-emerald-100/90 text-emerald-900 font-black text-xs p-3 rounded-xl border border-emerald-300 shadow-xs animate-fade-in">
+                                        🎉 REWARD SUCCESSFULLY REDEEMED!
+                                        <p className="text-[10px] font-medium text-emerald-700 mt-0.5">
+                                            Rs. {Number(earnedCashback).toFixed(2)} cashback discount has been applied to this bill.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    /* 3. சாதாரண விசிட் நிலைகளில்: Cashback Earned Badge */
+                                    <div className="flex justify-between items-center text-[11px] text-emerald-800 font-bold pt-1">
+                                        <span>Cashback Earned:</span>
+                                        <span className="bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md text-[#00875A] font-black">
                                             + Rs. {Number(earnedCashback).toFixed(2)}
                                         </span>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
-
-                        {/* REDEMPTION QR CODE SECTION */}
-                        {isRewardReady && (
-                            <div className="w-full text-center animate-fade-in pt-1">
-                                <div className="bg-emerald-50 border border-emerald-200 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
-                                    Reward Ready! Show QR code at billing counter:
-                                </div>
-                                <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-100">
-                                    <img
-                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrPayloadData}`}
-                                        alt="Redemption QR"
-                                        className="w-40 h-40 object-contain"
-                                    />
-                                </div>
-                            </div>
-                        )}
 
                         {/* STORE OFFERS SECTION */}
                         {offers.length > 0 && (
