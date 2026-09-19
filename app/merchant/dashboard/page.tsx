@@ -182,8 +182,6 @@ export default function MerchantDashboardPage() {
         .select('*')
         .eq('store_id', merchantSession.id)
         .eq('customer_phone', phoneNum)
-        .order('created_at', { ascending: false })
-        .limit(1)
         .maybeSingle()
 
       if (data && Number(data.claimable_amount) > 0) {
@@ -223,7 +221,7 @@ export default function MerchantDashboardPage() {
         .from('cashback_claims')
         .select('*')
         .eq('store_id', storeId)
-        .order('created_at', { ascending: false })
+        .order('updated_at', { ascending: false })
 
       if (!error && data) {
         setCustomersList(data)
@@ -523,75 +521,48 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // REDEMPTION EXECUTION
+  // REDEMPTION EXECUTION (FIXED FOR SINGLE ACTIVE RECORD SCHEMA)
   const executeRedeemReward = async () => {
     if (!scannedClaimData || actionLoading) return
 
     setActionLoading(true)
     try {
-      let isSuccess = false
+      // 1. Direct Supabase Update on the single ACTIVE claim record
+      const { error: updateErr } = await supabase
+        .from('cashback_claims')
+        .update({
+          claimable_amount: 0,
+          status: 'REDEEMED',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', scannedClaimData.id)
 
-      // 1. API Call முயற்சி
-      try {
-        const res = await fetch('/api/redeem', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            claimId: scannedClaimData.id,
-            storeId: merchantSession?.id 
-          }),
+      if (updateErr) {
+        throw new Error('Redemption DB Update Failed: ' + updateErr.message)
+      }
+
+      // 2. Transaction Audit History Log Entry (INSERT)
+      await supabase
+        .from('cashback_history')
+        .insert({
+          claim_id: scannedClaimData.id,
+          store_id: scannedClaimData.store_id || merchantSession?.id,
+          customer_phone: scannedClaimData.customer_phone,
+          visit_count: scannedClaimData.visit_count,
+          bill_amount: 0,
+          cashback_percentage: 0,
+          cashback_amount: Number(scannedClaimData.claimable_amount || 0),
+          transaction_type: 'REDEEMED',
+          status: 'REDEEMED'
         })
 
-        if (res.ok) {
-          isSuccess = true
-        }
-      } catch (apiErr) {
-        console.warn('API Endpoint Redeem Failed, attempting direct Supabase update:', apiErr)
-      }
-
-      // 2. Direct Supabase Fallback Update
-      if (!isSuccess) {
-        const { error: updateErr } = await supabase
-          .from('cashback_claims')
-          .update({
-            claimable_amount: 0,
-            status: 'REDEEMED',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', scannedClaimData.id)
-
-        if (updateErr) {
-          throw new Error('Redemption DB Update Failed: ' + updateErr.message)
-        }
-
-        // Transaction History Log
-        await supabase
-          .from('cashback_history')
-          .insert({
-            claim_id: scannedClaimData.id,
-            store_id: scannedClaimData.store_id || merchantSession?.id,
-            customer_phone: scannedClaimData.customer_phone,
-            visit_count: scannedClaimData.visit_count,
-            bill_amount: 0,
-            cashback_percentage: 0,
-            cashback_amount: Number(scannedClaimData.claimable_amount || 0),
-            transaction_type: 'REDEEMED',
-            status: 'REDEEMED'
-          })
-
-        isSuccess = true
-      }
-
-      if (isSuccess) {
-        setShowRedeemConfirmModal(false)
-        setScannedClaimData(null)
-        setIsScanning(false)
-        showToast('success', '🎉 Reward successfully redeemed! Balance cleared.')
-        if (merchantSession?.id) {
-          fetchStoreCustomers(merchantSession.id)
-        }
+      setShowRedeemConfirmModal(false)
+      setScannedClaimData(null)
+      setIsScanning(false)
+      showToast('success', '🎉 Reward successfully redeemed! Balance cleared.')
+      
+      if (merchantSession?.id) {
+        fetchStoreCustomers(merchantSession.id)
       }
 
     } catch (err: any) {
@@ -602,7 +573,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // PROFESSIONAL BILLING GENERATION & TRANSACTION CREATION
+  // PROFESSIONAL BILLING GENERATION & TRANSACTION CREATION (UPSERT FIXED)
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -676,10 +647,10 @@ export default function MerchantDashboardPage() {
 
       const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
 
-      // 2. 100% Professional Approach: Always INSERT a new claim record for historical ledger
-      const { data: insertedData, error: insertError } = await supabase
+      // 🎯 2. UPSERT ACTIVE RECORD IN CASHBACK_CLAIMS (ON CONFLICT UNIQUE CONSTRAINT)
+      const { data: upsertedData, error: upsertError } = await supabase
         .from('cashback_claims')
-        .insert({
+        .upsert({
           store_id: storeId,
           customer_id: customerUuid,
           customer_phone: cleanCustPhone,
@@ -687,18 +658,22 @@ export default function MerchantDashboardPage() {
           visit_count: newVisitCount,
           status: claimStatus,
           bill_amount: initialBillNum,
-          cashback_amount: cashbackAmount
+          cashback_amount: cashbackAmount,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'customer_phone,store_id'
         })
         .select('id')
         .single()
 
-      if (insertError) {
-        console.error('Insert Error:', insertError)
-        throw new Error('Cashback claim insert failed: ' + insertError.message)
+      if (upsertError) {
+        console.error('Upsert Error:', upsertError)
+        throw new Error('Cashback claim update failed: ' + upsertError.message)
       }
 
-      const claimId = insertedData?.id
+      const claimId = upsertedData?.id
 
+      // 🎯 3. ALWAYS INSERT INTO CASHBACK_HISTORY (Audit History Entry)
       try {
         const { error: historyError } = await supabase
           .from('cashback_history')

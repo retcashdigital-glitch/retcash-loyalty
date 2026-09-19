@@ -78,7 +78,7 @@ export default function QuickBillingSection({
       const fetchSuggestions = async () => {
         let query = supabase
           .from('cashback_claims')
-          .select('customer_phone, customer_id')
+          .select('customer_phone')
           .ilike('customer_phone', `%${digitsOnly}%`)
           .limit(15)
 
@@ -210,22 +210,27 @@ export default function QuickBillingSection({
             <p className="text-xs text-slate-400 animate-pulse">Checking customer balance...</p>
           )}
 
-          {/* Auto Cashback Display Card */}
+          {/* Auto Cashback / Redeem Checkbox Display Card */}
           {existingCustomerClaim && currentClaimable > 0 && (
-            <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Gift className="size-4 text-[#00875A]" />
+                  <Gift className="size-4 text-[#00875A] shrink-0" />
                   <span className="text-xs font-extrabold text-slate-900">
-                    Accumulated Cashback: <span className="font-mono text-[#00875A]">Rs. {currentClaimable}</span>
+                    Available Balance: <span className="font-mono text-[#00875A]">Rs. {currentClaimable}</span>
                   </span>
                 </div>
 
-                {redeemInBill && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#00875A] px-2.5 py-0.5 text-[10px] font-bold text-white">
-                    <CheckCircle2 className="size-3" /> Target Visit Auto-Redeemed
-                  </span>
-                )}
+                {/* Redeem Checkbox Option */}
+                <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={redeemInBill}
+                    onChange={(e) => setRedeemInBill(e.target.checked)}
+                    className="size-4 rounded border-slate-300 text-[#00875A] focus:ring-[#00875A] cursor-pointer"
+                  />
+                  <span className="text-xs font-bold text-[#00875A]">Redeem in this bill</span>
+                </label>
               </div>
 
               {redeemInBill && billNum > 0 && (
@@ -235,7 +240,7 @@ export default function QuickBillingSection({
                     <span>Rs. {billNum.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-[#00875A] font-bold">
-                    <span>Auto Cashback Discount:</span>
+                    <span>Cashback Discount:</span>
                     <span>- Rs. {actualRedeemAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-slate-900 font-black pt-1 border-t border-emerald-200">
@@ -283,7 +288,7 @@ export default function QuickBillingSection({
             <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
               <Users className="mb-3 size-4 text-[#00875A]" />
               <p className="font-mono text-3xl font-black text-slate-900">{customersList.length}</p>
-              <p className="mt-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Visits</p>
+              <p className="mt-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Customers</p>
             </div>
             <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
               <WalletCards className="mb-3 size-4 text-[#00875A]" />

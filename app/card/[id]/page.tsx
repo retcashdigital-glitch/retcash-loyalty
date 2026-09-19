@@ -116,6 +116,8 @@ export default function SingleCardPage() {
                     ? authenticatedPhone 
                     : `94${authenticatedPhone.replace(/^0/, '')}`
 
+                const localPhoneFormat = formattedAuthPhone.replace(/^94/, '0')
+
                 // ==========================================
                 // ⚡ OPTIMISTIC CACHE READ (உடனடி லோடிங் தீர்வு)
                 // ==========================================
@@ -172,7 +174,7 @@ export default function SingleCardPage() {
                 if (claimById) {
                     currentClaim = claimById;
                 } else {
-                    // B. ID என்பது Store ID ஆக இருந்தால், இந்த லாக்-இன் செய்த நபருக்குரிய Claim-ஐ எடுத்தல்
+                    // B. ID என்பது Store ID ஆக இருந்தால், இந்த லாக்-இன் செய்த நபருக்குரிய Unique Active Claim-ஐ எடுத்தல்
                     const { data: claimByStore } = await supabase
                         .from('cashback_claims')
                         .select(`
@@ -182,15 +184,13 @@ export default function SingleCardPage() {
                             )
                         `)
                         .eq('store_id', paramId)
-                        .or(`customer_phone.eq.${formattedAuthPhone},customer_phone.eq.${formattedAuthPhone.replace(/^94/, '0')}`)
-                        .order('updated_at', { ascending: false })
-                        .limit(1)
+                        .or(`customer_phone.eq.${formattedAuthPhone},customer_phone.eq.${localPhoneFormat}`)
                         .maybeSingle()
 
                     currentClaim = claimByStore;
                 }
 
-                // C. Claim இல்லை என்றால் Supabase-இல் உண்மையான Claim-ஐ Insert செய்து பெறுதல்
+                // C. Claim இல்லை என்றால் Supabase-இல் Unique Upsert செய்து பெறுதல்
                 if (!currentClaim) {
                     const { data: storeData } = await supabase
                         .from('stores')
@@ -217,15 +217,19 @@ export default function SingleCardPage() {
                             if (newCust) customerUuid = newCust.id
                         }
 
+                        // UPSERT using Unique Constraint (customer_phone, store_id)
                         const { data: newClaimData } = await supabase
                             .from('cashback_claims')
-                            .insert({
+                            .upsert({
                                 store_id: storeData.id,
                                 customer_id: customerUuid,
                                 customer_phone: formattedAuthPhone,
                                 claimable_amount: 0,
                                 visit_count: 1,
-                                status: 'PENDING'
+                                status: 'PENDING',
+                                updated_at: new Date().toISOString()
+                            }, {
+                                onConflict: 'customer_phone,store_id'
                             })
                             .select(`
                                 *,
@@ -276,7 +280,7 @@ export default function SingleCardPage() {
                         .from('customer_wallet_summary')
                         .select('last_bill_amount, total_redeemed_amount, current_balance, status')
                         .eq('store_id', currentClaim.store_id)
-                        .eq('customer_phone', formattedAuthPhone)
+                        .or(`customer_phone.eq.${formattedAuthPhone},customer_phone.eq.${localPhoneFormat}`)
                         .maybeSingle()
 
                     if (lastTx) {
@@ -336,7 +340,7 @@ export default function SingleCardPage() {
                                             .from('customer_wallet_summary')
                                             .select('last_bill_amount, total_redeemed_amount, current_balance, status')
                                             .eq('store_id', currentClaim.store_id)
-                                            .eq('customer_phone', formattedAuthPhone)
+                                            .or(`customer_phone.eq.${formattedAuthPhone},customer_phone.eq.${localPhoneFormat}`)
                                             .maybeSingle()
 
                                         if (updatedTx) {

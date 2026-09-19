@@ -41,30 +41,60 @@ export default function CustomersSection({
           <input
             value={customerSearchQuery}
             onChange={(e) => setCustomerSearchQuery(e.target.value)}
-            className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white font-mono"
+            className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white font-mono transition"
             placeholder="Search customer by phone number..."
           />
         </div>
 
         <div className="space-y-3">
           {filteredCustomers.length > 0 ? (
-            filteredCustomers.map((cust) => (
-              <div key={cust.id} className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:flex-row sm:items-center">
-                <div>
-                  <p className="font-mono text-sm font-black text-slate-900">{cust.customer_phone}</p>
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                    <span>Visits: <strong className="font-extrabold text-slate-900">{cust.visit_count} / {targetVisits}</strong></span>
-                    <span>Cashback: <strong className="font-extrabold text-slate-900">Rs. {cust.claimable_amount}</strong></span>
+            filteredCustomers.map((cust) => {
+              const isTargetReached = cust.visit_count >= targetVisits
+
+              return (
+                <div
+                  key={cust.id || cust.customer_phone}
+                  className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:flex-row sm:items-center hover:border-emerald-100 transition"
+                >
+                  <div>
+                    <p className="font-mono text-sm font-black text-slate-900">{cust.customer_phone}</p>
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                      <span>
+                        Visits:{' '}
+                        <strong className={`font-extrabold ${isTargetReached ? 'text-[#00875A]' : 'text-slate-900'}`}>
+                          {cust.visit_count} / {targetVisits}
+                        </strong>
+                      </span>
+                      <span>
+                        Cashback Balance:{' '}
+                        <strong className="font-extrabold text-slate-900">Rs. {cust.claimable_amount || 0}</strong>
+                      </span>
+                    </div>
                   </div>
+
+                  <span
+                    className={`flex items-center gap-1.5 self-start rounded-full border px-2.5 py-1 font-mono text-[10px] font-extrabold uppercase tracking-wider sm:self-auto ${
+                      cust.status === 'REDEEMED'
+                        ? 'border-slate-300 bg-slate-200 text-slate-600'
+                        : isTargetReached
+                        ? 'border-amber-200 bg-amber-50 text-amber-700 animate-pulse'
+                        : 'border-emerald-200 bg-emerald-50 text-[#00875A]'
+                    }`}
+                  >
+                    <span
+                      className={`size-1.5 rounded-full ${
+                        cust.status === 'REDEEMED'
+                          ? 'bg-slate-400'
+                          : isTargetReached
+                          ? 'bg-amber-500'
+                          : 'bg-[#00875A]'
+                      }`}
+                    />
+                    {isTargetReached && cust.status !== 'REDEEMED' ? 'REDEEM READY' : cust.status || 'ACTIVE'}
+                  </span>
                 </div>
-                <span className={`flex items-center gap-1.5 self-start rounded-full border px-2.5 py-1 font-mono text-[10px] font-extrabold uppercase tracking-wider sm:self-auto ${
-                  cust.status === 'REDEEMED' ? 'border-slate-300 bg-slate-200 text-slate-600' : 'border-emerald-200 bg-emerald-50 text-[#00875A]'
-                }`}>
-                  <span className={`size-1.5 rounded-full ${cust.status === 'REDEEMED' ? 'bg-slate-400' : 'bg-[#00875A]'}`} />
-                  {cust.status}
-                </span>
-              </div>
-            ))
+              )
+            })
           ) : (
             <p className="text-xs text-slate-400 text-center py-6">No matching customers found.</p>
           )}
