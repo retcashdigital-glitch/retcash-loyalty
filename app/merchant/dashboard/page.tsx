@@ -521,12 +521,16 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // REDEMPTION EXECUTION (FIXED FOR SINGLE ACTIVE RECORD SCHEMA)
+  // REDEMPTION EXECUTION (WITH NET_PAID_AMOUNT LOGGING)
   const executeRedeemReward = async () => {
     if (!scannedClaimData || actionLoading) return
 
     setActionLoading(true)
     try {
+      const redeemedAmt = Number(scannedClaimData.claimable_amount || 0)
+      const lastBillAmt = Number(scannedClaimData.bill_amount || 0)
+      const calculatedNetPaid = Math.max(0, lastBillAmt - redeemedAmt)
+
       // 1. Direct Supabase Update on the single ACTIVE claim record
       const { error: updateErr } = await supabase
         .from('cashback_claims')
@@ -541,7 +545,7 @@ export default function MerchantDashboardPage() {
         throw new Error('Redemption DB Update Failed: ' + updateErr.message)
       }
 
-      // 2. Transaction Audit History Log Entry (INSERT)
+      // 2. Transaction Audit History Log Entry (INSERT WITH NET_PAID_AMOUNT)
       await supabase
         .from('cashback_history')
         .insert({
@@ -549,9 +553,10 @@ export default function MerchantDashboardPage() {
           store_id: scannedClaimData.store_id || merchantSession?.id,
           customer_phone: scannedClaimData.customer_phone,
           visit_count: scannedClaimData.visit_count,
-          bill_amount: 0,
+          bill_amount: lastBillAmt,
           cashback_percentage: 0,
-          cashback_amount: Number(scannedClaimData.claimable_amount || 0),
+          cashback_amount: redeemedAmt,
+          net_paid_amount: calculatedNetPaid,
           transaction_type: 'REDEEMED',
           status: 'REDEEMED'
         })
@@ -573,7 +578,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // PROFESSIONAL BILLING GENERATION & TRANSACTION CREATION (UPSERT CONSTRAINT FIX)
+  // PROFESSIONAL BILLING GENERATION & TRANSACTION CREATION (WITH NET_PAID_AMOUNT LOGGING)
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -647,7 +652,7 @@ export default function MerchantDashboardPage() {
 
       const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
 
-      // 🎯 2. UPSERT ACTIVE RECORD IN CASHBACK_CLAIMS (EXACT UNIQUE CONSTRAINT REFERENCE FIX)
+      // 2. UPSERT ACTIVE RECORD IN CASHBACK_CLAIMS
       const { data: upsertedData, error: upsertError } = await supabase
         .from('cashback_claims')
         .upsert({
@@ -673,7 +678,7 @@ export default function MerchantDashboardPage() {
 
       const claimId = upsertedData?.id
 
-      // 🎯 3. ALWAYS INSERT INTO CASHBACK_HISTORY (Audit History Entry)
+      // 3. ALWAYS INSERT INTO CASHBACK_HISTORY (Audit History Entry WITH NET_PAID_AMOUNT)
       try {
         const { error: historyError } = await supabase
           .from('cashback_history')
@@ -685,6 +690,7 @@ export default function MerchantDashboardPage() {
             bill_amount: initialBillNum,
             cashback_percentage: cashbackPercentage,
             cashback_amount: cashbackAmount,
+            net_paid_amount: finalBillToPay,
             transaction_type: redeemedAmount > 0 ? 'REDEEMED_IN_BILL' : 'BILL_ADDED',
             status: claimStatus
           })

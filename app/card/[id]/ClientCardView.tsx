@@ -122,7 +122,7 @@ export default function ClientCardView({
         fetchOffers()
     }, [claimData?.stores?.id, claimData?.store_id])
 
-    // Realtime Claim Status Logic (உடனடி QR மறைதல் மற்றும் Balances Update பெற)
+    // Realtime Claim Status Logic
     useEffect(() => {
         const activeId = id || claimData?.id;
         if (!activeId) return;
@@ -179,7 +179,7 @@ export default function ClientCardView({
         }
     }, [id, claimData?.id])
 
-    // Fetch Full Customer Cashback History from cashback_history table
+    // Fetch Full Customer Cashback History
     const fetchHistory = async () => {
         const storeId = claimData?.stores?.id || claimData?.store_id;
         const phone = claimData?.customer_phone;
@@ -207,14 +207,10 @@ export default function ClientCardView({
     const rawTotalVisits = Number(store?.target_visits) || 6
     const totalVisits = Math.min(Math.max(rawTotalVisits, 1), 10)
 
-    // 🎯 REDEEM & REWARD LOGIC FIX:
     const claimableBalance = Number(claimData?.claimable_amount || 0);
     const claimStatus = String(claimData?.status || '').toUpperCase();
 
-    // 1. Redeem செய்யப்பட்டதா என அறிதல்
     const isRedeemed = claimStatus === 'REDEEMED' || claimableBalance <= 0;
-    
-    // 2. Target Visits முடிந்திருந்தாலும், Redeem செய்யப்படாமல், Balance > 0 ஆக இருந்தால் மட்டுமே QR தோன்றும்
     const isRewardReady = (currentVisits >= totalVisits) && claimableBalance > 0 && claimStatus !== 'REDEEMED';
 
     const storeInitials = store?.store_name
@@ -223,12 +219,13 @@ export default function ClientCardView({
 
     const visitsLeft = totalVisits - currentVisits;
 
-    // பில் தொகை மற்றும் சதவீதத்தைக் கணக்கிடுதல்
     const billAmount = latestTransaction?.bill_amount || 0;
+    const netPaidAmount = latestTransaction?.net_paid_amount !== undefined 
+        ? latestTransaction.net_paid_amount 
+        : billAmount;
     const cashbackPercentage = latestTransaction?.cashback_percentage || store?.default_cashback_percent || 0;
     const earnedCashback = latestTransaction?.cashback_amount ?? claimData?.cashback_amount ?? 0;
 
-    // ⚡ பழைய QR முறைப்படி நேரடி UUID String மட்டுமே உருவாக்கப்படுகிறது
     const currentClaimId = id || claimData?.id;
     const qrPayloadData = currentClaimId || '';
 
@@ -365,11 +362,11 @@ export default function ClientCardView({
                     {/* 3. Standalone Details & Actions Card */}
                     <div className="bg-white border border-slate-100 rounded-3xl p-5 relative overflow-hidden shadow-xs space-y-5">
                         
-                        {/* Latest Cashback Details Card */}
+                        {/* Latest Cashback Details Card (Net Paid சேர்க்கப்பட்டது) */}
                         <div className="bg-emerald-50/60 border border-emerald-100 p-3.5 rounded-2xl space-y-2.5">
                             <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-slate-600 font-bold uppercase tracking-wider text-[10px]">LATEST CASHBACK</span>
+                                    <span className="text-slate-600 font-bold uppercase tracking-wider text-[10px]">LATEST TRANSACTION</span>
                                     {cashbackPercentage > 0 && (
                                         <span className="text-[10px] font-extrabold bg-emerald-100 text-[#00875A] px-2 py-0.5 rounded-full">
                                             {cashbackPercentage}% Off
@@ -385,22 +382,29 @@ export default function ClientCardView({
                                 </button>
                             </div>
 
-                            <div className="flex justify-between items-end pt-1 border-t border-emerald-100/60">
+                            <div className="grid grid-cols-3 gap-2 pt-1 border-t border-emerald-100/60 text-center sm:text-left">
                                 <div>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Bill Amount</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Bill</p>
                                     <p className="text-xs font-extrabold text-slate-700 mt-0.5">
                                         Rs. {Number(billAmount).toFixed(2)}
                                     </p>
                                 </div>
 
+                                <div>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Paid</p>
+                                    <p className="text-xs font-extrabold text-emerald-800 mt-0.5">
+                                        Rs. {Number(netPaidAmount).toFixed(2)}
+                                    </p>
+                                </div>
+
                                 <div className="text-right">
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Earned Cashback</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Earned</p>
                                     {isRedeemed ? (
-                                        <span className="text-slate-400 text-sm font-extrabold line-through decoration-slate-400 mt-0.5 inline-block">
+                                        <span className="text-slate-400 text-xs font-extrabold line-through mt-0.5 inline-block">
                                             Rs. {Number(earnedCashback).toFixed(2)}
                                         </span>
                                     ) : (
-                                        <span className="text-[#00875A] font-black text-sm mt-0.5 inline-block">
+                                        <span className="text-[#00875A] font-black text-xs mt-0.5 inline-block">
                                             + Rs. {Number(earnedCashback).toFixed(2)}
                                         </span>
                                     )}
@@ -408,7 +412,7 @@ export default function ClientCardView({
                             </div>
                         </div>
 
-                        {/* REDEMPTION QR CODE SECTION (UUID மட்டும் பயன்படுத்தப்படுகிறது) */}
+                        {/* REDEMPTION QR CODE SECTION */}
                         {isRewardReady && (
                             <div className="w-full text-center animate-fade-in pt-1">
                                 <div className="bg-emerald-50 border border-emerald-200 text-[#00875A] text-xs font-bold py-2 px-3 rounded-xl mb-3 shadow-xs">
@@ -530,33 +534,41 @@ export default function ClientCardView({
                             ) : history.length === 0 ? (
                                 <div className="text-center py-8 text-xs text-slate-400 font-medium">No prior transactions found.</div>
                             ) : (
-                                history.map((item) => (
-                                    <div key={item.id} className="bg-slate-50 border border-slate-100/80 rounded-2xl p-3 flex justify-between items-center text-xs">
-                                        <div>
-                                            <div className="font-extrabold text-slate-700">
-                                                Visit #{item.visit_count ?? item.visit_number ?? 1} 
-                                                <span className="text-[10px] text-slate-400 font-semibold ml-2">(Bill: Rs. {Number(item.bill_amount || 0).toFixed(2)})</span>
+                                history.map((item) => {
+                                    const paidVal = item.net_paid_amount !== undefined && item.net_paid_amount !== null
+                                        ? item.net_paid_amount
+                                        : Math.max(0, (item.bill_amount || 0) - (item.transaction_type?.includes('REDEEMED') ? (item.cashback_amount || 0) : 0));
+
+                                    return (
+                                        <div key={item.id} className="bg-slate-50 border border-slate-100/80 rounded-2xl p-3 flex justify-between items-center text-xs">
+                                            <div>
+                                                <div className="font-extrabold text-slate-700">
+                                                    Visit #{item.visit_count ?? item.visit_number ?? 1}
+                                                </div>
+                                                <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                                                    Bill: Rs. {Number(item.bill_amount || 0).toFixed(2)} | <span className="text-emerald-700 font-bold">Paid: Rs. {Number(paidVal).toFixed(2)}</span>
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                                    {new Date(item.created_at).toLocaleDateString('en-US', {
+                                                        day: 'numeric',
+                                                        month: 'short',
+                                                        year: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                                </div>
                                             </div>
-                                            <div className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                                {new Date(item.created_at).toLocaleDateString('en-US', {
-                                                    day: 'numeric',
-                                                    month: 'short',
-                                                    year: 'numeric',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
+                                            <div className="text-right">
+                                                <div className="font-extrabold text-[#00875A]">
+                                                    + Rs. {Number(item.cashback_amount || 0).toFixed(2)}
+                                                </div>
+                                                <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-0.5 bg-emerald-100 text-[#00875A]">
+                                                    Earned
+                                                </span>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="font-extrabold text-[#00875A]">
-                                                + Rs. {Number(item.cashback_amount || 0).toFixed(2)}
-                                            </div>
-                                            <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-0.5 bg-emerald-100 text-[#00875A]">
-                                                Earned
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))
+                                    )
+                                })
                             )}
                         </div>
                     </div>

@@ -263,13 +263,13 @@ export default function SingleCardPage() {
                 }
 
                 // ==========================================
-                // 🎯 LATEST TRANSACTION FETCH (customer_wallet_summary View-லிருந்து எடுத்தல்)
+                // 🎯 LATEST TRANSACTION FETCH (net_paid_amount சேர்க்கப்பட்டது)
                 // ==========================================
                 if (currentClaim && currentClaim.store_id) {
-                    // 1. கடைசியாக நடந்த அசல் பில் மற்றும் கேஷ்பேக் விவரத்தை எடுப்பது
+                    // 1. கடைசியாக நடந்த அசல் பில், நெட் பேக் தொகை மற்றும் கேஷ்பேக் விவரத்தை எடுப்பது
                     const { data: lastTx } = await supabase
                         .from('cashback_history')
-                        .select('bill_amount, cashback_percentage, cashback_amount, transaction_type, created_at')
+                        .select('bill_amount, cashback_percentage, cashback_amount, net_paid_amount, transaction_type, created_at')
                         .eq('claim_id', currentClaim.id)
                         .order('created_at', { ascending: false })
                         .limit(1)
@@ -284,11 +284,19 @@ export default function SingleCardPage() {
                         .maybeSingle()
 
                     if (lastTx) {
+                        const calculatedBill = (walletSummary?.last_bill_amount && walletSummary.last_bill_amount > 0) 
+                            ? walletSummary.last_bill_amount 
+                            : lastTx.bill_amount
+
+                        // net_paid_amount கணக்கீடு
+                        const netPaid = lastTx.net_paid_amount !== undefined && lastTx.net_paid_amount !== null
+                            ? lastTx.net_paid_amount
+                            : Math.max(0, calculatedBill - (lastTx.transaction_type?.includes('REDEEMED') ? lastTx.cashback_amount : 0))
+
                         setLatestTransaction({
                             ...lastTx,
-                            bill_amount: (walletSummary?.last_bill_amount && walletSummary.last_bill_amount > 0) 
-                                ? walletSummary.last_bill_amount 
-                                : lastTx.bill_amount,
+                            bill_amount: calculatedBill,
+                            net_paid_amount: netPaid,
                             total_redeemed: walletSummary?.total_redeemed_amount || 0,
                             summary_status: walletSummary?.status || currentClaim.status
                         })
@@ -330,7 +338,7 @@ export default function SingleCardPage() {
 
                                         const { data: updatedTx } = await supabase
                                             .from('cashback_history')
-                                            .select('bill_amount, cashback_percentage, cashback_amount, transaction_type, created_at')
+                                            .select('bill_amount, cashback_percentage, cashback_amount, net_paid_amount, transaction_type, created_at')
                                             .eq('claim_id', currentClaim.id)
                                             .order('created_at', { ascending: false })
                                             .limit(1)
@@ -344,11 +352,18 @@ export default function SingleCardPage() {
                                             .maybeSingle()
 
                                         if (updatedTx) {
+                                            const calculatedBill = (updatedSummary?.last_bill_amount && updatedSummary.last_bill_amount > 0) 
+                                                ? updatedSummary.last_bill_amount 
+                                                : updatedTx.bill_amount
+
+                                            const netPaid = updatedTx.net_paid_amount !== undefined && updatedTx.net_paid_amount !== null
+                                                ? updatedTx.net_paid_amount
+                                                : Math.max(0, calculatedBill - (updatedTx.transaction_type?.includes('REDEEMED') ? updatedTx.cashback_amount : 0))
+
                                             setLatestTransaction({
                                                 ...updatedTx,
-                                                bill_amount: (updatedSummary?.last_bill_amount && updatedSummary.last_bill_amount > 0) 
-                                                    ? updatedSummary.last_bill_amount 
-                                                    : updatedTx.bill_amount,
+                                                bill_amount: calculatedBill,
+                                                net_paid_amount: netPaid,
                                                 total_redeemed: updatedSummary?.total_redeemed_amount || 0,
                                                 summary_status: (updatedSummary as { status?: string } | null)?.status || (payload.new as { status?: string }).status
                                             })
