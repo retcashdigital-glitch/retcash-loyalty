@@ -225,6 +225,7 @@ export default function ClientCardView({
         : billAmount;
     const cashbackPercentage = latestTransaction?.cashback_percentage || store?.default_cashback_percent || 0;
     const earnedCashback = latestTransaction?.cashback_amount ?? claimData?.cashback_amount ?? 0;
+    const redeemedAmount = latestTransaction?.redeemed_amount || earnedCashback;
 
     const currentClaimId = id || claimData?.id;
     const qrPayloadData = currentClaimId || '';
@@ -391,15 +392,16 @@ export default function ClientCardView({
                                     <span>Rs. {Number(billAmount).toFixed(2)}</span>
                                 </div>
 
-                                {earnedCashback > 0 && (
+                                {/* ⚡ உண்மையாக REDEEM செய்யப்பட்டிருந்தால் மட்டுமே இந்த Minus வரி தோன்றும் */}
+                                {(isRedeemed || latestTransaction?.redeemed_amount > 0) && (
                                     <div className="flex justify-between text-rose-600 font-bold bg-rose-50/80 px-2 py-1 rounded-lg border border-rose-100">
-                                        <span>Cashback Applied</span>
-                                        <span>- Rs. {Number(earnedCashback).toFixed(2)}</span>
+                                        <span>Cashback Discount</span>
+                                        <span>- Rs. {Number(redeemedAmount).toFixed(2)}</span>
                                     </div>
                                 )}
 
                                 <div className="flex justify-between text-slate-900 font-black text-sm pt-2 border-t border-slate-200/80">
-                                    <span>{isRedeemed ? "Net Amount Paid" : "Net Amount to Pay"}</span>
+                                    <span>{isRedeemed ? "Paid" : "To Pay"}</span>
                                     <span className="text-[#00875A]">Rs. {Number(netPaidAmount).toFixed(2)}</span>
                                 </div>
                             </div>
@@ -425,7 +427,7 @@ export default function ClientCardView({
                                     <div className="bg-emerald-100/90 text-emerald-900 font-black text-xs p-3 rounded-xl border border-emerald-300 shadow-xs animate-fade-in">
                                         🎉 REWARD SUCCESSFULLY REDEEMED!
                                         <p className="text-[10px] font-medium text-emerald-700 mt-0.5">
-                                            Rs. {Number(earnedCashback).toFixed(2)} cashback discount has been applied to this bill.
+                                            Rs. {Number(redeemedAmount).toFixed(2)} cashback discount has been applied to this bill.
                                         </p>
                                     </div>
                                 ) : (
