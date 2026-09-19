@@ -573,7 +573,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // PROFESSIONAL BILLING GENERATION & TRANSACTION CREATION (UPSERT FIXED)
+  // PROFESSIONAL BILLING GENERATION & TRANSACTION CREATION (UPSERT CONSTRAINT FIX)
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -647,7 +647,7 @@ export default function MerchantDashboardPage() {
 
       const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
 
-      // 🎯 2. UPSERT ACTIVE RECORD IN CASHBACK_CLAIMS (ON CONFLICT UNIQUE CONSTRAINT)
+      // 🎯 2. UPSERT ACTIVE RECORD IN CASHBACK_CLAIMS (EXACT UNIQUE CONSTRAINT REFERENCE FIX)
       const { data: upsertedData, error: upsertError } = await supabase
         .from('cashback_claims')
         .upsert({
@@ -661,7 +661,7 @@ export default function MerchantDashboardPage() {
           cashback_amount: cashbackAmount,
           updated_at: new Date().toISOString()
         }, {
-          onConflict: 'customer_phone,store_id'
+          onConflict: 'customer_phone, store_id'
         })
         .select('id')
         .single()
