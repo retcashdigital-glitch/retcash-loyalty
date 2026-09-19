@@ -225,7 +225,17 @@ export default function ClientCardView({
         : billAmount;
     const cashbackPercentage = latestTransaction?.cashback_percentage || store?.default_cashback_percent || 0;
     const earnedCashback = latestTransaction?.cashback_amount ?? claimData?.cashback_amount ?? 0;
-    const redeemedAmount = latestTransaction?.redeemed_amount || earnedCashback;
+
+    // ⚡ 1. ACCURATE DISCOUNT & TO_PAY MATH LOGIC
+    // Reward Ready ஆக இருந்தாலோ (Redeem செய்வதற்கு முன்) அல்லது Redeemed ஆன பின்னோ Discount பெறப்படும்
+    const activeDiscount = (isRewardReady || isRedeemed) 
+        ? (latestTransaction?.redeemed_amount || claimableBalance || earnedCashback) 
+        : 0;
+
+    // To Pay தொகையைக் துல்லியமாகக் கணக்கிடுதல்
+    const calculatedToPay = isRewardReady && !isRedeemed
+        ? Math.max(0, billAmount - activeDiscount)
+        : netPaidAmount;
 
     const currentClaimId = id || claimData?.id;
     const qrPayloadData = currentClaimId || '';
@@ -392,17 +402,17 @@ export default function ClientCardView({
                                     <span>Rs. {Number(billAmount).toFixed(2)}</span>
                                 </div>
 
-                                {/* ⚡ உண்மையாக REDEEM செய்யப்பட்டிருந்தால் மட்டுமே இந்த Minus வரி தோன்றும் */}
-                                {(isRedeemed || latestTransaction?.redeemed_amount > 0) && (
+                                {/* ⚡ Reward Ready ஆக இருக்கும்போதே (Redeem செய்வதற்கு முன்பே) Discount கழித்துக் காட்டப்படும் */}
+                                {activeDiscount > 0 && (isRewardReady || isRedeemed) && (
                                     <div className="flex justify-between text-rose-600 font-bold bg-rose-50/80 px-2 py-1 rounded-lg border border-rose-100">
                                         <span>Cashback Discount</span>
-                                        <span>- Rs. {Number(redeemedAmount).toFixed(2)}</span>
+                                        <span>- Rs. {Number(activeDiscount).toFixed(2)}</span>
                                     </div>
                                 )}
 
                                 <div className="flex justify-between text-slate-900 font-black text-sm pt-2 border-t border-slate-200/80">
                                     <span>{isRedeemed ? "Paid" : "To Pay"}</span>
-                                    <span className="text-[#00875A]">Rs. {Number(netPaidAmount).toFixed(2)}</span>
+                                    <span className="text-[#00875A]">Rs. {Number(calculatedToPay).toFixed(2)}</span>
                                 </div>
                             </div>
 
@@ -412,7 +422,7 @@ export default function ClientCardView({
                                     /* 1. REDEEM செய்வதற்கு முன்: QR CODE + வழிகாட்டுதல் */
                                     <div className="space-y-3 animate-fade-in pt-1">
                                         <div className="bg-amber-50 border border-amber-200/80 text-amber-800 font-bold text-xs py-2.5 px-3 rounded-xl shadow-xs">
-                                            ⏳ Show this QR code below to cashier to redeem <strong>Rs. {Number(earnedCashback).toFixed(2)}</strong>
+                                            ⏳ Show this QR code below to cashier to redeem <strong>Rs. {Number(activeDiscount).toFixed(2)}</strong>
                                         </div>
                                         <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-100">
                                             <img
@@ -427,11 +437,11 @@ export default function ClientCardView({
                                     <div className="bg-emerald-100/90 text-emerald-900 font-black text-xs p-3 rounded-xl border border-emerald-300 shadow-xs animate-fade-in">
                                         🎉 REWARD SUCCESSFULLY REDEEMED!
                                         <p className="text-[10px] font-medium text-emerald-700 mt-0.5">
-                                            Rs. {Number(redeemedAmount).toFixed(2)} cashback discount has been applied to this bill.
+                                            Rs. {Number(activeDiscount).toFixed(2)} cashback discount has been applied to this bill.
                                         </p>
                                     </div>
                                 ) : (
-                                    /* 3. சாதாரண விசிட் நிலைகளில்: Cashback Earned Badge */
+                                    /* 3. சாதாரண விசிட் நிலைகளில் (1/3, 2/3 Visits): Cashback Earned Badge */
                                     <div className="flex justify-between items-center text-[11px] text-emerald-800 font-bold pt-1">
                                         <span>Cashback Earned:</span>
                                         <span className="bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md text-[#00875A] font-black">
