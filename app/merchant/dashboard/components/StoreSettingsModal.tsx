@@ -29,6 +29,8 @@ interface StoreSettingsModalProps {
   settingLoading: boolean
   successMsg: boolean
   handleUpdateTargetVisits: (e: FormEvent) => void
+  logoUploading?: boolean
+  handleUpdateLogo?: (file: File) => void
 }
 
 // ─── 100% Clear & Refined Single-Purpose Categories ───────────────────────────
@@ -60,7 +62,9 @@ export default function StoreSettingsModal({
   handleTargetInputChange,
   settingLoading,
   successMsg,
-  handleUpdateTargetVisits
+  handleUpdateTargetVisits,
+  logoUploading: externalLogoUploading,
+  handleUpdateLogo: externalHandleUpdateLogo
 }: StoreSettingsModalProps) {
 
   // Dynamic States for Additional Fields
@@ -69,47 +73,49 @@ export default function StoreSettingsModal({
   const [reviewUrl, setReviewUrl] = useState<string>(merchantSession.review_url || '')
   const [category, setCategory] = useState<string>(merchantSession.category || 'others')
 
-  // Loading and Success States for New Features
-  const [logoUploading, setLogoUploading] = useState<boolean>(false)
+  // Internal Loading and Success States for Logo (Fallback)
+  const [internalLogoUploading, setInternalLogoUploading] = useState<boolean>(false)
   const [logoSuccess, setLogoSuccess] = useState<boolean>(false)
 
   const [detailsLoading, setDetailsLoading] = useState<boolean>(false)
   const [detailsSuccess, setDetailsSuccess] = useState<boolean>(false)
 
-  // 1. Function to Handle Logo Upload & Delete Old File in Supabase Storage
-  const handleLogoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+  const isLogoUploading = externalLogoUploading ?? internalLogoUploading
+
+  // Handle Logo Upload Event
+  const handleLogoChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // 1. If Parent component provided `handleUpdateLogo`, use it
+    if (externalHandleUpdateLogo) {
+      externalHandleUpdateLogo(file)
+      return
+    }
+
+    // 2. Otherwise run internal logic
     try {
-      setLogoUploading(true)
+      setInternalLogoUploading(true)
       setLogoSuccess(false)
 
-      // Step A: Delete Old File from Supabase Storage (if exists and is from Supabase Storage)
-      if (logoUrl && logoUrl.includes('/store-logos/')) {
-        const oldFileName = logoUrl.split('/store-logos/').pop()
-        if (oldFileName) {
-          await supabase.storage.from('store-logos').remove([oldFileName])
-        }
-      }
+      const fileExt = file.name.split('.').pop() || 'png'
+      const filePath = `store_${merchantSession.id}.${fileExt}`
 
-      // Step B: Upload New File to Storage
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${merchantSession.id}-${Date.now()}.${fileExt}`
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // Upsert to Storage
+      const { error: uploadError } = await supabase.storage
         .from('store-logos')
-        .upload(fileName, file, { upsert: true })
+        .upload(filePath, file, { upsert: true })
 
       if (uploadError) throw uploadError
 
-      // Step C: Get Public URL
+      // Get Public URL
       const { data: publicUrlData } = supabase.storage
         .from('store-logos')
-        .getPublicUrl(fileName)
+        .getPublicUrl(filePath)
 
-      const newPublicUrl = publicUrlData.publicUrl
+      const newPublicUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`
 
-      // Step D: Update Database Table 'stores'
+      // Update DB
       const { error: dbError } = await supabase
         .from('stores')
         .update({ logo_url: newPublicUrl })
@@ -124,11 +130,11 @@ export default function StoreSettingsModal({
     } catch (err: any) {
       alert(`Logo upload failed: ${err.message || err}`)
     } finally {
-      setLogoUploading(false)
+      setInternalLogoUploading(false)
     }
   }
 
-  // 2. Function to Handle Category, Location, and Review URL Updates
+  // Handle Category, Location, and Review URL Updates
   const handleUpdateStoreDetails = async (e: FormEvent) => {
     e.preventDefault()
     try {
@@ -167,9 +173,9 @@ export default function StoreSettingsModal({
         <div className="bg-[#00875A] text-white p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-xs overflow-hidden shrink-0">
-              {logoUrl ? (
+              {merchantSession.logo_url || logoUrl ? (
                 <img
-                  src={logoUrl}
+                  src={merchantSession.logo_url || logoUrl}
                   alt="Logo"
                   className="size-full object-cover"
                 />
@@ -210,22 +216,22 @@ export default function StoreSettingsModal({
             </div>
           </div>
 
-          {/* SECTION 1: Change Logo (Storage Upload with Delete Logic) */}
+          {/* SECTION 1: Change Logo (Supabase Storage Integration) */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
             <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
               <Upload className="size-3.5 text-[#00875A]" /> Store Logo
             </h4>
             <div className="flex items-center gap-4">
               <div className="size-14 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
-                {logoUrl ? (
-                  <img src={logoUrl} alt="Store Logo" className="size-full object-cover" />
+                {merchantSession.logo_url || logoUrl ? (
+                  <img src={merchantSession.logo_url || logoUrl} alt="Store Logo" className="size-full object-cover" />
                 ) : (
                   <Store className="size-6 text-slate-400" />
                 )}
               </div>
               <div className="flex-1 space-y-1">
                 <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#00875A] bg-emerald-50 text-[#00875A] hover:bg-[#00875A] hover:text-white text-xs font-bold transition cursor-pointer">
-                  {logoUploading ? (
+                  {isLogoUploading ? (
                     <>
                       <Loader2 className="size-3.5 animate-spin" /> Uploading...
                     </>
@@ -235,12 +241,12 @@ export default function StoreSettingsModal({
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={handleLogoUpload}
-                    disabled={logoUploading}
+                    onChange={handleLogoChange}
+                    disabled={isLogoUploading}
                     className="hidden"
                   />
                 </label>
-                <p className="text-[10px] text-slate-400">Replaces existing logo automatically</p>
+                <p className="text-[10px] text-slate-400">Replaces existing logo automatically in Supabase Storage</p>
               </div>
             </div>
             {logoSuccess && (
@@ -333,7 +339,6 @@ export default function StoreSettingsModal({
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-[#00875A] focus:bg-white text-slate-900 font-medium"
               >
-                {/* 기존 பழைய 데이터களையும் காட்டும் பொருட்டு */}
                 {!CATEGORIES.includes(category) && category !== '' && (
                   <option value={category}>{category}</option>
                 )}

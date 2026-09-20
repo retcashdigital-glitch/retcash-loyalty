@@ -19,6 +19,7 @@ interface MerchantSession {
   phone_number?: string
   default_cashback_percent?: number
   target_visits?: number
+  logo_url?: string
 }
 
 interface CashbackClaim {
@@ -71,6 +72,10 @@ export default function MerchantDashboardPage() {
   const [cashbackSettingLoading, setCashbackSettingLoading] = useState(false)
   const [cashbackSuccessMsg, setCashbackSuccessMsg] = useState(false)
 
+  // Logo Settings state
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+
   // QR Scanner State
   const [scannedClaimData, setScannedClaimData] = useState<CashbackClaim | null>(null)
   const [isScanning, setIsScanning] = useState(false)
@@ -120,7 +125,7 @@ export default function MerchantDashboardPage() {
           
           const { data: realStore, error: storeErr } = await supabase
             .from('stores')
-            .select('id, store_name, phone_number, default_cashback_percent, target_visits')
+            .select('id, store_name, phone_number, default_cashback_percent, target_visits, logo_url')
             .eq('id', parsed.id)
             .maybeSingle()
 
@@ -134,7 +139,8 @@ export default function MerchantDashboardPage() {
               store_name: realStore.store_name,
               phone_number: realStore.phone_number,
               default_cashback_percent: realStore.default_cashback_percent ?? 5,
-              target_visits: realStore.target_visits ?? 6
+              target_visits: realStore.target_visits ?? 6,
+              logo_url: realStore.logo_url ?? ''
             }
             setMerchantSession(verifiedSession)
             localStorage.setItem('retcash_merchant', JSON.stringify(verifiedSession))
@@ -339,6 +345,54 @@ export default function MerchantDashboardPage() {
       showToast('error', 'Failed to update cashback percentage: ' + message)
     } finally {
       setCashbackSettingLoading(false)
+    }
+  }
+
+  // PROFESSIONAL LOGO UPLOAD & OVERWRITE FUNCTIONALITY
+  const handleUpdateLogo = async (file: File) => {
+    if (!file || !merchantSession?.id) return
+
+    setLogoUploading(true)
+    try {
+      const fileExt = file.name.split('.').pop() || 'png'
+      const filePath = `store_${merchantSession.id}.${fileExt}`
+
+      // 1. Storage-இல் பழைய லோகோவை Overwrite செய்கிறது (upsert: true)
+      const { error: uploadError } = await supabase.storage
+        .from('store-logos')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      // 2. புதிய படத்திற்கான Public URL-ஐ எடுக்கிறது
+      const { data: urlData } = supabase.storage
+        .from('store-logos')
+        .getPublicUrl(filePath)
+
+      // Cache problem வராமல் இருக்க Timestamp சேர்க்கப்படுகிறது
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
+
+      // 3. Database-இல் logo_url-ஐ மட்டுமே சேமிக்கிறது
+      const { error: dbError } = await supabase
+        .from('stores')
+        .update({ logo_url: publicUrl })
+        .eq('id', merchantSession.id)
+
+      if (dbError) throw dbError
+
+      // 4. Update Local Session State
+      const updatedSession = { ...merchantSession, logo_url: publicUrl }
+      setMerchantSession(updatedSession)
+      localStorage.setItem('retcash_merchant', JSON.stringify(updatedSession))
+
+      showToast('success', '🎉 Store logo updated successfully!')
+      setLogoFile(null)
+    } catch (err: unknown) {
+      console.error(err)
+      const message = err instanceof Error ? err.message : 'Logo upload failed'
+      showToast('error', 'Failed to update logo: ' + message)
+    } finally {
+      setLogoUploading(false)
     }
   }
 
@@ -862,6 +916,8 @@ export default function MerchantDashboardPage() {
           settingLoading={settingLoading}
           successMsg={successMsg}
           handleUpdateTargetVisits={handleUpdateTargetVisits}
+          logoUploading={logoUploading}
+          handleUpdateLogo={handleUpdateLogo}
         />
       )}
 
