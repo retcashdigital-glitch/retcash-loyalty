@@ -797,7 +797,7 @@ export default function MerchantDashboardPage() {
     <div className="min-h-screen bg-slate-100 text-slate-800 font-sans selection:bg-[#00875A] selection:text-white">
       
       {toastMessage && (
-        <div className="fixed top-5 right-5 z-50 animate-in fade-in slide-in-from-top-3 duration-200">
+        <div className="fixed top-5 right-5 z-[70] animate-in fade-in slide-in-from-top-3 duration-200">
           <div className={`flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl text-xs font-bold text-white ${
             toastMessage.type === 'success' ? 'bg-[#00875A]' : 'bg-red-600'
           }`}>
@@ -808,7 +808,7 @@ export default function MerchantDashboardPage() {
       )}
 
       {offerToDelete && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[60] flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-xs w-full shadow-2xl space-y-4 text-center">
             <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold border border-red-100">
               <Trash2 className="size-6" />
@@ -836,8 +836,8 @@ export default function MerchantDashboardPage() {
       )}
 
       {showRedeemConfirmModal && scannedClaimData && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-xs w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-xs w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95 relative z-10">
             <div className="w-12 h-12 bg-emerald-50 text-[#00875A] rounded-full flex items-center justify-center mx-auto text-xl font-bold border border-emerald-200">
               <CheckCircle2 className="size-6" />
             </div>
@@ -848,17 +848,19 @@ export default function MerchantDashboardPage() {
                 The balance of <span className="font-bold text-[#00875A]">Rs. {scannedClaimData.claimable_amount}</span> will be reset to zero.
               </p>
             </div>
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-2 relative z-20">
               <button
+                type="button"
                 onClick={() => setShowRedeemConfirmModal(false)}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={executeRedeemReward}
                 disabled={actionLoading}
-                className="flex-1 bg-[#00875A] hover:bg-[#00704a] text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md cursor-pointer disabled:opacity-50"
+                className="flex-1 bg-[#00875A] hover:bg-[#00704a] text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md cursor-pointer disabled:opacity-50 pointer-events-auto"
               >
                 {actionLoading ? 'Processing...' : 'Confirm & Reset'}
               </button>
@@ -959,7 +961,7 @@ export default function MerchantDashboardPage() {
 
       </main>
 
-      {isScanning && (
+      {isScanning && !showRedeemConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-5" role="dialog" aria-modal="true">
           <div className="w-full max-w-sm rounded-3xl border border-slate-100 bg-white p-6 text-center shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
@@ -995,7 +997,7 @@ export default function MerchantDashboardPage() {
                   <button
                     onClick={() => setShowRedeemConfirmModal(true)}
                     disabled={actionLoading}
-                    className="w-full bg-[#00875A] hover:bg-[#00704a] text-white font-extrabold py-2.5 rounded-xl text-xs mt-2 transition cursor-pointer shadow-md shadow-[#00875A]/20 flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-98"
+                    className="w-full bg-[#00875A] hover:bg-[#00704a] text-white font-extrabold py-2.5 rounded-xl text-xs mt-2 transition cursor-pointer shadow-md shadow-[#00875A]/20 flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-98 pointer-events-auto"
                   >
                     🎁 Redeem Reward & Clear Cashback
                   </button>
