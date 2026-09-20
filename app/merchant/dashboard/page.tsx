@@ -571,6 +571,9 @@ export default function MerchantDashboardPage() {
       const redeemedAmt = Number(scannedClaimData.claimable_amount || 0)
       const lastBillAmt = Number(scannedClaimData.bill_amount || 0)
 
+      // நெட் செலுத்திய தொகையைக் கணக்கிடுதல் (பில் தொகை - தள்ளுபடி தொகை)
+      const calculatedNetPaid = Math.max(0, Math.round((lastBillAmt - redeemedAmt) * 100) / 100)
+
       // 1. Direct Supabase Update on the active claim record
       const { error: updateErr } = await supabase
         .from('cashback_claims')
@@ -585,7 +588,7 @@ export default function MerchantDashboardPage() {
         throw new Error('Redemption DB Update Failed: ' + updateErr.message)
       }
 
-      // 2. Transaction Audit History Log Entry
+      // 2. Transaction Audit History Log Entry (Corrected Net Paid Amount Calculation)
       await supabase
         .from('cashback_history')
         .insert({
@@ -596,7 +599,7 @@ export default function MerchantDashboardPage() {
           bill_amount: lastBillAmt,
           cashback_percentage: 0,
           cashback_amount: redeemedAmt,
-          net_paid_amount: lastBillAmt,
+          net_paid_amount: calculatedNetPaid, // கழித்த பின் உள்ள நிகர தொகை சேமிக்கப்படுகிறது
           transaction_type: 'REDEEMED',
           status: 'REDEEMED'
         })
@@ -719,7 +722,7 @@ export default function MerchantDashboardPage() {
             bill_amount: initialBillNum,
             cashback_percentage: cashbackPercentage,
             cashback_amount: cashbackAmount,
-            net_paid_amount: initialBillNum,
+            net_paid_amount: initialBillNum, // சாதாரண பில் சேர்க்கும் போது நிகர செலுத்தும் தொகை மூல பில் தொகையாகவே இருக்கும்
             transaction_type: 'BILL_ADDED',
             status: claimStatus
           })
