@@ -536,8 +536,8 @@ export default function CustomerWalletPage() {
     <div className="flex justify-center min-h-full bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
       <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen border-x border-slate-200/50 shadow-2xl">
         
-        {/* Header - Brand Name Fixed to RETCASH */}
-        <header className="sticky top-0 z-40 flex-shrink-0 bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 pt-4 pb-3.5 shadow-xs">
+        {/* Header - Fixed Solid Background & Elevation to prevent overlay issue */}
+        <header className="sticky top-0 z-40 flex-shrink-0 bg-white border-b border-slate-200/80 px-5 pt-4 pb-3.5 shadow-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img
@@ -623,12 +623,12 @@ export default function CustomerWalletPage() {
                 </div>
               </div>
 
-              {/* Interactive Search Bar */}
+              {/* Interactive Search Bar - Enhanced Contrast for Sunlight Visibility */}
               <div className="space-y-3">
                 <form onSubmit={handleSearchSubmit} className="relative">
                   <button
                     type="submit"
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#00875A] transition-colors cursor-pointer p-1"
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-[#00875A] transition-colors cursor-pointer p-1"
                     title="Search"
                   >
                     <Search size={16} />
@@ -643,7 +643,7 @@ export default function CustomerWalletPage() {
                       setSearchQuery(e.target.value)
                       setActiveSearch('')
                     }}
-                    className="w-full bg-white rounded-2xl pl-11 pr-10 py-3.5 text-sm text-slate-700 placeholder-slate-400 shadow-xs border border-slate-100 outline-none focus:ring-2 focus:ring-[#00875A]/20 transition"
+                    className="w-full bg-white rounded-2xl pl-11 pr-10 py-3.5 text-sm text-slate-800 font-medium placeholder-slate-500 shadow-xs border border-slate-200 outline-none focus:ring-2 focus:ring-[#00875A]/20 focus:border-[#00875A] transition"
                   />
                   {searchQuery && (
                     <button
@@ -652,7 +652,7 @@ export default function CustomerWalletPage() {
                         setSearchQuery('')
                         setActiveSearch('')
                       }}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors p-1"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
                     >
                       <X size={14} />
                     </button>
