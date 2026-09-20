@@ -51,9 +51,8 @@ export default function MerchantDashboardPage() {
   const [billAmount, setBillAmount] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  // IN-BILL REDEMPTION STATES
+  // CUSTOMER BALANCE CHECK STATE (READ-ONLY)
   const [existingCustomerClaim, setExistingCustomerClaim] = useState<CashbackClaim | null>(null)
-  const [redeemInBill, setRedeemInBill] = useState(false)
   const [isCheckingCustomer, setIsCheckingCustomer] = useState(false)
 
   // Navigation Tab State
@@ -167,7 +166,7 @@ export default function MerchantDashboardPage() {
     }
   }, [])
 
-  // CHECK CUSTOMER CASHBACK ON PHONE CHANGE
+  // CHECK CUSTOMER CASHBACK ON PHONE CHANGE (READ-ONLY)
   useEffect(() => {
     const cleanPhone = customerPhone.replace(/\D/g, '')
     if (cleanPhone.length >= 8 && merchantSession?.id) {
@@ -175,7 +174,6 @@ export default function MerchantDashboardPage() {
       checkCustomerExistingClaim(formatted)
     } else {
       setExistingCustomerClaim(null)
-      setRedeemInBill(false)
     }
   }, [customerPhone, merchantSession?.id])
 
@@ -190,12 +188,7 @@ export default function MerchantDashboardPage() {
         .eq('customer_phone', phoneNum)
         .maybeSingle()
 
-      if (data && Number(data.claimable_amount) > 0) {
-        setExistingCustomerClaim(data)
-      } else {
-        setExistingCustomerClaim(data || null)
-        setRedeemInBill(false)
-      }
+      setExistingCustomerClaim(data || null)
     } catch (err) {
       console.error('Error fetching customer balance:', err)
     } finally {
@@ -348,7 +341,6 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // PROFESSIONAL LOGO UPLOAD & OVERWRITE FUNCTIONALITY
   const handleUpdateLogo = async (file: File) => {
     if (!file || !merchantSession?.id) return
 
@@ -357,22 +349,18 @@ export default function MerchantDashboardPage() {
       const fileExt = file.name.split('.').pop() || 'png'
       const filePath = `store_${merchantSession.id}.${fileExt}`
 
-      // 1. Storage-இல் பழைய லோகோவை Overwrite செய்கிறது (upsert: true)
       const { error: uploadError } = await supabase.storage
         .from('store-logos')
         .upload(filePath, file, { upsert: true })
 
       if (uploadError) throw uploadError
 
-      // 2. புதிய படத்திற்கான Public URL-ஐ எடுக்கிறது
       const { data: urlData } = supabase.storage
         .from('store-logos')
         .getPublicUrl(filePath)
 
-      // Cache problem வராமல் இருக்க Timestamp சேர்க்கப்படுகிறது
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
 
-      // 3. Database-இல் logo_url-ஐ மட்டுமே சேமிக்கிறது
       const { error: dbError } = await supabase
         .from('stores')
         .update({ logo_url: publicUrl })
@@ -380,7 +368,6 @@ export default function MerchantDashboardPage() {
 
       if (dbError) throw dbError
 
-      // 4. Update Local Session State
       const updatedSession = { ...merchantSession, logo_url: publicUrl }
       setMerchantSession(updatedSession)
       localStorage.setItem('retcash_merchant', JSON.stringify(updatedSession))
@@ -575,7 +562,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // REDEMPTION EXECUTION (WITH NET_PAID_AMOUNT LOGGING)
+  // REDEMPTION EXECUTION VIA QR SCAN
   const executeRedeemReward = async () => {
     if (!scannedClaimData || actionLoading) return
 
@@ -583,9 +570,8 @@ export default function MerchantDashboardPage() {
     try {
       const redeemedAmt = Number(scannedClaimData.claimable_amount || 0)
       const lastBillAmt = Number(scannedClaimData.bill_amount || 0)
-      const calculatedNetPaid = Math.max(0, lastBillAmt - redeemedAmt)
 
-      // 1. Direct Supabase Update on the single ACTIVE claim record
+      // 1. Direct Supabase Update on the active claim record
       const { error: updateErr } = await supabase
         .from('cashback_claims')
         .update({
@@ -599,7 +585,7 @@ export default function MerchantDashboardPage() {
         throw new Error('Redemption DB Update Failed: ' + updateErr.message)
       }
 
-      // 2. Transaction Audit History Log Entry (INSERT WITH NET_PAID_AMOUNT)
+      // 2. Transaction Audit History Log Entry
       await supabase
         .from('cashback_history')
         .insert({
@@ -610,7 +596,7 @@ export default function MerchantDashboardPage() {
           bill_amount: lastBillAmt,
           cashback_percentage: 0,
           cashback_amount: redeemedAmt,
-          net_paid_amount: calculatedNetPaid,
+          net_paid_amount: lastBillAmt,
           transaction_type: 'REDEEMED',
           status: 'REDEEMED'
         })
@@ -632,7 +618,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // PROFESSIONAL BILLING GENERATION & TRANSACTION CREATION (WITH NET_PAID_AMOUNT LOGGING)
+  // CLEAN BILLING GENERATION & CASHBACK ADDITION
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -652,7 +638,7 @@ export default function MerchantDashboardPage() {
         return
       }
 
-      // 1. Retrieve or Insert customer ensuring store_id is updated
+      // 1. Retrieve or Insert customer
       let customerUuid: string | null = existingCustomerClaim?.customer_id || null
 
       const { data: existingCust } = await supabase
@@ -682,16 +668,7 @@ export default function MerchantDashboardPage() {
       }
 
       const existingAmount = existingCustomerClaim ? Number(existingCustomerClaim.claimable_amount || 0) : 0
-      
-      let redeemedAmount = 0
-      let finalBillToPay = initialBillNum
-
-      if (redeemInBill && existingAmount > 0) {
-        redeemedAmount = Math.min(initialBillNum, existingAmount)
-        finalBillToPay = Math.max(0, initialBillNum - redeemedAmount)
-      }
-
-      const cashbackAmount = Math.round(((finalBillToPay * cashbackPercentage) / 100) * 100) / 100
+      const cashbackAmount = Math.round(((initialBillNum * cashbackPercentage) / 100) * 100) / 100
 
       let newVisitCount = 1
       let totalClaimable = cashbackAmount
@@ -699,9 +676,7 @@ export default function MerchantDashboardPage() {
       if (existingCustomerClaim) {
         const currentVisits = existingCustomerClaim.visit_count || 0
         newVisitCount = currentVisits >= targetVisits ? 1 : currentVisits + 1
-        
-        const remainingAfterRedeem = existingAmount - redeemedAmount
-        totalClaimable = Math.round((remainingAfterRedeem + cashbackAmount) * 100) / 100
+        totalClaimable = Math.round((existingAmount + cashbackAmount) * 100) / 100
       }
 
       const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
@@ -732,7 +707,7 @@ export default function MerchantDashboardPage() {
 
       const claimId = upsertedData?.id
 
-      // 3. ALWAYS INSERT INTO CASHBACK_HISTORY (Audit History Entry WITH NET_PAID_AMOUNT)
+      // 3. LOG TO CASHBACK_HISTORY
       try {
         const { error: historyError } = await supabase
           .from('cashback_history')
@@ -744,8 +719,8 @@ export default function MerchantDashboardPage() {
             bill_amount: initialBillNum,
             cashback_percentage: cashbackPercentage,
             cashback_amount: cashbackAmount,
-            net_paid_amount: finalBillToPay,
-            transaction_type: redeemedAmount > 0 ? 'REDEEMED_IN_BILL' : 'BILL_ADDED',
+            net_paid_amount: initialBillNum,
+            transaction_type: 'BILL_ADDED',
             status: claimStatus
           })
 
@@ -760,16 +735,10 @@ export default function MerchantDashboardPage() {
       const cardLink = `${baseUrl}/card/${claimId}`
       const storeName = merchantSession?.store_name || 'RETCASH Partner'
 
-      let message = `🎉 *Retcash Rewards - ${storeName}*\n\n` +
+      const message = `🎉 *Retcash Rewards - ${storeName}*\n\n` +
         `உங்களின் வருகை வெற்றிகரமாகப் பதிவு செய்யப்பட்டுள்ளது! 📍\n\n` +
-        `🛍️ மொத்த பில் தொகை: *Rs. ${initialBillNum}*\n`
-
-      if (redeemedAmount > 0) {
-        message += `🎁 பயன்படுத்திய காஷ்பேக்: *- Rs. ${redeemedAmount}*\n` +
-          `💵 செலுத்திய நிகர தொகை: *Rs. ${finalBillToPay}*\n`
-      }
-
-      message += `💰 பெற்ற புதிய காஷ்பேக் (${cashbackPercentage}%): *Rs. ${cashbackAmount}*\n` +
+        `🛍️ மொத்த பில் தொகை: *Rs. ${initialBillNum}*\n` +
+        `💰 பெற்ற புதிய காஷ்பேக் (${cashbackPercentage}%): *Rs. ${cashbackAmount}*\n` +
         `⭐ வருகை எண்ணிக்கை (Visits): *${newVisitCount} / ${targetVisits}*\n\n` +
         `🎁 தற்போதைய மொத்த காஷ்பேக் இருப்பு (Balance): *Rs. ${totalClaimable}*\n\n` +
         `✨ தொடர்ந்து வருகை தந்து உங்களின் பிரத்யேக வெகுமதிகளைப் பெறுங்கள்!\n\n` +
@@ -780,7 +749,6 @@ export default function MerchantDashboardPage() {
       setCustomerPhone('')
       setBillAmount('')
       setExistingCustomerClaim(null)
-      setRedeemInBill(false)
       fetchStoreCustomers(storeId)
 
       const opened = window.open(whatsappUrl, '_blank')
@@ -823,10 +791,7 @@ export default function MerchantDashboardPage() {
   const filteredCustomers = customersList.filter(c => c.customer_phone.includes(customerSearchQuery))
   const totalClaimableSum = customersList.reduce((acc, curr) => acc + Number(curr.claimable_amount || 0), 0)
 
-  const billNum = parseFloat(billAmount) || 0
   const currentClaimable = existingCustomerClaim ? Number(existingCustomerClaim.claimable_amount || 0) : 0
-  const actualRedeemAmount = (redeemInBill && currentClaimable > 0) ? Math.min(billNum, currentClaimable) : 0
-  const finalToPay = Math.max(0, billNum - actualRedeemAmount)
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 font-sans selection:bg-[#00875A] selection:text-white">
@@ -955,11 +920,6 @@ export default function MerchantDashboardPage() {
             isCheckingCustomer={isCheckingCustomer}
             existingCustomerClaim={existingCustomerClaim}
             currentClaimable={currentClaimable}
-            redeemInBill={redeemInBill}
-            setRedeemInBill={setRedeemInBill}
-            billNum={billNum}
-            actualRedeemAmount={actualRedeemAmount}
-            finalToPay={finalToPay}
             customersList={customersList}
             totalClaimableSum={totalClaimableSum}
             handleGenerateCashback={handleGenerateCashback}

@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useState, useEffect, useRef } from 'react'
-import { MessageCircle, Phone, Gift, ChevronRight, QrCode, Users, WalletCards, Settings2, Search, CheckCircle2 } from 'lucide-react'
+import { MessageCircle, Phone, Gift, ChevronRight, QrCode, Users, WalletCards, Settings2, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface CashbackClaim {
@@ -22,11 +22,6 @@ interface QuickBillingSectionProps {
   isCheckingCustomer: boolean
   existingCustomerClaim: CashbackClaim | null
   currentClaimable: number
-  redeemInBill: boolean
-  setRedeemInBill: (val: boolean) => void
-  billNum: number
-  actualRedeemAmount: number
-  finalToPay: number
   customersList: CashbackClaim[]
   totalClaimableSum: number
   handleGenerateCashback: (e: FormEvent) => void
@@ -45,11 +40,6 @@ export default function QuickBillingSection({
   isCheckingCustomer,
   existingCustomerClaim,
   currentClaimable,
-  redeemInBill,
-  setRedeemInBill,
-  billNum,
-  actualRedeemAmount,
-  finalToPay,
   customersList,
   totalClaimableSum,
   handleGenerateCashback,
@@ -210,45 +200,18 @@ export default function QuickBillingSection({
             <p className="text-xs text-slate-400 animate-pulse">Checking customer balance...</p>
           )}
 
-          {/* Auto Cashback / Redeem Checkbox Display Card */}
+          {/* Customer Balance Info Display Box (Read-Only) */}
           {existingCustomerClaim && currentClaimable > 0 && (
-            <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Gift className="size-4 text-[#00875A] shrink-0" />
-                  <span className="text-xs font-extrabold text-slate-900">
-                    Available Balance: <span className="font-mono text-[#00875A]">Rs. {currentClaimable}</span>
-                  </span>
-                </div>
-
-                {/* Redeem Checkbox Option */}
-                <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={redeemInBill}
-                    onChange={(e) => setRedeemInBill(e.target.checked)}
-                    className="size-4 rounded border-slate-300 text-[#00875A] focus:ring-[#00875A] cursor-pointer"
-                  />
-                  <span className="text-xs font-bold text-[#00875A]">Redeem in this bill</span>
-                </label>
+            <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 flex items-center justify-between gap-2 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2">
+                <Gift className="size-4 text-[#00875A] shrink-0" />
+                <span className="text-xs font-extrabold text-slate-900">
+                  Available Cashback Balance: <span className="font-mono text-[#00875A]">Rs. {currentClaimable}</span>
+                </span>
               </div>
-
-              {redeemInBill && billNum > 0 && (
-                <div className="pt-2 border-t border-emerald-200/80 text-xs space-y-1 font-mono text-slate-600">
-                  <div className="flex justify-between">
-                    <span>Original Bill:</span>
-                    <span>Rs. {billNum.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-[#00875A] font-bold">
-                    <span>Cashback Discount:</span>
-                    <span>- Rs. {actualRedeemAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-900 font-black pt-1 border-t border-emerald-200">
-                    <span>Net Bill To Pay:</span>
-                    <span className="text-[#00875A]">Rs. {finalToPay.toFixed(2)}</span>
-                  </div>
-                </div>
-              )}
+              <span className="text-[10px] font-extrabold text-[#00875A] bg-emerald-100/70 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                Regular Customer
+              </span>
             </div>
           )}
 
