@@ -536,7 +536,7 @@ export default function CustomerWalletPage() {
     <div className="flex justify-center min-h-full bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
       <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen border-x border-slate-200/50 shadow-2xl">
         
-        {/* Header */}
+        {/* Header - Brand Name Fixed to RETCASH */}
         <header className="sticky top-0 z-40 flex-shrink-0 bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 pt-4 pb-3.5 shadow-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -546,8 +546,8 @@ export default function CustomerWalletPage() {
                 className="h-9 w-auto object-contain"
               />
               <div>
-                <span className="text-[16px] font-black tracking-tight text-slate-800 leading-none block">
-                  Red Cash
+                <span className="text-[16px] font-black tracking-tight text-slate-800 leading-none block uppercase">
+                  RETCASH
                 </span>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mt-0.5">
                   Loyalty Wallet
@@ -782,14 +782,14 @@ export default function CustomerWalletPage() {
                                 )}
                               </div>
 
-                              {/* Cashback Amount Display */}
+                              {/* Cashback Amount Display (✓ CLAIMED with Solid Black and Soft Grey Amount) */}
                               <div className="text-right flex-shrink-0">
                                 {store.isRedeemed ? (
                                   <div>
-                                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">
-                                      REDEEMED
+                                    <p className="text-[10px] text-black font-black uppercase tracking-wider flex items-center justify-end gap-1">
+                                      <span>✓</span> CLAIMED
                                     </p>
-                                    <p className="text-sm font-bold text-slate-400 line-through leading-tight mt-0.5">
+                                    <p className="text-sm font-bold text-slate-400 leading-tight mt-0.5">
                                       Rs. {Number(store.cashbackAmount || 0).toFixed(2)}
                                     </p>
                                   </div>
