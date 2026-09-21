@@ -44,9 +44,9 @@ export default function GlobalLandingPage() {
             <span className="group-hover:translate-x-1 transition-transform">→</span>
           </Link>
 
-          {/* Customer Portal */}
+          {/* Customer Portal (Updated to /customer) */}
           <Link 
-            href="/customer/login"
+            href="/customer"
             className="w-full bg-[#0B0E14] hover:bg-gray-900 text-gray-200 border border-gray-800 font-bold py-4 px-4 rounded-2xl text-sm transition duration-200 flex items-center justify-between group"
           >
             <div className="flex items-center gap-3">
