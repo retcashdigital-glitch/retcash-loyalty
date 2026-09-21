@@ -13,14 +13,28 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // 🔥 கூகுள் தேடலுக்கு உங்கள் டொமைன் பெயர் அவசியம் (உங்கள் உண்மையான URL-ஐ இடவும்)
+  metadataBase: new URL("https://retcashapp.com"), 
+
   title: "Retcash - Digital Loyalty Card",
   description: "Track your visits and unlock exclusive cashback rewards.",
+  
+  // 🔥 பிரவுசர் மற்றும் கூகுள் ஃபாவிகானுக்கான ஐகான் அமைப்புகள்
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/logo.png", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/logo.png",
+  },
+
   openGraph: {
     title: "Retcash - Digital Loyalty Card",
     description: "Track your visits and unlock exclusive cashback rewards.",
     images: [
       {
-        url: "/logo.jpeg",
+        url: "/logo.png",
         width: 1200,
         height: 630,
         alt: "Retcash Logo",
