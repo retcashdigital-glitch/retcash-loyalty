@@ -8,10 +8,9 @@ import {
   ShieldCheck, 
   Sparkles, 
   CheckCircle2, 
-  Zap, 
-  TrendingUp, 
-  Users, 
-  QrCode 
+  QrCode,
+  Calendar,
+  Gift
 } from 'lucide-react'
 
 export default function HomePage() {
@@ -71,9 +70,9 @@ export default function HomePage() {
           {/* Left Column - Main Pitch */}
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
             <div className="inline-flex items-center gap-2 bg-[#ECFDF5] border border-emerald-200/80 px-3.5 py-1.5 rounded-full">
-              <Sparkles size={14} className="text-[#00875A]" />
+              <Gift size={14} className="text-[#00875A]" />
               <span className="text-xs font-bold text-[#00875A] uppercase tracking-wider">
-                Next-Gen Customer Loyalty System
+                Start with 30-Day Unlimited Free Trial
               </span>
             </div>
 
@@ -151,80 +150,99 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 3. MERCHANT SUBSCRIPTION PLANS */}
+      {/* 3. MERCHANT SUBSCRIPTION PLANS (Updated to 2 Plans) */}
       <section className="bg-slate-100/70 border-y border-slate-200/80 py-12 sm:py-16 px-4 sm:px-8">
-        <div className="max-w-6xl mx-auto space-y-10">
+        <div className="max-w-5xl mx-auto space-y-10">
           
           <div className="text-center space-y-2 max-w-xl mx-auto">
             <span className="text-xs font-extrabold text-[#00875A] uppercase tracking-wider bg-[#ECFDF5] px-3 py-1 rounded-full border border-emerald-200/60">
               Merchant Plans
             </span>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900">
-              Simple Pricing for Every Business
+              Start Free for 30 Days
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 font-medium">
-              Choose the right plan to power your store loyalty program and boost revenue.
+              Enjoy full feature access for 1 month completely free. Choose your plan after trial.
             </p>
           </div>
 
-          {/* Pricing Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Pricing Cards Grid - 2 Plans */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             
-            {/* Starter Plan */}
+            {/* Monthly Plan */}
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-800">Starter</h3>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">Ideal for small single stores</p>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-800">Monthly Pass</h3>
+                    <p className="text-xs text-slate-400 font-medium mt-0.5">Flexible month-to-month billing</p>
+                  </div>
+                  <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">
+                    Standard
+                  </span>
                 </div>
                 <div className="text-3xl font-black text-slate-900">
-                  Rs. 0 <span className="text-xs font-semibold text-slate-400">/ month</span>
+                  Rs. 990 <span className="text-xs font-semibold text-slate-400">/ month</span>
                 </div>
-                <ul className="space-y-2.5 text-xs text-slate-600 font-medium pt-2">
+                <p className="text-[11px] text-emerald-700 font-bold bg-[#ECFDF5] px-3 py-1.5 rounded-xl inline-block">
+                  ✓ First 30 Days Free Trial Included
+                </p>
+                <ul className="space-y-2.5 text-xs text-slate-600 font-medium pt-1">
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> Up to 100 Customers
+                    <CheckCircle2 size={14} className="text-[#00875A]" /> Unlimited Customers
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> Basic Visit Stamp Tracker
+                    <CheckCircle2 size={14} className="text-[#00875A]" /> WhatsApp Click-to-Chat Pass
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> Digital QR Pass
+                    <CheckCircle2 size={14} className="text-[#00875A]" /> Visit Stamp & Cashback Tracker
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 size={14} className="text-[#00875A]" /> Store Offers & Banner Manager
                   </li>
                 </ul>
               </div>
               <Link
                 href="/merchant/login"
-                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs py-3 rounded-2xl text-center transition block"
+                className="w-full bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs py-3 rounded-2xl text-center transition block"
               >
-                Get Started Free
+                Start 30-Day Free Trial
               </Link>
             </div>
 
-            {/* Pro Plan - Highlighted */}
+            {/* Yearly Plan - Highlighted Best Value */}
             <div className="bg-white rounded-3xl p-6 shadow-md border-2 border-[#00875A] relative flex flex-col justify-between space-y-6">
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#00875A] text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-xs">
-                Most Popular
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#00875A] text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
+                <Sparkles size={11} /> Best Value (Save 33%)
               </div>
               <div className="space-y-4 pt-1">
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-800">Pro Merchant</h3>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">For growing retail shops & cafes</p>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-800">Annual Pass</h3>
+                    <p className="text-xs text-slate-400 font-medium mt-0.5">Pay yearly & get maximum savings</p>
+                  </div>
+                  <span className="text-[10px] font-bold bg-[#ECFDF5] text-[#00875A] px-2.5 py-1 rounded-full border border-emerald-200">
+                    4 Months Free
+                  </span>
                 </div>
                 <div className="text-3xl font-black text-slate-900">
-                  Rs. 2,990 <span className="text-xs font-semibold text-slate-400">/ month</span>
+                  Rs. 7,900 <span className="text-xs font-semibold text-slate-400">/ year</span>
                 </div>
-                <ul className="space-y-2.5 text-xs text-slate-600 font-medium pt-2">
+                <p className="text-[11px] text-emerald-700 font-bold bg-[#ECFDF5] px-3 py-1.5 rounded-xl inline-block">
+                  ✓ Equivalent to Rs. 658 / month
+                </p>
+                <ul className="space-y-2.5 text-xs text-slate-600 font-medium pt-1">
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> Unlimited Customers
+                    <CheckCircle2 size={14} className="text-[#00875A]" /> Everything in Monthly Pass
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> Automated Cashback Engine
+                    <CheckCircle2 size={14} className="text-[#00875A]" /> Unlimited Customers & Visits
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> Store Offers & Deals Banner
+                    <CheckCircle2 size={14} className="text-[#00875A]" /> Save Rs. 3,980 per year
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> Detailed Customer Analytics
+                    <CheckCircle2 size={14} className="text-[#00875A]" /> Priority Merchant Support
                   </li>
                 </ul>
               </div>
@@ -232,37 +250,7 @@ export default function HomePage() {
                 href="/merchant/login"
                 className="w-full bg-[#00875A] hover:bg-emerald-700 text-white font-extrabold text-xs py-3 rounded-2xl text-center transition shadow-sm block"
               >
-                Start 14-Day Free Trial
-              </Link>
-            </div>
-
-            {/* Enterprise Plan */}
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-800">Enterprise</h3>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">For multi-branch retail chains</p>
-                </div>
-                <div className="text-3xl font-black text-slate-900">
-                  Custom
-                </div>
-                <ul className="space-y-2.5 text-xs text-slate-600 font-medium pt-2">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> Multi-Branch Management
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> Custom POS System Integration
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> Dedicated Account Manager
-                  </li>
-                </ul>
-              </div>
-              <Link
-                href="/merchant/login"
-                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs py-3 rounded-2xl text-center transition block"
-              >
-                Contact Sales
+                Get Started with Free Trial
               </Link>
             </div>
 
