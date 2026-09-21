@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode'
-import { MessageCircle, Upload, Users, CheckCircle2, X, Trash2 } from 'lucide-react'
+import { MessageCircle, Upload, Users, CheckCircle2, X, Trash2, Receipt } from 'lucide-react'
 
 // Sub-components Import
 import DashboardHeader from './components/DashboardHeader'
@@ -588,7 +588,7 @@ export default function MerchantDashboardPage() {
         throw new Error('Redemption DB Update Failed: ' + updateErr.message)
       }
 
-      // 2. Transaction Audit History Log Entry (Corrected Net Paid Amount Calculation)
+      // 2. Transaction Audit History Log Entry
       await supabase
         .from('cashback_history')
         .insert({
@@ -599,7 +599,7 @@ export default function MerchantDashboardPage() {
           bill_amount: lastBillAmt,
           cashback_percentage: 0,
           cashback_amount: redeemedAmt,
-          net_paid_amount: calculatedNetPaid, // கழித்த பின் உள்ள நிகர தொகை சேமிக்கப்படுகிறது
+          net_paid_amount: calculatedNetPaid,
           transaction_type: 'REDEEMED',
           status: 'REDEEMED'
         })
@@ -722,7 +722,7 @@ export default function MerchantDashboardPage() {
             bill_amount: initialBillNum,
             cashback_percentage: cashbackPercentage,
             cashback_amount: cashbackAmount,
-            net_paid_amount: initialBillNum, // சாதாரண பில் சேர்க்கும் போது நிகர செலுத்தும் தொகை மூல பில் தொகையாகவே இருக்கும்
+            net_paid_amount: initialBillNum,
             transaction_type: 'BILL_ADDED',
             status: claimStatus
           })
@@ -838,20 +838,43 @@ export default function MerchantDashboardPage() {
         </div>
       )}
 
+      {/* 🌟 NEW RECEIPT BREAKDOWN CONFIRMATION MODAL 🌟 */}
       {showRedeemConfirmModal && scannedClaimData && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-xs w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95 relative z-10">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95 relative z-10">
             <div className="w-12 h-12 bg-emerald-50 text-[#00875A] rounded-full flex items-center justify-center mx-auto text-xl font-bold border border-emerald-200">
               <CheckCircle2 className="size-6" />
             </div>
-            <div className="space-y-2">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Confirm Redemption</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Have you handed over the reward to customer (<span className="font-mono font-semibold">{scannedClaimData.customer_phone}</span>)? 
-                The balance of <span className="font-bold text-[#00875A]">Rs. {scannedClaimData.claimable_amount}</span> will be reset to zero.
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Confirm Reward Redemption</h3>
+              <p className="text-xs text-slate-500">
+                Customer: <span className="font-mono font-bold text-slate-800">{scannedClaimData.customer_phone}</span>
               </p>
             </div>
-            <div className="flex gap-2 pt-2 relative z-20">
+
+            {/* RECEIPT CARD FOR MERCHANT */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5 text-left">
+              <div className="flex justify-between items-center text-xs text-slate-600 pb-1 border-b border-slate-200 font-semibold">
+                <span className="flex items-center gap-1"><Receipt className="size-3.5 text-[#00875A]" /> RECEIPT SUMMARY</span>
+                <span className="bg-emerald-100 text-[#00875A] text-[10px] px-2 py-0.5 rounded-full font-bold">REDEEMING</span>
+              </div>
+              <div className="flex justify-between text-xs text-slate-600">
+                <span>Original Bill Amount</span>
+                <span className="font-bold text-slate-900 font-mono">Rs. {Number(scannedClaimData.bill_amount || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-red-600 font-medium">
+                <span>Cashback Discount</span>
+                <span className="font-bold font-mono">- Rs. {Number(scannedClaimData.claimable_amount || 0).toFixed(2)}</span>
+              </div>
+              <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
+                <span className="text-xs font-extrabold text-slate-800 uppercase">Collect From Customer</span>
+                <span className="text-base font-black text-[#00875A] font-mono">
+                  Rs. {Math.max(0, Number(scannedClaimData.bill_amount || 0) - Number(scannedClaimData.claimable_amount || 0)).toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1 relative z-20">
               <button
                 type="button"
                 onClick={() => setShowRedeemConfirmModal(false)}
@@ -988,24 +1011,44 @@ export default function MerchantDashboardPage() {
             {scanMode === 'PHONE' ? (
               <p className="text-xs text-slate-500">Point your camera at the customer's QR code to read their phone number.</p>
             ) : scannedClaimData ? (
-              <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-200 text-xs space-y-2 text-left">
+              <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-200 text-xs space-y-3 text-left">
                 <div className="flex justify-between text-[11px] text-[#00875A] font-extrabold">
                   <span><CheckCircle2 className="inline size-3.5 mr-1" /> QR Verified</span>
                   <span>{scannedClaimData.visit_count} / {targetVisits} Visits</span>
                 </div>
-                <p className="text-slate-600">Phone: <span className="font-mono text-slate-900 font-bold">{scannedClaimData.customer_phone}</span></p>
-                <p className="text-slate-600">Reward Balance: <span className="font-black text-[#00875A]">Rs. {scannedClaimData.claimable_amount}</span></p>
+
+                {/* 🌟 SCANNED RECEIPT PREVIEW CARD 🌟 */}
+                <div className="bg-white rounded-xl p-3 border border-slate-200 space-y-1.5 shadow-xs">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Phone:</span>
+                    <span className="font-mono text-slate-900 font-bold">{scannedClaimData.customer_phone}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Original Bill:</span>
+                    <span className="font-mono font-semibold text-slate-900">Rs. {Number(scannedClaimData.bill_amount || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-red-600 font-medium">
+                    <span>Discount Balance:</span>
+                    <span className="font-mono font-bold">- Rs. {Number(scannedClaimData.claimable_amount || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="pt-1.5 border-t border-slate-100 flex justify-between font-extrabold text-slate-900">
+                    <span>Collect From Customer:</span>
+                    <span className="text-[#00875A] font-mono font-black">
+                      Rs. {Math.max(0, Number(scannedClaimData.bill_amount || 0) - Number(scannedClaimData.claimable_amount || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
 
                 {Number(scannedClaimData.claimable_amount) > 0 ? (
                   <button
                     onClick={() => setShowRedeemConfirmModal(true)}
                     disabled={actionLoading}
-                    className="w-full bg-[#00875A] hover:bg-[#00704a] text-white font-extrabold py-2.5 rounded-xl text-xs mt-2 transition cursor-pointer shadow-md shadow-[#00875A]/20 flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-98 pointer-events-auto"
+                    className="w-full bg-[#00875A] hover:bg-[#00704a] text-white font-extrabold py-2.5 rounded-xl text-xs transition cursor-pointer shadow-md shadow-[#00875A]/20 flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-98 pointer-events-auto"
                   >
                     🎁 Redeem Reward & Clear Cashback
                   </button>
                 ) : (
-                  <p className="text-slate-400 text-[11px] italic">Reward balance is 0 for this customer.</p>
+                  <p className="text-slate-400 text-[11px] italic text-center">Reward balance is 0 for this customer.</p>
                 )}
               </div>
             ) : (
