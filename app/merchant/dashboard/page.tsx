@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode'
-import { MessageCircle, Upload, Users, CheckCircle2, X, Trash2, Receipt, AlertTriangle, Lock, ShieldCheck, WalletCards, Check, Clock, FileCheck, Image as ImageIcon } from 'lucide-react'
+import { MessageCircle, Upload, Users, CheckCircle2, X, Trash2, Receipt, AlertTriangle, Lock, ShieldCheck, WalletCards, Check, Clock, FileCheck, Image as ImageIcon, RotateCcw } from 'lucide-react'
 
 // Sub-components Import
 import DashboardHeader from './components/DashboardHeader'
@@ -67,7 +67,8 @@ export default function MerchantDashboardPage() {
   const [transactionRef, setTransactionRef] = useState('')
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
   const [isPendingVerification, setIsPendingVerification] = useState(false)
-  const [uploadedReceiptUrl, setUploadedReceiptUrl] = useState<string | null>(null) // 🌟 ADDED FOR WHATSAPP IMAGE PREVIEW
+  const [uploadedReceiptUrl, setUploadedReceiptUrl] = useState<string | null>(null)
+  const [isCancellingPayment, setIsCancellingPayment] = useState(false)
 
   // CUSTOMER BALANCE CHECK STATE (READ-ONLY)
   const [existingCustomerClaim, setExistingCustomerClaim] = useState<CashbackClaim | null>(null)
@@ -219,13 +220,41 @@ export default function MerchantDashboardPage() {
       if (data) {
         setIsPendingVerification(true)
         if (data.receipt_url) {
-          setUploadedReceiptUrl(data.receipt_url) // Retain uploaded receipt URL if pending
+          setUploadedReceiptUrl(data.receipt_url)
         }
       } else {
         setIsPendingVerification(false)
       }
     } catch (err) {
       console.error('Error checking payment status:', err)
+    }
+  }
+
+  // 🌟 CANCEL PENDING PAYMENT REQUEST (TO RE-UPLOAD)
+  const handleCancelPaymentRequest = async () => {
+    if (!merchantSession?.id) return
+
+    setIsCancellingPayment(true)
+    try {
+      const { error } = await supabase
+        .from('payment_requests')
+        .update({ status: 'CANCELLED' })
+        .eq('store_id', merchantSession.id)
+        .eq('status', 'PENDING')
+
+      if (error) throw error
+
+      setIsPendingVerification(false)
+      setUploadedReceiptUrl(null)
+      setReceiptFile(null)
+      setTransactionRef('')
+      showToast('success', 'Previous request cancelled. You can upload a new receipt.')
+    } catch (err: unknown) {
+      console.error('Error cancelling payment request:', err)
+      const msg = err instanceof Error ? err.message : 'Failed to cancel request'
+      showToast('error', msg)
+    } finally {
+      setIsCancellingPayment(false)
     }
   }
 
@@ -259,7 +288,7 @@ export default function MerchantDashboardPage() {
         .getPublicUrl(filePath)
 
       const receiptPublicUrl = urlData.publicUrl
-      setUploadedReceiptUrl(receiptPublicUrl) // Save image URL for WhatsApp link
+      setUploadedReceiptUrl(receiptPublicUrl)
 
       // 3. Insert record into payment_requests table
       const { error: dbErr } = await supabase
@@ -943,7 +972,7 @@ export default function MerchantDashboardPage() {
             
             {/* ⌛ IF VERIFICATION IS PENDING */}
             {isPendingVerification ? (
-              <div className="space-y-6 py-4">
+              <div className="space-y-6 py-2">
                 <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto border border-amber-200 shadow-sm animate-pulse">
                   <Clock className="size-8" />
                 </div>
@@ -987,6 +1016,18 @@ export default function MerchantDashboardPage() {
                     <MessageCircle size={18} />
                     <span>Send Reminder via WhatsApp</span>
                   </a>
+
+                  {/* 🌟 CANCEL AND RE-UPLOAD RECEIPT BUTTON */}
+                  <button
+                    type="button"
+                    onClick={handleCancelPaymentRequest}
+                    disabled={isCancellingPayment}
+                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-2xl text-xs transition border border-slate-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <RotateCcw size={14} />
+                    <span>{isCancellingPayment ? 'Cancelling...' : 'Cancel Request & Re-upload Receipt'}</span>
+                  </button>
+
                   <button
                     onClick={handleLogout}
                     className="text-xs text-slate-400 hover:text-slate-600 font-semibold transition py-1 cursor-pointer block mx-auto"
