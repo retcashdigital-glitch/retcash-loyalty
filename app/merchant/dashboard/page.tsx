@@ -571,7 +571,6 @@ export default function MerchantDashboardPage() {
       const redeemedAmt = Number(scannedClaimData.claimable_amount || 0)
       const lastBillAmt = Number(scannedClaimData.bill_amount || 0)
 
-      // நெட் செலுத்திய தொகையைக் கணக்கிடுதல் (பில் தொகை - தள்ளுபடி தொகை)
       const calculatedNetPaid = Math.max(0, Math.round((lastBillAmt - redeemedAmt) * 100) / 100)
 
       // 1. Direct Supabase Update on the active claim record
@@ -738,14 +737,13 @@ export default function MerchantDashboardPage() {
       const cardLink = `${baseUrl}/card/${claimId}`
       const storeName = merchantSession?.store_name || 'RETCASH Partner'
 
-      const message = `🎉 *Retcash Rewards - ${storeName}*\n\n` +
-        `உங்களின் வருகை வெற்றிகரமாகப் பதிவு செய்யப்பட்டுள்ளது! 📍\n\n` +
-        `🛍️ மொத்த பில் தொகை: *Rs. ${initialBillNum}*\n` +
-        `💰 பெற்ற புதிய காஷ்பேக் (${cashbackPercentage}%): *Rs. ${cashbackAmount}*\n` +
-        `⭐ வருகை எண்ணிக்கை (Visits): *${newVisitCount} / ${targetVisits}*\n\n` +
-        `🎁 தற்போதைய மொத்த காஷ்பேக் இருப்பு (Balance): *Rs. ${totalClaimable}*\n\n` +
-        `✨ தொடர்ந்து வருகை தந்து உங்களின் பிரத்யேக வெகுமதிகளைப் பெறுங்கள்!\n\n` +
-        `👉 உங்களின் டிஜிட்டல் கார்டு, நேரலை இருப்பு (Live Balance) மற்றும் காஷ்பேக் விவரங்களைக் காண கீழே உள்ள லிங்கை அழுத்தவும்:\n${cardLink}`
+      // 🌟 NEW OPTIMIZED HIGH-CTR WHATSAPP MESSAGE 🌟
+      const message = `🎉 *Visit Confirmed at ${storeName}!*\n\n` +
+        `You've earned cashback rewards on your bill of *Rs. ${initialBillNum}*.\n\n` +
+        `⭐ Progress: *${newVisitCount} / ${targetVisits} Visits Completed*\n` +
+        `🎁 Cashback Pass Updated!\n\n` +
+        `👇 *Tap to check your balance & unlock rewards:*\n` +
+        `${cardLink}`
 
       const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${encodeURIComponent(message)}`
 
@@ -838,7 +836,7 @@ export default function MerchantDashboardPage() {
         </div>
       )}
 
-      {/* 🌟 NEW RECEIPT BREAKDOWN CONFIRMATION MODAL 🌟 */}
+      {/* RECEIPT BREAKDOWN CONFIRMATION MODAL */}
       {showRedeemConfirmModal && scannedClaimData && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95 relative z-10">
@@ -1017,7 +1015,6 @@ export default function MerchantDashboardPage() {
                   <span>{scannedClaimData.visit_count} / {targetVisits} Visits</span>
                 </div>
 
-                {/* 🌟 SCANNED RECEIPT PREVIEW CARD 🌟 */}
                 <div className="bg-white rounded-xl p-3 border border-slate-200 space-y-1.5 shadow-xs">
                   <div className="flex justify-between text-slate-600">
                     <span>Phone:</span>
