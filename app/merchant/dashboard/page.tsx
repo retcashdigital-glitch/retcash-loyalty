@@ -67,6 +67,7 @@ export default function MerchantDashboardPage() {
   const [transactionRef, setTransactionRef] = useState('')
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
   const [isPendingVerification, setIsPendingVerification] = useState(false)
+  const [uploadedReceiptUrl, setUploadedReceiptUrl] = useState<string | null>(null) // 🌟 ADDED FOR WHATSAPP IMAGE PREVIEW
 
   // CUSTOMER BALANCE CHECK STATE (READ-ONLY)
   const [existingCustomerClaim, setExistingCustomerClaim] = useState<CashbackClaim | null>(null)
@@ -217,6 +218,9 @@ export default function MerchantDashboardPage() {
 
       if (data) {
         setIsPendingVerification(true)
+        if (data.receipt_url) {
+          setUploadedReceiptUrl(data.receipt_url) // Retain uploaded receipt URL if pending
+        }
       } else {
         setIsPendingVerification(false)
       }
@@ -255,6 +259,7 @@ export default function MerchantDashboardPage() {
         .getPublicUrl(filePath)
 
       const receiptPublicUrl = urlData.publicUrl
+      setUploadedReceiptUrl(receiptPublicUrl) // Save image URL for WhatsApp link
 
       // 3. Insert record into payment_requests table
       const { error: dbErr } = await supabase
@@ -912,7 +917,7 @@ export default function MerchantDashboardPage() {
 
   const currentClaimable = existingCustomerClaim ? Number(existingCustomerClaim.claimable_amount || 0) : 0
 
-  // 🌟 DYNAMIC WHATSAPP MESSAGE GENERATOR FOR RENEWAL 🌟
+  // 🌟 DYNAMIC WHATSAPP MESSAGE GENERATOR FOR RENEWAL (INCLUDES RECEIPT IMAGE LINK) 🌟
   const planDetails = selectedPlan === 'YEARLY' 
     ? { title: 'Annual Pass', price: 'Rs. 7,900 / Year' } 
     : { title: 'Monthly Pass', price: 'Rs. 990 / Month' }
@@ -923,8 +928,9 @@ export default function MerchantDashboardPage() {
     `🏪 *Store Name:* ${merchantSession.store_name}\n` +
     `🆔 *Store ID:* ${merchantSession.id}\n` +
     `💳 *Selected Plan:* ${planDetails.title} (${planDetails.price})\n` +
-    `🔢 *Ref No:* ${transactionRef || 'N/A'}\n\n` +
-    `Please verify and activate my account.`
+    `🔢 *Ref No:* ${transactionRef || 'N/A'}\n` +
+    (uploadedReceiptUrl ? `\n🧾 *Receipt Photo:* ${uploadedReceiptUrl}\n` : '') +
+    `\nPlease verify and activate my account.`
   )
 
   return (
@@ -1267,7 +1273,7 @@ export default function MerchantDashboardPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-5 sm:py-8 lg:px-8 lg:py-10">
         
-        {/* ⚠️ 5-DAY WARNING BANNER FOR FREE TRIAL EXpIRY */}
+        {/* ⚠️ 5-DAY WARNING BANNER FOR FREE TRIAL EXPIRED */}
         {!isTrialExpired && daysRemainingInTrial !== null && daysRemainingInTrial <= 7 && (
           <div className="mb-6 bg-amber-50 border border-amber-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
             <div className="flex items-center gap-3">
