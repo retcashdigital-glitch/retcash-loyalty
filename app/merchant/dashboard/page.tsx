@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode'
-import { MessageCircle, Upload, Users, CheckCircle2, X, Trash2, Receipt, AlertTriangle, Lock, ShieldCheck, WalletCards, Check } from 'lucide-react'
+import { MessageCircle, Upload, Users, CheckCircle2, X, Trash2, Receipt, AlertTriangle, Lock, ShieldCheck, WalletCards, Check, Clock, FileCheck, Image as ImageIcon } from 'lucide-react'
 
 // Sub-components Import
 import DashboardHeader from './components/DashboardHeader'
@@ -46,7 +46,7 @@ interface Offer {
   created_at: string
 }
 
-// 🇱🇰 ADMIN / SUPPORT PHONE NUMBER (உங்கள் வாட்ஸ்அப் எண்ணை இங்கே மாற்றவும்)
+// 🇱🇰 ADMIN / SUPPORT PHONE NUMBER
 const ADMIN_WHATSAPP_NUMBER = '94750957336' 
 
 export default function MerchantDashboardPage() {
@@ -61,8 +61,12 @@ export default function MerchantDashboardPage() {
   const [isTrialExpired, setIsTrialExpired] = useState(false)
   const [daysRemainingInTrial, setDaysRemainingInTrial] = useState<number | null>(null)
   
-  // 🌟 NEW: SELECTED PLAN STATE FOR MANUAL PAYMENTS
+  // 🌟 MANUAL PAYMENT & RECEIPT UPLOAD STATES
   const [selectedPlan, setSelectedPlan] = useState<'MONTHLY' | 'YEARLY'>('YEARLY')
+  const [receiptFile, setReceiptFile] = useState<File | null>(null)
+  const [transactionRef, setTransactionRef] = useState('')
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
+  const [isPendingVerification, setIsPendingVerification] = useState(false)
 
   // CUSTOMER BALANCE CHECK STATE (READ-ONLY)
   const [existingCustomerClaim, setExistingCustomerClaim] = useState<CashbackClaim | null>(null)
@@ -161,6 +165,9 @@ export default function MerchantDashboardPage() {
             setMerchantSession(verifiedSession)
             localStorage.setItem('retcash_merchant', JSON.stringify(verifiedSession))
 
+            // Check if there is any pending payment verification for this store
+            checkPendingPaymentStatus(realStore.id)
+
             // Check Subscription / Trial Status Logic
             const now = new Date()
             const trialEnd = realStore.trial_ends_at ? new Date(realStore.trial_ends_at) : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
@@ -197,6 +204,85 @@ export default function MerchantDashboardPage() {
       stopScannerInstance()
     }
   }, [])
+
+  // CHECK PENDING PAYMENT REQUEST
+  const checkPendingPaymentStatus = async (storeId: string) => {
+    try {
+      const { data } = await supabase
+        .from('payment_requests')
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('status', 'PENDING')
+        .maybeSingle()
+
+      if (data) {
+        setIsPendingVerification(true)
+      } else {
+        setIsPendingVerification(false)
+      }
+    } catch (err) {
+      console.error('Error checking payment status:', err)
+    }
+  }
+
+  // 🌟 UPLOAD RECEIPT & SAVE PAYMENT REQUEST TO DATABASE
+  const handlePaymentSubmission = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!receiptFile || !merchantSession?.id) {
+      showToast('error', 'Please attach your payment receipt photo.')
+      return
+    }
+
+    setIsSubmittingPayment(true)
+    try {
+      const amount = selectedPlan === 'YEARLY' ? 7900 : 990
+      const planType = selectedPlan.toLowerCase()
+      const fileExt = receiptFile.name.split('.').pop() || 'png'
+      const filePath = `receipts/${merchantSession.id}_${Date.now()}.${fileExt}`
+
+      // 1. Upload receipt image to Supabase Storage
+      const { error: uploadErr } = await supabase.storage
+        .from('payment-receipts')
+        .upload(filePath, receiptFile)
+
+      if (uploadErr) {
+        throw new Error('Failed to upload receipt file: ' + uploadErr.message)
+      }
+
+      // 2. Get Public URL of the uploaded receipt
+      const { data: urlData } = supabase.storage
+        .from('payment-receipts')
+        .getPublicUrl(filePath)
+
+      const receiptPublicUrl = urlData.publicUrl
+
+      // 3. Insert record into payment_requests table
+      const { error: dbErr } = await supabase
+        .from('payment_requests')
+        .insert({
+          store_id: merchantSession.id,
+          plan_type: planType,
+          amount: amount,
+          receipt_url: receiptPublicUrl,
+          transaction_ref: transactionRef || null,
+          status: 'PENDING'
+        })
+
+      if (dbErr) {
+        throw new Error('Failed to log payment request: ' + dbErr.message)
+      }
+
+      setIsPendingVerification(true)
+      showToast('success', 'Receipt uploaded! Approval pending.')
+
+    } catch (err: unknown) {
+      console.error('Payment Submission Error:', err)
+      const msg = err instanceof Error ? err.message : 'Error submitting receipt'
+      showToast('error', msg)
+    } finally {
+      setIsSubmittingPayment(false)
+    }
+  }
 
   // CHECK CUSTOMER CASHBACK ON PHONE CHANGE (READ-ONLY)
   useEffect(() => {
@@ -833,129 +919,226 @@ export default function MerchantDashboardPage() {
 
   const renewalMessage = encodeURIComponent(
     `Hello RETCASH Support,\n\n` +
-    `I would like to renew the subscription for my store:\n\n` +
+    `I have uploaded my payment receipt for subscription renewal:\n\n` +
     `🏪 *Store Name:* ${merchantSession.store_name}\n` +
     `🆔 *Store ID:* ${merchantSession.id}\n` +
-    `💳 *Selected Plan:* ${planDetails.title} (${planDetails.price})\n\n` +
-    `I have attached my payment receipt/bank transfer slip to this message. Please verify and reactivate my account.`
+    `💳 *Selected Plan:* ${planDetails.title} (${planDetails.price})\n` +
+    `🔢 *Ref No:* ${transactionRef || 'N/A'}\n\n` +
+    `Please verify and activate my account.`
   )
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 font-sans selection:bg-[#00875A] selection:text-white relative">
       
-      {/* 🛑 30-DAY FREE TRIAL EXPIRED OVERLAY (UPDATED PLAN SELECTION & DIRECT WHATSAPP) */}
+      {/* 🛑 30-DAY FREE TRIAL EXPIRED OVERLAY (WITH DIRECT RECEIPT UPLOAD) */}
       {isTrialExpired && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl text-center space-y-6 my-auto animate-in fade-in zoom-in-95">
             
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto border border-red-100 shadow-sm">
-              <Lock className="size-8" />
-            </div>
+            {/* ⌛ IF VERIFICATION IS PENDING */}
+            {isPendingVerification ? (
+              <div className="space-y-6 py-4">
+                <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto border border-amber-200 shadow-sm animate-pulse">
+                  <Clock className="size-8" />
+                </div>
 
-            <div className="space-y-2">
-              <span className="text-[11px] font-black tracking-wider text-red-600 uppercase bg-red-50 px-3 py-1 rounded-full border border-red-100">
-                Action Required
-              </span>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-                30-Day Free Trial Expired
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
-                Your free trial for <strong className="text-slate-800">{merchantSession.store_name}</strong> has ended. Select a plan below and send payment slip via WhatsApp to unlock instant access.
-              </p>
-            </div>
-
-            {/* 1️⃣ SELECT PLAN OPTIONS */}
-            <div className="space-y-2 text-left">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">1. Choose Your Plan:</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedPlan('MONTHLY')}
-                  className={`p-3.5 rounded-2xl border text-left transition relative cursor-pointer ${
-                    selectedPlan === 'MONTHLY'
-                      ? 'border-[#00875A] bg-emerald-50/50 text-slate-900 shadow-sm ring-1 ring-[#00875A]'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  {selectedPlan === 'MONTHLY' && (
-                    <span className="absolute top-2.5 right-2.5 w-4 h-4 bg-[#00875A] text-white rounded-full flex items-center justify-center text-[10px]">
-                      <Check size={10} />
-                    </span>
-                  )}
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Monthly Pass</p>
-                  <p className="text-base font-black text-slate-900 mt-1">Rs. 990</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Billed monthly</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedPlan('YEARLY')}
-                  className={`p-3.5 rounded-2xl border text-left transition relative cursor-pointer ${
-                    selectedPlan === 'YEARLY'
-                      ? 'border-[#00875A] bg-emerald-50/50 text-slate-900 shadow-sm ring-1 ring-[#00875A]'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  <span className="bg-amber-100 text-amber-800 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md uppercase tracking-wider absolute top-2 right-2">
-                    Best Value
+                <div className="space-y-2">
+                  <span className="text-[11px] font-black tracking-wider text-amber-700 uppercase bg-amber-100/60 px-3 py-1 rounded-full border border-amber-200">
+                    Verification Pending
                   </span>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Annual Pass</p>
-                  <p className="text-base font-black text-[#00875A] mt-1">Rs. 7,900</p>
-                  <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Save 33% per year</p>
-                </button>
-              </div>
-            </div>
-
-            {/* 2️⃣ BANK TRANSFER DETAILS */}
-            <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200 text-left space-y-3">
-              <div className="flex items-center gap-2 border-b border-slate-200 pb-2.5">
-                <WalletCards className="size-4 text-[#00875A]" />
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">2. Deposit to Bank Account</h3>
-              </div>
-
-              <div className="space-y-1.5 text-xs text-slate-600 font-medium">
-                <div className="flex justify-between">
-                  <span>Bank Name:</span>
-                  <span className="font-bold text-slate-900">Commercial Bank / Sampath Bank</span>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                    Payment Under Review
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
+                    Your payment receipt for <strong className="text-slate-800">{merchantSession.store_name}</strong> has been received. Our team is verifying the deposit and will activate your store within 15–30 minutes.
+                  </p>
                 </div>
-                <div className="flex justify-between">
-                  <span>Account Name:</span>
-                  <span className="font-bold text-slate-900">RETCASH (PVT) LTD</span>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2 text-slate-600">
+                  <div className="flex justify-between">
+                    <span>Store ID:</span>
+                    <span className="font-mono font-bold text-slate-800">{merchantSession.id.slice(0, 8)}...</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Selected Plan:</span>
+                    <span className="font-bold text-[#00875A]">{planDetails.title} ({planDetails.price})</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Status:</span>
+                    <span className="font-bold text-amber-600 flex items-center gap-1">
+                      <Clock size={12} /> Pending Approval
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>Account Number:</span>
-                  <span className="font-mono font-bold text-[#00875A]">8001234567</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Branch:</span>
-                  <span className="font-bold text-slate-900">Colombo Fort</span>
+
+                <div className="space-y-3 pt-2">
+                  <a
+                    href={`https://wa.me/${ADMIN_WHATSAPP_NUMBER}?text=${renewalMessage}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full bg-[#00875A] hover:bg-emerald-700 text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs transition shadow-md flex items-center justify-center gap-2 block cursor-pointer active:scale-98"
+                  >
+                    <MessageCircle size={18} />
+                    <span>Send Reminder via WhatsApp</span>
+                  </a>
+                  <button
+                    onClick={handleLogout}
+                    className="text-xs text-slate-400 hover:text-slate-600 font-semibold transition py-1 cursor-pointer block mx-auto"
+                  >
+                    Sign out of merchant account
+                  </button>
                 </div>
               </div>
+            ) : (
+              /* 💳 PAYMENT UPLOAD FORM */
+              <form onSubmit={handlePaymentSubmission} className="space-y-6 text-left">
+                
+                <div className="text-center space-y-2">
+                  <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto border border-red-100 shadow-sm">
+                    <Lock className="size-8" />
+                  </div>
+                  <span className="text-[11px] font-black tracking-wider text-red-600 uppercase bg-red-50 px-3 py-1 rounded-full border border-red-100 inline-block">
+                    Action Required
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                    30-Day Free Trial Expired
+                  </h2>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                    Your free trial for <strong className="text-slate-800">{merchantSession.store_name}</strong> has ended. Select a plan and upload your bank slip below.
+                  </p>
+                </div>
 
-              <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-500">Selected Amount:</span>
-                <span className="font-black text-[#00875A] text-sm">{planDetails.price}</span>
-              </div>
-            </div>
+                {/* 1️⃣ SELECT PLAN OPTIONS */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">1. Choose Your Plan:</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlan('MONTHLY')}
+                      className={`p-3.5 rounded-2xl border text-left transition relative cursor-pointer ${
+                        selectedPlan === 'MONTHLY'
+                          ? 'border-[#00875A] bg-emerald-50/50 text-slate-900 shadow-sm ring-1 ring-[#00875A]'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      {selectedPlan === 'MONTHLY' && (
+                        <span className="absolute top-2.5 right-2.5 w-4 h-4 bg-[#00875A] text-white rounded-full flex items-center justify-center text-[10px]">
+                          <Check size={10} />
+                        </span>
+                      )}
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Monthly Pass</p>
+                      <p className="text-base font-black text-slate-900 mt-1">Rs. 990</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Billed monthly</p>
+                    </button>
 
-            {/* 3️⃣ SEND SLIP VIA WHATSAPP */}
-            <div className="space-y-2 pt-1">
-              <a
-                href={`https://wa.me/${ADMIN_WHATSAPP_NUMBER}?text=${renewalMessage}`}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full bg-[#00875A] hover:bg-emerald-700 text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs transition shadow-md flex items-center justify-center gap-2 block cursor-pointer active:scale-98"
-              >
-                <MessageCircle size={18} />
-                <span>Send Payment Proof via WhatsApp</span>
-              </a>
-              <button
-                onClick={handleLogout}
-                className="text-xs text-slate-400 hover:text-slate-600 font-semibold transition py-1 cursor-pointer block mx-auto"
-              >
-                Sign out of merchant account
-              </button>
-            </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlan('YEARLY')}
+                      className={`p-3.5 rounded-2xl border text-left transition relative cursor-pointer ${
+                        selectedPlan === 'YEARLY'
+                          ? 'border-[#00875A] bg-emerald-50/50 text-slate-900 shadow-sm ring-1 ring-[#00875A]'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <span className="bg-amber-100 text-amber-800 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md uppercase tracking-wider absolute top-2 right-2">
+                        Best Value
+                      </span>
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Annual Pass</p>
+                      <p className="text-base font-black text-[#00875A] mt-1">Rs. 7,900</p>
+                      <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Save 33% per year</p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2️⃣ BANK TRANSFER DETAILS */}
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2.5">
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                    <WalletCards className="size-4 text-[#00875A]" />
+                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">2. Deposit to Bank Account</h3>
+                  </div>
+
+                  <div className="space-y-1 text-xs text-slate-600 font-medium">
+                    <div className="flex justify-between">
+                      <span>Bank Name:</span>
+                      <span className="font-bold text-slate-900">Commercial Bank / Sampath Bank</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Account Name:</span>
+                      <span className="font-bold text-slate-900">RETCASH (PVT) LTD</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Account Number:</span>
+                      <span className="font-mono font-bold text-[#00875A]">8001234567</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3️⃣ FILE UPLOAD & REFERENCE BOX */}
+                <div className="space-y-3">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">3. Upload Payment Proof:</label>
+                  
+                  <div className="border-2 border-dashed border-slate-300 hover:border-[#00875A] rounded-2xl p-4 text-center transition cursor-pointer bg-slate-50/50 hover:bg-emerald-50/30 relative">
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      required
+                      onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <div className="flex flex-col items-center justify-center gap-1.5">
+                      {receiptFile ? (
+                        <>
+                          <FileCheck className="size-8 text-[#00875A]" />
+                          <p className="text-xs font-bold text-slate-900 truncate max-w-[200px]">{receiptFile.name}</p>
+                          <p className="text-[10px] text-emerald-600 font-semibold">Tap to change file</p>
+                        </>
+                      ) : (
+                        <>
+                          <ImageIcon className="size-8 text-slate-400" />
+                          <p className="text-xs font-bold text-slate-700">Tap to upload receipt photo / screenshot</p>
+                          <p className="text-[10px] text-slate-400">PNG, JPG, or PDF up to 5MB</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Transaction / Ref Number (Optional)"
+                    value={transactionRef}
+                    onChange={(e) => setTransactionRef(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#00875A] font-mono"
+                  />
+                </div>
+
+                {/* SUBMIT BUTTON */}
+                <div className="space-y-2 pt-1">
+                  <button
+                    type="submit"
+                    disabled={isSubmittingPayment || !receiptFile}
+                    className="w-full bg-[#00875A] hover:bg-emerald-700 text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98"
+                  >
+                    {isSubmittingPayment ? (
+                      <span>Uploading & Submitting...</span>
+                    ) : (
+                      <>
+                        <Upload size={16} />
+                        <span>Submit Receipt for Approval</span>
+                      </>
+                    )}
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="text-xs text-slate-400 hover:text-slate-600 font-semibold transition py-1 cursor-pointer block mx-auto text-center"
+                  >
+                    Sign out of merchant account
+                  </button>
+                </div>
+
+              </form>
+            )}
 
           </div>
         </div>
@@ -1084,7 +1267,7 @@ export default function MerchantDashboardPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-5 sm:py-8 lg:px-8 lg:py-10">
         
-        {/* ⚠️ 5-DAY WARNING BANNER FOR FREE TRIAL EXpiry */}
+        {/* ⚠️ 5-DAY WARNING BANNER FOR FREE TRIAL EXpIRY */}
         {!isTrialExpired && daysRemainingInTrial !== null && daysRemainingInTrial <= 7 && (
           <div className="mb-6 bg-amber-50 border border-amber-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
             <div className="flex items-center gap-3">
