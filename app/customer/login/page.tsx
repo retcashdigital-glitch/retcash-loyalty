@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Eye, EyeOff } from 'lucide-react';
@@ -28,6 +28,25 @@ export default function CustomerLoginPage() {
         return cleaned.slice(0, 9);
     };
 
+    // 1. Auto-Login Check: ஏற்கனவே லாகின் செய்திருந்தால் நேரடியாக வாலட் பக்கத்திற்கு அனுப்பும்
+    useEffect(() => {
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('retcash_wallet_session_')) {
+                    const dbPhone = key.replace('retcash_wallet_session_', '');
+                    const isAuth = localStorage.getItem(`retcash_wallet_auth_${dbPhone}`);
+                    if (isAuth === 'true') {
+                        router.push(`/wallet/${dbPhone}`);
+                        break;
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Session check error:", e);
+        }
+    }, [router]);
+
     // Safe Base64 decoding helper for older accounts
     const safeBtoa = (str: string) => {
         try {
@@ -54,20 +73,23 @@ export default function CustomerLoginPage() {
         const inputPass = password.trim();
 
         try {
-            // 1. Check for matching customer phone formats (+94 or 07X)
+            // Check for matching customer phone formats (+94 or 07X)
             const { data: customer, error: fetchError } = await supabase
                 .from('customers')
                 .select('*')
                 .or(`phone_number.eq.${dbPhone},phone_number.eq.${phoneWithZero}`)
                 .maybeSingle();
 
+            // 2. Smart Redirect: பயனர் கணக்கு இல்லை என்றால் Register பக்கத்திற்கு அனுப்பிவைக்கும்
             if (fetchError || !customer) {
-                setMessage('Invalid phone number or password.');
-                setLoading(false);
+                setMessage('கணக்கு எதுவுமில்லை! உங்களை Register பக்கத்திற்கு மாற்றுகிறோம்...');
+                setTimeout(() => {
+                    router.push(`/customer/register?phone=${formattedPhone}`);
+                }, 1800);
                 return;
             }
 
-            // 2. Validate password hashes
+            // Validate password hashes
             const storedPass = customer.password ? customer.password.trim() : '';
             let isPasswordCorrect = false;
 
@@ -84,7 +106,7 @@ export default function CustomerLoginPage() {
                 return;
             }
 
-            // 3. Establish customer wallet session
+            // Establish customer wallet session
             localStorage.setItem(`retcash_wallet_session_${dbPhone}`, 'true');
             localStorage.setItem(`retcash_wallet_auth_${dbPhone}`, 'true');
             localStorage.setItem(`customer_name_${dbPhone}`, customer.full_name || '');
@@ -94,7 +116,6 @@ export default function CustomerLoginPage() {
         } catch (err) {
             console.error("Login Error:", err);
             setMessage('Invalid phone number or password.');
-        } finally {
             setLoading(false);
         }
     };
@@ -124,7 +145,11 @@ export default function CustomerLoginPage() {
                 </div>
 
                 {error && (
-                    <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl text-center font-bold">
+                    <div className={`p-3 border text-xs rounded-xl text-center font-bold ${
+                        error.includes('Register') 
+                            ? 'bg-amber-50 border-amber-200 text-amber-700' 
+                            : 'bg-red-50 border-red-200 text-red-600'
+                    }`}>
                         {error}
                     </div>
                 )}
@@ -184,7 +209,7 @@ export default function CustomerLoginPage() {
                         disabled={loading}
                         className="w-full bg-[#00875A] hover:bg-[#059669] text-white font-extrabold py-3.5 rounded-xl shadow-md shadow-[#00875A]/25 transition active:scale-[0.98] duration-200 text-xs uppercase tracking-wider mt-2 disabled:opacity-50 cursor-pointer"
                     >
-                        {loading ? 'Logging in...' : 'Login'}
+                        {loading ? 'Processing...' : 'Login'}
                     </button>
                 </form>
 

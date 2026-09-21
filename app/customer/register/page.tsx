@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { Eye, EyeOff } from 'lucide-react'
 
-export default function CustomerRegisterPage() {
+function RegisterForm() {
     const router = useRouter()
+    const searchParams = useSearchParams()
+
     const [fullNameInput, setFullNameInput] = useState('')
     const [phoneInput, setPhoneInput] = useState('')
     const [emailInput, setEmailInput] = useState('')
@@ -17,6 +19,14 @@ export default function CustomerRegisterPage() {
     const [loading, setLoading] = useState(false)
     const [errorMsg, setErrorMsg] = useState('')
     const [successMsg, setSuccessMsg] = useState('')
+
+    // 1. URL Parameter check: Login பக்கத்திலிருந்து வந்த போன் எண்ணை Auto-fill செய்யும்
+    useEffect(() => {
+        const phoneFromUrl = searchParams.get('phone')
+        if (phoneFromUrl) {
+            setPhoneInput(phoneFromUrl)
+        }
+    }, [searchParams])
 
     // Standardized Phone normalization logic
     const normalizePhone = (input: string) => {
@@ -62,7 +72,7 @@ export default function CustomerRegisterPage() {
             setLoading(true)
             const securePassword = btoa(passwordInput.trim())
 
-            // 1. Check if user already exists with this phone number
+            // Check if user already exists with this phone number
             const { data: existingData, error: checkError } = await supabase
                 .from('customers')
                 .select('id, phone_number')
@@ -74,11 +84,11 @@ export default function CustomerRegisterPage() {
                 setSuccessMsg('Account already exists! Redirecting to login...')
                 setTimeout(() => {
                     router.push('/customer/login')
-                }, 2000)
+                }, 1800)
                 return
             }
 
-            // 2. Register New Customer
+            // Register New Customer
             const { error: insertError } = await supabase
                 .from('customers')
                 .insert([
@@ -92,7 +102,12 @@ export default function CustomerRegisterPage() {
 
             if (insertError) throw insertError
 
+            // 2. Establish complete session for immediate auto-login
+            localStorage.setItem(`retcash_wallet_session_${cleanPhone}`, 'true')
             localStorage.setItem(`retcash_wallet_auth_${cleanPhone}`, 'true')
+            localStorage.setItem(`customer_name_${cleanPhone}`, fullNameInput.trim())
+
+            // 3. Directly redirect to customer's wallet page
             router.push(`/wallet/${cleanPhone}`)
 
         } catch (err: any) {
@@ -104,121 +119,130 @@ export default function CustomerRegisterPage() {
     }
 
     return (
+        <div className="w-full max-w-md bg-white border border-slate-100 rounded-[28px] p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.04)] space-y-6 relative my-auto">
+            {/* Single Header Brand Logo & Title */}
+            <div className="text-center space-y-2">
+                <div className="w-16 h-16 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.05)] mx-auto mb-3 p-2.5">
+                    <Image 
+                        src="/logo.png" 
+                        alt="RETCASH Logo" 
+                        width={48} 
+                        height={48} 
+                        className="w-full h-full object-contain"
+                    />
+                </div>
+                <h1 className="text-2xl font-black text-slate-900 tracking-wider uppercase">
+                    RET<span className="text-[#00875A]">CASH</span>
+                </h1>
+                <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Customer Registration</h2>
+                <p className="text-xs text-slate-500">
+                    Enter your details to create an account and access your cashback wallet.
+                </p>
+            </div>
+
+            <form onSubmit={handleRegister} className="space-y-4">
+                {/* Full Name Field */}
+                <div>
+                    <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Full Name</label>
+                    <input
+                        type="text"
+                        value={fullNameInput}
+                        onChange={(e) => setFullNameInput(e.target.value)}
+                        placeholder="e.g. John Doe"
+                        className="w-full bg-slate-50 border border-slate-300 focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none transition"
+                        required
+                    />
+                </div>
+
+                {/* Phone Number Field */}
+                <div>
+                    <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Phone Number</label>
+                    <div className="flex items-center w-full bg-slate-50 border border-slate-300 focus-within:border-[#00875A] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#00875A]/20 rounded-xl px-3 py-2.5 transition">
+                        <span className="text-slate-500 font-bold text-sm pr-2 border-r border-slate-300">+94</span>
+                        <input
+                            type="tel"
+                            value={phoneInput}
+                            onChange={(e) => setPhoneInput(e.target.value)}
+                            placeholder="0771234567 or 771234567"
+                            className="w-full bg-transparent pl-3 text-sm font-semibold text-slate-900 outline-none"
+                            required
+                        />
+                    </div>
+                </div>
+
+                {/* Email Field */}
+                <div>
+                    <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Email Address</label>
+                    <input
+                        type="email"
+                        value={emailInput}
+                        onChange={(e) => setEmailInput(e.target.value)}
+                        placeholder="name@example.com"
+                        className="w-full bg-slate-50 border border-slate-300 focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none transition"
+                        required
+                    />
+                </div>
+
+                {/* Password Field */}
+                <div>
+                    <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Create Password</label>
+                    <div className="relative flex items-center w-full bg-slate-50 border border-slate-300 focus-within:border-[#00875A] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#00875A]/20 rounded-xl px-3 py-2.5 transition">
+                        <input
+                            type={showPassword ? 'text' : 'password'}
+                            value={passwordInput}
+                            onChange={(e) => setPasswordInput(e.target.value)}
+                            placeholder="At least 6 characters"
+                            className="w-full bg-transparent pr-8 text-sm font-semibold text-slate-900 outline-none"
+                            required
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 text-slate-400 hover:text-slate-600 outline-none cursor-pointer"
+                        >
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-medium mt-1">Use 6 or more characters with letters & numbers.</p>
+                </div>
+
+                {errorMsg && <p className="text-xs text-red-600 font-bold text-center bg-red-50 p-2 rounded-xl border border-red-200">{errorMsg}</p>}
+                {successMsg && <p className="text-xs text-[#00875A] font-bold text-center bg-emerald-50 p-2 rounded-xl border border-emerald-200">{successMsg}</p>}
+
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-[#00875A] hover:bg-[#059669] text-white font-extrabold py-3.5 rounded-xl text-xs uppercase tracking-wider transition shadow-md shadow-[#00875A]/25 active:scale-[0.98] flex items-center justify-center cursor-pointer disabled:opacity-50"
+                >
+                    {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'Register & Open Wallet'}
+                </button>
+            </form>
+
+            <div className="text-center pt-2 space-y-2">
+                <p className="text-xs text-slate-500 font-medium">
+                    Already have an account?{' '}
+                    <Link href="/customer/login" className="text-[#00875A] font-extrabold hover:underline">
+                        Login here
+                    </Link>
+                </p>
+            </div>
+        </div>
+    )
+}
+
+export default function CustomerRegisterPage() {
+    return (
         <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col items-center justify-between p-4 font-sans selection:bg-[#00875A] selection:text-white">
-            
             <div className="pt-2"></div>
 
-            {/* Single Unified Clean White Card */}
-            <div className="w-full max-w-md bg-white border border-slate-100 rounded-[28px] p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.04)] space-y-6 relative my-auto">
-
-                {/* Single Header Brand Logo & Title */}
-                <div className="text-center space-y-2">
-                    <div className="w-16 h-16 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.05)] mx-auto mb-3 p-2.5">
-                        <Image 
-                            src="/logo.png" 
-                            alt="RETCASH Logo" 
-                            width={48} 
-                            height={48} 
-                            className="w-full h-full object-contain"
-                        />
-                    </div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-wider uppercase">
-                        RET<span className="text-[#00875A]">CASH</span>
-                    </h1>
-                    <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Customer Registration</h2>
-                    <p className="text-xs text-slate-500">
-                        Enter your details to create an account and access your cashback wallet.
-                    </p>
+            {/* Suspense Wrapper Next.js useSearchParams Error வராமல் தடுக்க உதவும் */}
+            <Suspense fallback={
+                <div className="bg-white p-8 rounded-[28px] shadow-sm text-center font-semibold text-slate-500 text-sm">
+                    Loading registration...
                 </div>
-
-                <form onSubmit={handleRegister} className="space-y-4">
-                    {/* Full Name Field */}
-                    <div>
-                        <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Full Name</label>
-                        <input
-                            type="text"
-                            value={fullNameInput}
-                            onChange={(e) => setFullNameInput(e.target.value)}
-                            placeholder="e.g. John Doe"
-                            className="w-full bg-slate-50 border border-slate-300 focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none transition"
-                            required
-                        />
-                    </div>
-
-                    {/* Phone Number Field */}
-                    <div>
-                        <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Phone Number</label>
-                        <div className="flex items-center w-full bg-slate-50 border border-slate-300 focus-within:border-[#00875A] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#00875A]/20 rounded-xl px-3 py-2.5 transition">
-                            <span className="text-slate-500 font-bold text-sm pr-2 border-r border-slate-300">+94</span>
-                            <input
-                                type="tel"
-                                value={phoneInput}
-                                onChange={(e) => setPhoneInput(e.target.value)}
-                                placeholder="0771234567 or 771234567"
-                                className="w-full bg-transparent pl-3 text-sm font-semibold text-slate-900 outline-none"
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    {/* Email Field */}
-                    <div>
-                        <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Email Address</label>
-                        <input
-                            type="email"
-                            value={emailInput}
-                            onChange={(e) => setEmailInput(e.target.value)}
-                            placeholder="name@example.com"
-                            className="w-full bg-slate-50 border border-slate-300 focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none transition"
-                            required
-                        />
-                    </div>
-
-                    {/* Password Field */}
-                    <div>
-                        <label className="text-[10px] text-slate-500 font-bold block uppercase mb-1.5">Create Password</label>
-                        <div className="relative flex items-center w-full bg-slate-50 border border-slate-300 focus-within:border-[#00875A] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#00875A]/20 rounded-xl px-3 py-2.5 transition">
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                value={passwordInput}
-                                onChange={(e) => setPasswordInput(e.target.value)}
-                                placeholder="At least 6 characters"
-                                className="w-full bg-transparent pr-8 text-sm font-semibold text-slate-900 outline-none"
-                                required
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 text-slate-400 hover:text-slate-600 outline-none cursor-pointer"
-                            >
-                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
-                        </div>
-                        <p className="text-[10px] text-slate-400 font-medium mt-1">Use 6 or more characters with letters & numbers.</p>
-                    </div>
-
-                    {errorMsg && <p className="text-xs text-red-600 font-bold text-center bg-red-50 p-2 rounded-xl border border-red-200">{errorMsg}</p>}
-                    {successMsg && <p className="text-xs text-[#00875A] font-bold text-center bg-emerald-50 p-2 rounded-xl border border-emerald-200">{successMsg}</p>}
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-[#00875A] hover:bg-[#059669] text-white font-extrabold py-3.5 rounded-xl text-xs uppercase tracking-wider transition shadow-md shadow-[#00875A]/25 active:scale-[0.98] flex items-center justify-center cursor-pointer disabled:opacity-50"
-                    >
-                        {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'Register & Open Wallet'}
-                    </button>
-                </form>
-
-                <div className="text-center pt-2 space-y-2">
-                    <p className="text-xs text-slate-500 font-medium">
-                        Already have an account?{' '}
-                        <Link href="/customer/login" className="text-[#00875A] font-extrabold hover:underline">
-                            Login here
-                        </Link>
-                    </p>
-                </div>
-
-            </div>
+            }>
+                <RegisterForm />
+            </Suspense>
 
             {/* Bottom Footer */}
             <div className="py-6 text-center text-[10px] text-slate-400 font-bold tracking-wider uppercase">
