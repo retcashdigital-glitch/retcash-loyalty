@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { getAllStoresWithSubscriptions, renewStoreSubscription, Store } from '@/lib/adminService';
-
-const ADMIN_EMAIL = 'retcashdigital@gmail.com';
 
 export default function AdminSubscriptionsPage() {
   const [stores, setStores] = useState<Store[]>([]);
@@ -17,21 +14,19 @@ export default function AdminSubscriptionsPage() {
     checkAdminAccess();
   }, []);
 
-  async function checkAdminAccess() {
+  // 🔒 இங்கு LocalStorage அடிப்படையிலான சரிபார்ப்பு மட்டுமே இருக்கும்
+  function checkAdminAccess() {
     try {
-      // 1. Supabase Auth Session பெறுகிறது
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const isAuth = localStorage.getItem('admin_auth');
 
-      // 2. செஷன் இல்லை என்றாலோ அல்லது ஈமெயில் retcashdigital@gmail.com இல்லை என்றாலோ உடனடியாக வெளியேற்றப்படும்
-      if (error || !session || session.user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-        await supabase.auth.signOut();
-        alert('அணுகல் தடையிடப்பட்டது: உங்களுக்கு இந்த பக்கத்தை அணுக அனுமதி இல்லை!');
+      if (isAuth !== 'true') {
+        alert('உங்களுக்கு இந்த Admin பக்கத்தை அணுக அனுமதி இல்லை!');
         router.push('/admin/login');
         return;
       }
 
       setAuthorized(true);
-      await loadStores();
+      loadStores();
     } catch (err: any) {
       alert('பாதுகாப்புச் சோதனையில் பிழை: ' + err.message);
       router.push('/admin/login');
@@ -44,7 +39,7 @@ export default function AdminSubscriptionsPage() {
       const data = await getAllStoresWithSubscriptions();
       setStores(data);
     } catch (err: any) {
-      alert('தரவை ஏற்​ற முடியவில்லை: ' + err.message);
+      alert('பிழை: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -62,15 +57,16 @@ export default function AdminSubscriptionsPage() {
     }
   }
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
+  function handleLogout() {
+    localStorage.removeItem('admin_auth');
+    document.cookie = 'admin_authenticated=; path=/; max-age=0';
     router.push('/admin/login');
   }
 
   if (!authorized) {
     return (
       <div className="p-8 text-center font-bold text-red-500 bg-gray-950 min-h-screen flex items-center justify-center">
-        பாதுகாப்புச் சோதனை செய்யப்படுகிறது... (Server Authentication Check)
+        பாதுகாப்புச் சோதனை செய்யப்படுகிறது...
       </div>
     );
   }
@@ -82,7 +78,7 @@ export default function AdminSubscriptionsPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold mb-1">சப்ஸ்கிரிப்ஷன் நிர்வாகம் (Admin Panel)</h1>
-          <p className="text-gray-400 text-sm">retcashdigital@gmail.com கணக்காக லாக் இன் செய்யப்பட்டுள்ளீர்கள்.</p>
+          <p className="text-gray-400 text-sm">அட்மின் கணக்கில் வெற்றிகரமாக லாக் இன் செய்யப்பட்டுள்ளீர்கள்.</p>
         </div>
         <button
           onClick={handleLogout}
