@@ -44,7 +44,11 @@ export default function SubscriptionLockModal({
 
   if (!isTrialExpired) return null
 
+  // வங்கி விவரங்கள்
+  const bankName = "Hatton National Bank PLC (HNB)"
+  const accountName = "KUMARATHAS RUBASRI"
   const bankAccountNo = "225020124930"
+  const branchName = "Trincomalee Metro"
   const branchId = "225"
 
   const handleCopyAccount = () => {
@@ -189,35 +193,46 @@ export default function SubscriptionLockModal({
               </div>
             </div>
 
-            {/* NEW: BANK DETAILS SECTION */}
+            {/* 2. COMPLETE BANK DETAILS SECTION */}
             <div className="space-y-2">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">2. Deposit Payment To:</label>
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2 text-xs">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
-                  <div className="flex items-center gap-2 text-slate-800 font-bold">
-                    <Building2 size={16} className="text-[#00875A]" />
-                    <span>Bank Deposit Details</span>
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 text-xs">
+                
+                {/* Header with Bank Name & Copy Button */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                  <div className="flex items-center gap-2 text-slate-900 font-extrabold">
+                    <Building2 size={18} className="text-[#00875A]" />
+                    <span>{bankName}</span>
                   </div>
                   <button
                     type="button"
                     onClick={handleCopyAccount}
-                    className="flex items-center gap-1 text-[11px] font-bold text-[#00875A] hover:text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200/60 transition cursor-pointer"
+                    className="flex items-center gap-1.5 text-[11px] font-bold text-[#00875A] hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200/80 transition cursor-pointer active:scale-95"
                   >
-                    {copied ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                    {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
                     <span>{copied ? 'Copied' : 'Copy Acc'}</span>
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-0.5 text-slate-600">
+                {/* Account Details Grid */}
+                <div className="space-y-2 text-slate-700">
                   <div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">Account Number</p>
-                    <p className="font-mono font-black text-slate-900 text-sm tracking-wide">{bankAccountNo}</p>
+                    <p className="text-[10px] text-slate-400 font-extrabold uppercase">Account Name</p>
+                    <p className="font-bold text-slate-900">{accountName}</p>
                   </div>
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">Branch ID</p>
-                    <p className="font-mono font-bold text-slate-800 text-sm">{branchId}</p>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase">Account Number</p>
+                      <p className="font-mono font-black text-slate-900 text-sm tracking-wide">{bankAccountNo}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase">Branch</p>
+                      <p className="font-bold text-slate-800">{branchName} <span className="text-slate-400 font-normal">({branchId})</span></p>
+                    </div>
                   </div>
                 </div>
+
               </div>
             </div>
 
