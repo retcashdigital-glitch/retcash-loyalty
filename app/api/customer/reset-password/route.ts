@@ -11,13 +11,14 @@ export async function POST(request: Request) {
         }
 
         const cleanEmail = email.trim().toLowerCase();
+        const cleanOtp = otp.toString().trim();
 
         // 1. Verify OTP in Database
         const { data: otpRecords, error: otpError } = await supabase
             .from('customer_otps')
             .select('*')
             .ilike('email', cleanEmail)
-            .eq('otp', otp.trim())
+            .eq('otp', cleanOtp)
             .eq('is_used', false)
             .gt('expires_at', new Date().toISOString())
             .order('created_at', { ascending: false })
@@ -39,8 +40,15 @@ export async function POST(request: Request) {
             .ilike('email', cleanEmail)
             .select();
 
-        if (updateError || !updatedUser || updatedUser.length === 0) {
-            return NextResponse.json({ error: 'Failed to update password. User not found.' }, { status: 400 });
+        if (updateError) {
+            console.error("Supabase Update Error:", updateError);
+            return NextResponse.json({ error: updateError.message }, { status: 400 });
+        }
+
+        if (!updatedUser || updatedUser.length === 0) {
+            return NextResponse.json({ 
+                error: 'Failed to update password. User not found or database permission denied.' 
+            }, { status: 400 });
         }
 
         // 4. Mark OTP as used AFTER password update success

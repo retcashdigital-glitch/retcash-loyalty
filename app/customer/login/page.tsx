@@ -1,135 +1,110 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import bcrypt from 'bcryptjs';
+import { Mail, ArrowLeft, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 
-export default function CustomerLoginPage() {
-    const [phone, setPhone] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
+export default function CustomerForgotPasswordPage() {
+    const [step, setStep] = useState<1 | 2>(1);
+    
+    const [email, setEmail] = useState('');
+    const [otp, setOtp] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+
     const [loading, setLoading] = useState(false);
-    const [error, setMessage] = useState('');
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
+
     const router = useRouter();
 
-    const normalizePhone = (input: string) => {
-        let cleaned = input.replace(/\D/g, '');
-
-        if (cleaned.startsWith('94') && cleaned.length >= 11) {
-            cleaned = cleaned.slice(2);
-        } else if (cleaned.startsWith('0') && cleaned.length >= 10) {
-            cleaned = cleaned.slice(1);
-        }
-
-        return cleaned.slice(0, 9);
-    };
-
-    // 1. Auto-Login Check: ஏற்கனவே லாகின் செய்திருந்தால் நேரடியாக வாலட் பக்கத்திற்கு அனுப்பும்
-    useEffect(() => {
-        try {
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.startsWith('retcash_wallet_session_')) {
-                    const dbPhone = key.replace('retcash_wallet_session_', '');
-                    const isAuth = localStorage.getItem(`retcash_wallet_auth_${dbPhone}`);
-                    if (isAuth === 'true') {
-                        router.push(`/wallet/${dbPhone}`);
-                        break;
-                    }
-                }
-            }
-        } catch (e) {
-            console.error("Session check error:", e);
-        }
-    }, [router]);
-
-    // Safe Base64 decoding helper for older accounts
-    const safeBtoa = (str: string) => {
-        try {
-            return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode(parseInt(p1, 16))));
-        } catch {
-            return str;
-        }
-    };
-
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setError('');
         setMessage('');
 
-        const formattedPhone = normalizePhone(phone);
-        if (formattedPhone.length !== 9) {
-            setMessage('Please enter a valid phone number.');
+        const cleanEmail = email.trim().toLowerCase();
+
+        try {
+            const response = await fetch('/api/customer/send-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: cleanEmail }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to send OTP verification code.');
+            }
+
+            setMessage('Verification OTP has been sent to your email.');
+            setStep(2);
+
+        } catch (err: any) {
+            setError(err.message || 'An error occurred while sending OTP.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResetPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        setMessage('');
+
+        if (newPassword !== confirmPassword) {
+            setError('Passwords do not match.');
             setLoading(false);
             return;
         }
 
-        const dbPhone = `94${formattedPhone}`;
-        const phoneWithZero = `0${formattedPhone}`;
-        const inputPass = password.trim();
+        const cleanEmail = email.trim().toLowerCase();
 
         try {
-            // Check for matching customer phone formats (+94 or 07X)
-            const { data: customer, error: fetchError } = await supabase
-                .from('customers')
-                .select('*')
-                .or(`phone_number.eq.${dbPhone},phone_number.eq.${phoneWithZero}`)
-                .maybeSingle();
+            const response = await fetch('/api/customer/reset-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: cleanEmail,
+                    otp: otp.trim(),
+                    newPassword: newPassword.trim(),
+                }),
+            });
 
-            // 2. Smart Redirect: பயனர் கணக்கு இல்லை என்றால் Register பக்கத்திற்கு அனுப்பிவைக்கும்
-            if (fetchError || !customer) {
-                setMessage('கணக்கு எதுவுமில்லை! உங்களை Register பக்கத்திற்கு மாற்றுகிறோம்...');
-                setTimeout(() => {
-                    router.push(`/customer/register?phone=${formattedPhone}`);
-                }, 1800);
-                return;
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to reset password. Please verify your OTP.');
             }
 
-            // Validate password hashes
-            const storedPass = customer.password ? customer.password.trim() : '';
-            let isPasswordCorrect = false;
+            setMessage('Password reset successful! Redirecting to login...');
+            
+            setTimeout(() => {
+                router.push('/customer/login');
+            }, 2000);
 
-            if (storedPass.startsWith('$2a$') || storedPass.startsWith('$2b$')) {
-                isPasswordCorrect = await bcrypt.compare(inputPass, storedPass);
-            } else {
-                const base64Pass = safeBtoa(inputPass);
-                isPasswordCorrect = storedPass === inputPass || storedPass === base64Pass;
-            }
-
-            if (!isPasswordCorrect) {
-                setMessage('Invalid phone number or password.');
-                setLoading(false);
-                return;
-            }
-
-            // Establish customer wallet session
-            localStorage.setItem(`retcash_wallet_session_${dbPhone}`, 'true');
-            localStorage.setItem(`retcash_wallet_auth_${dbPhone}`, 'true');
-            localStorage.setItem(`customer_name_${dbPhone}`, customer.full_name || '');
-
-            router.push(`/wallet/${dbPhone}`);
-
-        } catch (err) {
-            console.error("Login Error:", err);
-            setMessage('Invalid phone number or password.');
+        } catch (err: any) {
+            setError(err.message || 'An error occurred during password reset.');
+        } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-between p-4 font-sans selection:bg-[#00875A] selection:text-white">
-            <div className="pt-2"></div>
-
-            {/* Single Unified Clean White Card */}
-            <div className="bg-white w-full max-w-md rounded-[28px] shadow-[0_10px_30px_rgba(0,0,0,0.04)] p-6 md:p-8 border border-slate-100 relative my-auto space-y-6">
+        <div className="flex min-h-screen items-center justify-center bg-[#F1F5F9] px-4 font-sans text-[#0F172A] selection:bg-[#00875A] selection:text-white">
+            <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-xl space-y-6">
                 
-                {/* Header Brand Logo & Title */}
-                <div className="flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.05)] mb-3 p-2.5">
+                <div className="text-center space-y-2">
+                    <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mx-auto mb-3 p-2">
                         <Image 
                             src="/logo.png" 
                             alt="RETCASH Logo" 
@@ -138,92 +113,139 @@ export default function CustomerLoginPage() {
                             className="w-full h-full object-contain"
                         />
                     </div>
-                    <h1 className="text-2xl font-black tracking-wider text-slate-900 uppercase">
-                        RET<span className="text-[#00875A]">CASH</span>
-                    </h1>
-                    <p className="text-xs font-semibold text-slate-500 mt-1">Access your customer wallet</p>
+                    <h1 className="text-2xl font-black tracking-wider text-[#00875A] uppercase">RETCASH</h1>
+                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+                        {step === 1 ? 'Forgot Password' : 'Reset Password'}
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                        {step === 1 
+                            ? 'Enter your registered email to receive a security OTP.' 
+                            : 'Enter the 6-digit OTP sent to your email and your new password.'}
+                    </p>
                 </div>
 
                 {error && (
-                    <div className={`p-3 border text-xs rounded-xl text-center font-bold ${
-                        error.includes('Register') 
-                            ? 'bg-amber-50 border-amber-200 text-amber-700' 
-                            : 'bg-red-50 border-red-200 text-red-600'
-                    }`}>
-                        {error}
+                    <div className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs font-semibold text-red-600">
+                        <AlertCircle className="size-4 shrink-0" />
+                        <span>{error}</span>
                     </div>
                 )}
 
-                <form onSubmit={handleLogin} className="space-y-4">
-                    {/* Phone Number Field */}
-                    <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                            Phone Number
-                        </label>
-                        <div className="flex items-center w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus-within:border-[#00875A] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#00875A]/20 transition">
-                            <span className="text-slate-500 font-bold text-sm pr-2 border-r border-slate-300">+94</span>
-                            <input
-                                type="tel"
-                                value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
-                                placeholder="0771234567 or 771234567"
-                                required
-                                maxLength={12}
-                                className="w-full bg-transparent pl-3 focus:outline-none text-slate-900 text-sm font-semibold"
-                            />
-                        </div>
+                {message && (
+                    <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-xs font-semibold text-[#00875A]">
+                        <CheckCircle2 className="size-4 shrink-0" />
+                        <span>{message}</span>
                     </div>
+                )}
 
-                    {/* Password Field */}
-                    <div>
-                        <div className="flex justify-between items-center mb-1.5">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                Password
+                {step === 1 && (
+                    <form onSubmit={handleSendOtp} className="space-y-4">
+                        <div>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
+                                Registered Email
                             </label>
-                            <Link href="/customer/forgot-password" className="text-xs font-bold text-[#00875A] hover:underline">
-                                Forgot?
-                            </Link>
+                            <div className="relative">
+                                <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    type="email"
+                                    required
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="name@example.com"
+                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
+                                />
+                            </div>
                         </div>
-                        <div className="relative flex items-center w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus-within:border-[#00875A] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#00875A]/20 transition">
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••"
-                                required
-                                className="w-full bg-transparent pr-8 focus:outline-none text-slate-900 text-sm font-semibold"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+
+                        <div className="flex gap-3 pt-2">
+                            <Link
+                                href="/customer/login"
+                                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-slate-50 py-3 text-center text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
                             >
-                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                <ArrowLeft className="size-3.5" /> Back
+                            </Link>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="flex-[2] rounded-xl bg-[#00875A] hover:bg-[#059669] py-3 text-center text-xs font-extrabold text-white shadow-md shadow-[#00875A]/20 active:scale-[0.98] transition disabled:opacity-50 cursor-pointer"
+                            >
+                                {loading ? 'Sending...' : 'Send OTP'}
                             </button>
                         </div>
-                    </div>
+                    </form>
+                )}
 
-                    {/* Login Button */}
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-[#00875A] hover:bg-[#059669] text-white font-extrabold py-3.5 rounded-xl shadow-md shadow-[#00875A]/25 transition active:scale-[0.98] duration-200 text-xs uppercase tracking-wider mt-2 disabled:opacity-50 cursor-pointer"
-                    >
-                        {loading ? 'Processing...' : 'Login'}
-                    </button>
-                </form>
+                {step === 2 && (
+                    <form onSubmit={handleResetPassword} className="space-y-4">
+                        <div>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
+                                Verification OTP Code
+                            </label>
+                            <div className="relative">
+                                <ShieldCheck className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    type="text"
+                                    required
+                                    maxLength={6}
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value)}
+                                    placeholder="Enter 6-digit OTP"
+                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm font-mono tracking-widest text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
+                                />
+                            </div>
+                        </div>
 
-                <div className="text-center text-xs text-slate-500 font-medium">
-                    Don't have an account?{' '}
-                    <Link href="/customer/register" className="text-[#00875A] font-extrabold hover:underline">
-                        Register here
-                    </Link>
-                </div>
-            </div>
+                        <div>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
+                                New Password
+                            </label>
+                            <input
+                                type="password"
+                                required
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                placeholder="••••••••"
+                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
+                            />
+                        </div>
 
-            {/* Bottom Footer */}
-            <div className="py-6 text-center text-[10px] text-slate-400 font-bold tracking-wider uppercase space-y-1">
-                <p>©️ 2026 RETCASH DIGITAL LOYALTY PLATFORM. ALL RIGHTS RESERVED.</p>
+                        <div>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
+                                Confirm New Password
+                            </label>
+                            <input
+                                type="password"
+                                required
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                placeholder="••••••••"
+                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
+                            />
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setStep(1);
+                                    setError('');
+                                    setMessage('');
+                                }}
+                                className="flex-1 rounded-xl border border-slate-300 bg-slate-50 py-3 text-center text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                            >
+                                Back
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="flex-[2] rounded-xl bg-[#00875A] hover:bg-[#059669] py-3 text-center text-xs font-extrabold text-white shadow-md shadow-[#00875A]/20 active:scale-[0.98] transition disabled:opacity-50 cursor-pointer"
+                            >
+                                {loading ? 'Resetting...' : 'Submit & Reset'}
+                            </button>
+                        </div>
+                    </form>
+                )}
+
             </div>
         </div>
     );
