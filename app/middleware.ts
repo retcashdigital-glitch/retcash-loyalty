@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
+// 🔒 உங்கள் பிரத்யேக Admin Email
+const MY_ADMIN_EMAIL = 'retcashdigital@gmail.com';
+
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({
     request: {
@@ -38,17 +41,10 @@ export async function middleware(req: NextRequest) {
 
   const url = req.nextUrl.clone();
 
-  // /admin பக்கங்களுக்குச் செல்ல முயற்சித்தால்
+  // /admin எனத் தொடங்கும் அனைத்து பக்கங்களுக்கும் பாதுகாப்புச் சோதனை
   if (url.pathname.startsWith('/admin')) {
-    if (!session) {
-      url.pathname = '/merchant/login'; // உங்கள் Login பக்கம்
-      return NextResponse.redirect(url);
-    }
-
-    // உங்களது Admin Email முகவரியை மட்டும் அனுமதிக்க
-    const ADMIN_EMAIL = 'your-email@gmail.com'; // உங்கள் மின்னஞ்சலை இடுக
-    if (session.user.email !== ADMIN_EMAIL) {
-      url.pathname = '/';
+    if (!session || session.user.email !== MY_ADMIN_EMAIL) {
+      url.pathname = '/merchant/login';
       return NextResponse.redirect(url);
     }
   }
