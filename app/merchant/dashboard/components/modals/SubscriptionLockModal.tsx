@@ -40,7 +40,8 @@ export default function SubscriptionLockModal({
   handleCancelPaymentRequest,
   handleLogout
 }: Props) {
-  const [copied, setCopied] = useState(false)
+  // தனித்தனி Copy States
+  const [copiedField, setCopiedField] = useState<string | null>(null)
 
   if (!isTrialExpired) return null
 
@@ -49,12 +50,12 @@ export default function SubscriptionLockModal({
   const accountName = "KUMARATHAS RUBASRI"
   const bankAccountNo = "225020124930"
   const branchName = "Trincomalee Metro"
-  const branchId = "225"
 
-  const handleCopyAccount = () => {
-    navigator.clipboard.writeText(bankAccountNo)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  // காப்பி செய்யும் ஃபங்க்ஷன்
+  const handleCopy = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedField(fieldName)
+    setTimeout(() => setCopiedField(null), 2000)
   }
 
   const planDetails = selectedPlan === 'YEARLY' 
@@ -193,43 +194,67 @@ export default function SubscriptionLockModal({
               </div>
             </div>
 
-            {/* 2. COMPLETE BANK DETAILS SECTION */}
+            {/* 2. BANK DETAILS WITH SEPARATE COPY BUTTONS */}
             <div className="space-y-2">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">2. Deposit Payment To:</label>
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 text-xs">
                 
-                {/* Header with Bank Name & Copy Button */}
-                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                {/* Header: Bank Name */}
+                <div className="pb-2.5 border-b border-slate-200">
                   <div className="flex items-center gap-2 text-slate-900 font-extrabold">
                     <Building2 size={18} className="text-[#00875A]" />
                     <span>{bankName}</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyAccount}
-                    className="flex items-center gap-1.5 text-[11px] font-bold text-[#00875A] hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200/80 transition cursor-pointer active:scale-95"
-                  >
-                    {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
-                    <span>{copied ? 'Copied' : 'Copy Acc'}</span>
-                  </button>
                 </div>
 
-                {/* Account Details Grid */}
-                <div className="space-y-2 text-slate-700">
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-extrabold uppercase">Account Name</p>
-                    <p className="font-bold text-slate-900">{accountName}</p>
+                {/* Vertical Order with Separate Copy Buttons */}
+                <div className="space-y-3">
+                  {/* Account Name */}
+                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200/60">
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase">Account Name</p>
+                      <p className="font-bold text-slate-900 text-xs sm:text-sm">{accountName}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(accountName, 'accName')}
+                      className="flex items-center gap-1 text-[10px] font-bold text-[#00875A] hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200/80 transition cursor-pointer shrink-0 active:scale-95"
+                    >
+                      {copiedField === 'accName' ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                      <span>{copiedField === 'accName' ? 'Copied' : 'Copy'}</span>
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
+                  {/* Account Number */}
+                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200/60">
                     <div>
                       <p className="text-[10px] text-slate-400 font-extrabold uppercase">Account Number</p>
-                      <p className="font-mono font-black text-slate-900 text-sm tracking-wide">{bankAccountNo}</p>
+                      <p className="font-mono font-black text-slate-900 text-sm tracking-wider">{bankAccountNo}</p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(bankAccountNo, 'accNo')}
+                      className="flex items-center gap-1 text-[10px] font-bold text-[#00875A] hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200/80 transition cursor-pointer shrink-0 active:scale-95"
+                    >
+                      {copiedField === 'accNo' ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                      <span>{copiedField === 'accNo' ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+
+                  {/* Branch Name */}
+                  <div className="flex items-center justify-between gap-2">
                     <div>
                       <p className="text-[10px] text-slate-400 font-extrabold uppercase">Branch</p>
-                      <p className="font-bold text-slate-800">{branchName} <span className="text-slate-400 font-normal">({branchId})</span></p>
+                      <p className="font-bold text-slate-800 text-xs sm:text-sm">{branchName}</p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(branchName, 'branch')}
+                      className="flex items-center gap-1 text-[10px] font-bold text-[#00875A] hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200/80 transition cursor-pointer shrink-0 active:scale-95"
+                    >
+                      {copiedField === 'branch' ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                      <span>{copiedField === 'branch' ? 'Copied' : 'Copy'}</span>
+                    </button>
                   </div>
                 </div>
 
