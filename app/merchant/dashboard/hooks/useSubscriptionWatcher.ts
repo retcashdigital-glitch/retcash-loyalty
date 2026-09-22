@@ -24,7 +24,8 @@ export function useSubscriptionWatcher(merchantSession: MerchantSession | null) 
 
       const isSubActive = merchantSession.subscription_status === 'active'
 
-      if (!isSubActive && now > trialEnd) {
+      // ரீஃப்ரெஷ் செய்யாவிட்டாலும் தற்போதைய நேரத்துடன் ஒப்பீட்டு பரிசோதனை செய்யப்படுகிறது
+      if (!isSubActive && now.getTime() >= trialEnd.getTime()) {
         setIsTrialExpired(true)
         setDaysRemainingInTrial(0)
       } else {
@@ -38,7 +39,7 @@ export function useSubscriptionWatcher(merchantSession: MerchantSession | null) 
     // 1. ஆரம்பத்தில் சோதித்தல்
     checkSubscriptionStatus()
 
-    // 2. Refresh செய்யாமலேயே பின்னணியில் ஒவ்வொரு 30 விநாடிக்கும் சோதிக்கும் Interval Logic
+    // 2. Refresh செய்யாமலேயே பின்னணியில் ஒவ்வொரு 30 விநாடிக்கும் தற்போதைய நேரத்தை வைத்து சோதிக்கும் முறை
     const interval = setInterval(() => {
       checkSubscriptionStatus()
     }, 30000)

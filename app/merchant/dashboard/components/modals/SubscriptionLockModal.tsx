@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Lock, Clock, MessageCircle, RotateCcw, WalletCards, Check, FileCheck, Image as ImageIcon, Upload } from 'lucide-react'
+import { Lock, Clock, MessageCircle, RotateCcw, Check, FileCheck, Image as ImageIcon, Building2, Copy, CheckCircle2 } from 'lucide-react'
 
 interface Props {
   isTrialExpired: boolean
@@ -40,7 +40,18 @@ export default function SubscriptionLockModal({
   handleCancelPaymentRequest,
   handleLogout
 }: Props) {
+  const [copied, setCopied] = useState(false)
+
   if (!isTrialExpired) return null
+
+  const bankAccountNo = "225020124930"
+  const branchId = "225"
+
+  const handleCopyAccount = () => {
+    navigator.clipboard.writeText(bankAccountNo)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   const planDetails = selectedPlan === 'YEARLY' 
     ? { title: 'Annual Pass', price: 'Rs. 7,900 / Year' } 
@@ -167,15 +178,52 @@ export default function SubscriptionLockModal({
                       : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                   }`}
                 >
+                  {selectedPlan === 'YEARLY' && (
+                    <span className="absolute top-2.5 right-2.5 w-4 h-4 bg-[#00875A] text-white rounded-full flex items-center justify-center text-[10px]">
+                      <Check size={10} />
+                    </span>
+                  )}
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Annual Pass</p>
                   <p className="text-base font-black text-[#00875A] mt-1">Rs. 7,900</p>
                 </button>
               </div>
             </div>
 
-            {/* 2. FILE UPLOAD */}
-            <div className="space-y-3">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">2. Upload Payment Proof:</label>
+            {/* NEW: BANK DETAILS SECTION */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">2. Deposit Payment To:</label>
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2 text-xs">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                  <div className="flex items-center gap-2 text-slate-800 font-bold">
+                    <Building2 size={16} className="text-[#00875A]" />
+                    <span>Bank Deposit Details</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyAccount}
+                    className="flex items-center gap-1 text-[11px] font-bold text-[#00875A] hover:text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200/60 transition cursor-pointer"
+                  >
+                    {copied ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                    <span>{copied ? 'Copied' : 'Copy Acc'}</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-0.5 text-slate-600">
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Account Number</p>
+                    <p className="font-mono font-black text-slate-900 text-sm tracking-wide">{bankAccountNo}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Branch ID</p>
+                    <p className="font-mono font-bold text-slate-800 text-sm">{branchId}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. FILE UPLOAD */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">3. Upload Payment Proof:</label>
               <div className="border-2 border-dashed border-slate-300 hover:border-[#00875A] rounded-2xl p-4 text-center transition cursor-pointer bg-slate-50/50 hover:bg-emerald-50/30 relative">
                 <input
                   type="file"
