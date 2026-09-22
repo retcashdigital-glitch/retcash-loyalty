@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { getAllStoresWithSubscriptions, renewStoreSubscription, Store } from '@/lib/adminService';
-
-// 🔒 உங்கள் பிரத்யேக Admin Email
-const MY_ADMIN_EMAIL = 'retcashdigital@gmail.com';
 
 export default function AdminSubscriptionsPage() {
   const [stores, setStores] = useState<Store[]>([]);
@@ -18,23 +14,22 @@ export default function AdminSubscriptionsPage() {
     checkAdminAccess();
   }, []);
 
-  async function checkAdminAccess() {
+  function checkAdminAccess() {
     try {
-      // 1. தற்போதைய பயனரின் லாக் இன் விவரங்களை சரிபார்த்தல்
-      const { data: { session } } = await supabase.auth.getSession();
+      // 1. அட்மின் லாக் இன் செய்து Cookie / LocalStorage அமைக்கப்பட்டுள்ளதா எனச் சரிபார்த்தல்
+      const isAuth = localStorage.getItem('admin_auth');
 
-      // 2. பயனர் லாக் இன் செய்யவில்லை என்றாலோ அல்லது அவர் retcashdigital@gmail.com இல்லை என்றாலோ தடுக்கப்படும்
-      if (!session || session.user.email !== MY_ADMIN_EMAIL) {
-        alert('உங்களுக்கு இந்த Admin பக்கத்தை அணுக அனுமதி இல்லை!');
-        router.push('/merchant/login');
+      // லாக் இன் செய்யப்படவில்லை என்றால் பிரத்யேக /admin/login பக்கத்திற்குத் திருப்பிவிடுதல்
+      if (isAuth !== 'true') {
+        router.push('/admin/login');
         return;
       }
 
       setAuthorized(true);
-      await loadStores();
+      loadStores();
     } catch (err: any) {
       alert('பாதுகாப்புச் சோதனையில் பிழை: ' + err.message);
-      router.push('/merchant/login');
+      router.push('/admin/login');
     }
   }
 
@@ -62,6 +57,13 @@ export default function AdminSubscriptionsPage() {
     }
   }
 
+  // அட்மின் கணக்கிலிருந்து வெளியேற (Logout)
+  function handleLogout() {
+    localStorage.removeItem('admin_auth');
+    document.cookie = "admin_authenticated=; path=/; max-age=0";
+    router.push('/admin/login');
+  }
+
   // Admin இல்லை என்றால் பக்கத்தைக் காட்ட வேண்டாம்
   if (!authorized) {
     return (
@@ -75,8 +77,18 @@ export default function AdminSubscriptionsPage() {
 
   return (
     <div className="p-8 font-sans bg-gray-900 text-white min-h-screen">
-      <h1 className="text-2xl font-bold mb-2">சப்ஸ்கிரிப்ஷன் நிர்வாகம் (Admin Panel)</h1>
-      <p className="text-gray-400 mb-6">retcashdigital@gmail.com கணக்கிற்கு மட்டுமே அணுகல் உள்ளது.</p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold mb-1">சப்ஸ்கிரிப்ஷன் நிர்வாகம் (Admin Panel)</h1>
+          <p className="text-gray-400">அட்மின் கணக்கில் வெற்றிகரமாக லாக் இன் செய்யப்பட்டுள்ளீர்கள்.</p>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition duration-200"
+        >
+          Logout
+        </button>
+      </div>
 
       <div className="overflow-x-auto">
         <table className="w-full border-collapse border border-gray-700">
