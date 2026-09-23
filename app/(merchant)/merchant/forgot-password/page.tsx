@@ -77,8 +77,8 @@ export default function ForgotPasswordPage() {
             setGeneratedOtp(otp)
             setOtpExpiry(expiryTime)
 
-            // Send real email via API
-            const response = await fetch('/api/send-otp', {
+            // Send real email via updated API path
+            const response = await fetch('/api/merchant/send-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: store.email, otp }),
