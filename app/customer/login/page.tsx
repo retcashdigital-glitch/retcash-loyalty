@@ -22,33 +22,67 @@ export default function CustomerLoginPage() {
         setError('');
         setMessage('');
 
+        const cleanEmail = email.trim().toLowerCase();
+
         try {
             const response = await fetch('/api/customer/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    email: email.trim().toLowerCase(),
+                    email: cleanEmail,
                     password: password.trim(),
                 }),
             });
 
             const data = await response.json();
 
+            // 1. If New User -> Auto Redirect to Register Page
+            if (response.status === 404 || data.isNewUser) {
+                setMessage('Account not found! Redirecting to Register page...');
+                setTimeout(() => {
+                    router.push(`/customer/register?email=${encodeURIComponent(cleanEmail)}`);
+                }, 1500);
+                return;
+            }
+
             if (!response.ok) {
                 throw new Error(data.error || 'Invalid email or password.');
             }
 
-            // Save Session for Persistence
+            // 2. Existing User Success -> Set EXACT session keys expected by Wallet Page
             if (data.customer) {
+                const customerPhone = data.customer.phone_number || '';
+                
+                // Phone standardization to match wallet params format (e.g. 94771234567)
+                let cleanPhone = customerPhone.replace(/\D/g, '');
+                if (cleanPhone.startsWith('0') && cleanPhone.length >= 10) {
+                    cleanPhone = `94${cleanPhone.slice(1)}`;
+                }
+
+                // Keys required by app/wallet/[phone]/page.tsx
+                if (cleanPhone) {
+                    localStorage.setItem(`retcash_wallet_session_${cleanPhone}`, 'true');
+                    localStorage.setItem(`retcash_wallet_auth_${cleanPhone}`, 'true');
+                    if (data.customer.full_name) {
+                        localStorage.setItem(`customer_name_${cleanPhone}`, data.customer.full_name);
+                    }
+                }
+
+                // General fallback session keys
                 localStorage.setItem('customer_card_id', data.customer.id);
-                localStorage.setItem('customer_phone', data.customer.phone_number || '');
+                localStorage.setItem('customer_phone', cleanPhone || customerPhone);
+
+                setMessage('Login successful! Redirecting to your card...');
+
+                // Redirect to the exact wallet route using phone number
+                setTimeout(() => {
+                    if (cleanPhone) {
+                        router.push(`/wallet/${cleanPhone}`);
+                    } else {
+                        router.push(`/card/${data.customer.id}`);
+                    }
+                }, 1000);
             }
-
-            setMessage('Login successful! Redirecting to your card...');
-
-            setTimeout(() => {
-                router.push(`/card/${data.customer.id}`);
-            }, 1200);
 
         } catch (err: any) {
             setError(err.message || 'Failed to login.');
@@ -123,7 +157,7 @@ export default function CustomerLoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full rounded-xl bg-[#00875A] py-3 text-xs font-extrabold text-white shadow-md hover:bg-[#059669] transition disabled:opacity-50"
+                        className="w-full rounded-xl bg-[#00875A] py-3 text-xs font-extrabold text-white shadow-md hover:bg-[#059669] transition disabled:opacity-50 cursor-pointer"
                     >
                         {loading ? 'Logging in...' : 'Sign In'}
                     </button>
