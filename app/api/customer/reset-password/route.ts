@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 
-// Admin Service Role Key மூலம் RLS-ஐ Bypass செய்யும் Supabase Client
+// Server-only Secure Client using Service Role Key
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY! // .env.local-இல் உள்ள Service Role Key
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 export async function POST(request: Request) {
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
         const cleanEmail = email.trim().toLowerCase();
         const cleanOtp = otp.toString().trim();
 
-        // 1. Verify OTP
+        // 1. Check OTP in customer_otps table
         const { data: otpRecords, error: otpError } = await supabaseAdmin
             .from('customer_otps')
             .select('*')
@@ -36,10 +36,10 @@ export async function POST(request: Request) {
 
         const otpRecord = otpRecords[0];
 
-        // 2. Hash Password
+        // 2. Hash New Password
         const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
 
-        // 3. Direct Password Update by Email
+        // 3. Securely Update Password in customers table via Service Role
         const { data: updatedUser, error: updateError } = await supabaseAdmin
             .from('customers')
             .update({ password: hashedPassword })
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
         if (!updatedUser || updatedUser.length === 0) {
             return NextResponse.json({ 
-                error: 'Customer account with this email was not found in customers table.' 
+                error: 'Customer account with this email was not found.' 
             }, { status: 404 });
         }
 
