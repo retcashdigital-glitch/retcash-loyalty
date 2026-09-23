@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 
-// Server-side Secure Admin Client
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -18,14 +17,14 @@ export async function POST(request: Request) {
 
         const cleanEmail = email.trim().toLowerCase();
 
-        // 1. Check if Customer exists in customers table
+        // 1. Check if Customer exists
         const { data: customer, error: findError } = await supabaseAdmin
             .from('customers')
-            .select('*')
+            .select('id, email, phone_number, full_name, password')
             .ilike('email', cleanEmail)
             .maybeSingle();
 
-        // 2. If Customer Not Found -> Return specific flag for Auto-Redirecting to Register Page
+        // 2. If Customer Not Found
         if (findError || !customer) {
             return NextResponse.json({ 
                 error: 'Account not found. Redirecting to registration...',
@@ -33,7 +32,7 @@ export async function POST(request: Request) {
             }, { status: 404 });
         }
 
-        // 3. Verify Password if user exists
+        // 3. Verify Password
         if (!customer.password) {
             return NextResponse.json({ 
                 error: 'Password not set for this account. Please reset your password.',
@@ -46,14 +45,15 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Incorrect password. Please try again.' }, { status: 401 });
         }
 
-        // 4. Success -> Return customer session details
+        // 4. Success -> Return customer session details with full_name
         return NextResponse.json({ 
             success: true, 
             message: 'Login successful',
             customer: {
                 id: customer.id,
                 email: customer.email,
-                phone_number: customer.phone_number
+                phone_number: customer.phone_number,
+                full_name: customer.full_name
             }
         });
 

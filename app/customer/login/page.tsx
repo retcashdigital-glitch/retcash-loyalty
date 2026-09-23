@@ -37,7 +37,6 @@ export default function CustomerLoginPage() {
 
             const data = await response.json();
 
-            // 1. If New User -> Auto Redirect to Register Page
             if (response.status === 404 || data.isNewUser) {
                 setMessage('Account not found! Redirecting to Register page...');
                 setTimeout(() => {
@@ -50,17 +49,16 @@ export default function CustomerLoginPage() {
                 throw new Error(data.error || 'Invalid email or password.');
             }
 
-            // 2. Existing User Success -> Set EXACT session keys expected by Wallet Page
             if (data.customer) {
                 const customerPhone = data.customer.phone_number || '';
                 
-                // Phone standardization (e.g. 0771234567 -> 94771234567)
                 let cleanPhone = customerPhone.replace(/\D/g, '');
                 if (cleanPhone.startsWith('0') && cleanPhone.length >= 10) {
                     cleanPhone = `94${cleanPhone.slice(1)}`;
+                } else if (!cleanPhone.startsWith('94') && cleanPhone.length === 9) {
+                    cleanPhone = `94${cleanPhone}`;
                 }
 
-                // Keys required by app/wallet/[phone]/page.tsx
                 if (cleanPhone) {
                     localStorage.setItem(`retcash_wallet_session_${cleanPhone}`, 'true');
                     localStorage.setItem(`retcash_wallet_auth_${cleanPhone}`, 'true');
@@ -69,20 +67,18 @@ export default function CustomerLoginPage() {
                     }
                 }
 
-                // General fallback session keys
                 localStorage.setItem('customer_card_id', data.customer.id);
                 localStorage.setItem('customer_phone', cleanPhone || customerPhone);
 
                 setMessage('Login successful! Redirecting to your card...');
 
-                // Redirect MUST use cleanPhone (e.g., 9477...) to match session keys
                 setTimeout(() => {
                     if (cleanPhone) {
                         router.push(`/wallet/${cleanPhone}`);
                     } else {
                         router.push(`/card/${data.customer.id}`);
                     }
-                }, 1000);
+                }, 800);
             }
 
         } catch (err: any) {

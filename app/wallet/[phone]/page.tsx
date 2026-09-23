@@ -23,21 +23,19 @@ import {
   Copy,
   Check,
   Sparkles,
-  Dumbbell,     // Fitness / Gym
-  Gamepad2,     // Gaming / Entertainment
-  Pill,         // Healthcare / Pharmacy
-  BookOpen,     // Education / Books
-  Car,          // Automobile
-  Sparkle,      // Beauty
-  Wrench,       // General Services
+  Dumbbell,
+  Gamepad2,
+  Pill,
+  BookOpen,
+  Car,
+  Sparkle,
+  Wrench,
   Camera,
   Loader2,
   Lock
 } from 'lucide-react'
 
 // ─── Visual Helpers ───────────────────────────────────────────────────────────
-
-const ScissorsIcon = Wrench
 
 function getCategoryColor(_category?: string) {
   return { color: '#00875A', bgColor: '#ECFDF5' }
@@ -89,7 +87,7 @@ function VisitCapsules({ visits, maxVisits, color }: { visits: number; maxVisits
 export default function CustomerWalletPage() {
   const params = useParams()
   const router = useRouter()
-  const rawPhone = params.phone as string
+  const rawPhone = (params?.phone as string) || ''
 
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const phone = rawPhone ? (rawPhone.startsWith('94') ? rawPhone : `94${rawPhone.replace(/^0/, '')}`) : ''
@@ -99,7 +97,6 @@ export default function CustomerWalletPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [customerId, setCustomerId] = useState<string | null>(null)
   
-  // Profile editing state
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -130,7 +127,6 @@ export default function CustomerWalletPage() {
   )
   const categoryList = ['All', ...availableCategories]
 
-  // ⚡ Local Storage-லிருந்து State-ஐ உடனடியாக வாசிக்கும் Helper
   const reloadFromCache = () => {
     if (!phone || typeof window === 'undefined') return
     const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
@@ -166,11 +162,14 @@ export default function CustomerWalletPage() {
         const cleanPhone = phone.replace(/\D/g, '')
         const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
-        const { data: customer, error } = await supabase
+        // 🟢 FIX: replaced .maybeSingle() with limit(1) to avoid crash if duplicate records exist
+        const { data: customerList, error } = await supabase
           .from('customers')
           .select('id, full_name, email, avatar_url')
           .or(`phone_number.eq.${phone},phone_number.eq.${phoneWithZero}`)
-          .maybeSingle()
+          .limit(1)
+
+        const customer = customerList?.[0]
 
         if (error || !customer) {
           localStorage.removeItem(`retcash_wallet_session_${phone}`)
@@ -189,9 +188,7 @@ export default function CustomerWalletPage() {
 
         setIsCheckingAuth(false)
 
-        // ⚡ OPTIMISTIC CACHE READ
         reloadFromCache()
-
         fetchWalletAndClaimsData()
         fetchActiveOffers()
 
@@ -203,7 +200,6 @@ export default function CustomerWalletPage() {
 
     checkAuthAndInit()
 
-    // ⚡ 1. BROADCAST CHANNEL LISTENER (கார்டு பக்கத்தில் இருந்து வரும் சிக்னலை உடனடியாகப் பெறுதல்)
     let syncChannel: BroadcastChannel | null = null
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       syncChannel = new BroadcastChannel('retcash_wallet_sync')
@@ -215,7 +211,6 @@ export default function CustomerWalletPage() {
       }
     }
 
-    // ⚡ 2. MOBILE LIFECYCLE LISTENER (App Background-க்குச் சென்று திரும்பும்போது Auto-Sync)
     const handleFocusOrVisibility = () => {
       if (document.visibilityState === 'visible') {
         reloadFromCache()
@@ -226,7 +221,6 @@ export default function CustomerWalletPage() {
     window.addEventListener('visibilitychange', handleFocusOrVisibility)
     window.addEventListener('focus', handleFocusOrVisibility)
 
-    // Realtime changes listener
     const cleanPhone = phone.replace(/\D/g, '')
     const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
@@ -256,15 +250,11 @@ export default function CustomerWalletPage() {
     }
   }, [phone, router])
 
-  // ==========================================
-  // 🎯 FETCH WALLET DATA
-  // ==========================================
   const fetchWalletAndClaimsData = async () => {
     try {
       const cleanPhone = phone.replace(/\D/g, '')
       const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
-      // 1. பயனரின் அனைத்து cashback_claims தரவுகளை எடுக்கிறது
       const { data: claimsData, error: claimsError } = await supabase
         .from('cashback_claims')
         .select('*')
@@ -280,7 +270,6 @@ export default function CustomerWalletPage() {
         return
       }
 
-      // 2. customer_wallet_summary View-லிருந்து நிலையைக் கண்டறிய தரவு எடுத்தல்
       const { data: walletSummaries } = await supabase
         .from('customer_wallet_summary')
         .select('store_id, current_balance, status')
@@ -291,7 +280,6 @@ export default function CustomerWalletPage() {
         summaryMap.set(String(sum.store_id), sum)
       })
 
-      // 3. ஒவ்வொரு claim_id-க்கும் கடைசியாக நடந்த REDEEMED தொகையை மட்டும் cashback_history-லிருந்து எடுத்தல்
       const claimIds = claimsData.map((c: any) => c.id)
       const { data: lastRedeemedTxs } = await supabase
         .from('cashback_history')
@@ -308,7 +296,6 @@ export default function CustomerWalletPage() {
         }
       })
 
-      // ஒவ்வொரு கடைக்கும் சமீபத்திய Claim தரவை பிரித்தெடுத்தல்
       const latestClaimsMap = new Map<string, any>()
       claimsData.forEach((claim: any) => {
         const storeIdStr = String(claim.store_id)
@@ -319,7 +306,6 @@ export default function CustomerWalletPage() {
 
       const customerStoreIds = Array.from(latestClaimsMap.keys())
 
-      // 4. கடைகளின் விவரங்களை எடுக்கிறது
       const { data: userStores, error: storeError } = await supabase
         .from('stores')
         .select('*')
@@ -327,7 +313,6 @@ export default function CustomerWalletPage() {
 
       if (storeError) throw storeError
 
-      // 5. கார்டு பக்கத்தைப் போன்று துல்லியமான அசல் கடைசியாக கிடைத்த Redeem தொகையுடன் இணைத்தல்
       const mergedStores = userStores?.map((store: any) => {
         const latestClaim = latestClaimsMap.get(String(store.id))
         const storeSummary = summaryMap.get(String(store.id))
@@ -335,7 +320,6 @@ export default function CustomerWalletPage() {
         const visitCount = Number(latestClaim?.visit_count || 0)
         const claimableAmount = Number(latestClaim?.claimable_amount || 0)
 
-        // நிலையைச் சரிபார்த்தல்
         const isRedeemed = latestClaim?.status === 'REDEEMED' || storeSummary?.status === 'REDEEMED'
 
         const lastRedeemedVal = latestClaim ? lastRedeemedMap.get(String(latestClaim.id)) : 0
@@ -536,7 +520,6 @@ export default function CustomerWalletPage() {
     <div className="flex justify-center min-h-full bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
       <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen border-x border-slate-200/50 shadow-2xl">
         
-        {/* Header - Fixed Solid Background & Elevation to prevent overlay issue */}
         <header className="sticky top-0 z-40 flex-shrink-0 bg-white border-b border-slate-200/80 px-5 pt-4 pb-3.5 shadow-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -557,11 +540,9 @@ export default function CustomerWalletPage() {
           </div>
         </header>
 
-        {/* Scrollable Body */}
         <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28 space-y-4">
           {activeTab === 'wallet' && (
             <>
-              {/* Hero Card */}
               <div
                 className="relative rounded-3xl overflow-hidden p-5 text-white shadow-lg"
                 style={{
@@ -623,7 +604,6 @@ export default function CustomerWalletPage() {
                 </div>
               </div>
 
-              {/* Interactive Search Bar - Enhanced Contrast for Sunlight Visibility */}
               <div className="space-y-3">
                 <form onSubmit={handleSearchSubmit} className="relative">
                   <button
@@ -659,7 +639,6 @@ export default function CustomerWalletPage() {
                   )}
                 </form>
 
-                {/* Dynamic Category Filter Pills */}
                 <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
                   {categoryList.map((cat) => {
                     const active = selectedCategory === cat
@@ -694,14 +673,12 @@ export default function CustomerWalletPage() {
                 </div>
               </div>
 
-              {/* Store Header */}
               <div className="flex items-center justify-between px-0.5 pt-1">
                 <h2 className="text-[13px] font-bold text-slate-700">
                   {filteredStores.length} {selectedCategory === 'All' ? 'stores' : selectedCategory + ' stores'}
                 </h2>
               </div>
 
-              {/* Stores Listing */}
               {loading && stores.length === 0 ? (
                 <div className="space-y-3">
                   {[1, 2].map((i) => (
@@ -748,7 +725,6 @@ export default function CustomerWalletPage() {
                         }`}
                       >
                         <div className="flex items-center gap-3.5">
-                          {/* Store Icon / Logo */}
                           <div
                             className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden"
                             style={{ background: style.bgColor }}
@@ -760,11 +736,8 @@ export default function CustomerWalletPage() {
                             )}
                           </div>
 
-                          {/* Main Content Area */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-3">
-                              
-                              {/* Store Title & Category */}
                               <div className="min-w-0 flex-1">
                                 <h3 className="text-sm font-bold text-slate-800 leading-snug truncate" title={store.store_name}>
                                   {store.store_name} {isThisNavigating && '(Opening...)'}
@@ -782,7 +755,6 @@ export default function CustomerWalletPage() {
                                 )}
                               </div>
 
-                              {/* Cashback Amount Display (✓ CLAIMED with Solid Black and Soft Grey Amount) */}
                               <div className="text-right flex-shrink-0">
                                 {store.isRedeemed ? (
                                   <div>
@@ -804,10 +776,8 @@ export default function CustomerWalletPage() {
                                   </div>
                                 )}
                               </div>
-
                             </div>
 
-                            {/* Visit Counter */}
                             <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
                               <span className="text-[11px] font-bold text-slate-700 flex-shrink-0 whitespace-nowrap">
                                 {visits} / {targetVisits} visits
@@ -1038,7 +1008,6 @@ export default function CustomerWalletPage() {
           )}
         </main>
 
-        {/* Fixed Bottom Nav */}
         <nav
           className="fixed bottom-0 max-w-[430px] w-full z-30 bg-white border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
@@ -1084,7 +1053,6 @@ export default function CustomerWalletPage() {
           </div>
         </nav>
 
-        {/* Image Modal */}
         {selectedImage && (
           <div
             onClick={() => setSelectedImage(null)}
@@ -1106,7 +1074,6 @@ export default function CustomerWalletPage() {
           </div>
         )}
 
-        {/* QR Code / Digital Pass Modal */}
         {showQrModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-xl relative">
