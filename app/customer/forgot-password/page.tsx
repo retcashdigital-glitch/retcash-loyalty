@@ -36,7 +36,7 @@ export default function CustomerForgotPasswordPage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email }), // OTP Backend-இல் உருவாக்கப்பட்டு DB & Email-க்கு அனுப்பப்படும்
+                body: JSON.stringify({ email: email.trim().toLowerCase() }),
             });
 
             const data = await response.json();
@@ -75,8 +75,8 @@ export default function CustomerForgotPasswordPage() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    email,
-                    otp,
+                    email: email.trim().toLowerCase(),
+                    otp: otp.trim(),
                     newPassword,
                 }),
             });

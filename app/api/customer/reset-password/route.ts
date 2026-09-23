@@ -33,11 +33,24 @@ export async function POST(request: Request) {
         // 2. Hash New Password with Bcrypt
         const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
 
-        // 3. Update User Password in Database
+        // 3. First Check if User Exists in Database
+        const { data: existingUser, error: findError } = await supabase
+            .from('customers')
+            .select('id, email')
+            .ilike('email', cleanEmail)
+            .maybeSingle();
+
+        if (findError || !existingUser) {
+            return NextResponse.json({ 
+                error: 'Customer account with this email was not found.' 
+            }, { status: 404 });
+        }
+
+        // 4. Update User Password using Exact ID
         const { data: updatedUser, error: updateError } = await supabase
             .from('customers')
             .update({ password: hashedPassword })
-            .ilike('email', cleanEmail)
+            .eq('id', existingUser.id)
             .select();
 
         if (updateError) {
@@ -47,11 +60,11 @@ export async function POST(request: Request) {
 
         if (!updatedUser || updatedUser.length === 0) {
             return NextResponse.json({ 
-                error: 'Failed to update password. User not found or database permission denied.' 
-            }, { status: 400 });
+                error: 'Database permission denied. Check RLS policies on "customers" table.' 
+            }, { status: 403 });
         }
 
-        // 4. Mark OTP as used AFTER password update success
+        // 5. Mark OTP as used AFTER password update success
         await supabase
             .from('customer_otps')
             .update({ is_used: true })
