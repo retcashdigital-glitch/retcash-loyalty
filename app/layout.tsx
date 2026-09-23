@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://retcashapp.com"),
   title: "Retcash - Digital Loyalty Card",
   description: "Track your visits and unlock exclusive cashback rewards.",
+  verification: {
+    google: "ZgVNM5oW8qGZGQDQGXzDV-Jf54z_B2pBrgM5m2nOlFY" ,
+  },
   icons: {
     icon: [
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
