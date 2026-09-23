@@ -675,7 +675,7 @@ export default function MerchantDashboardPage() {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
 
-    // 🌟 1. ACTION LEVEL EXpiry CHECK (பில் போடும் போது தானாகவே Expiry ஆவதை தடுக்கும் பாதுகாப்பு)
+    // 🌟 1. ACTION LEVEL EXpiry CHECK
     if (isTrialExpired) {
       showToast('error', 'Subscription expired. Please renew your account.')
       return
