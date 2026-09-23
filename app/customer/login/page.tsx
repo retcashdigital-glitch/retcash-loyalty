@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Mail, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function CustomerLoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -144,13 +145,20 @@ export default function CustomerLoginPage() {
                         <div className="relative">
                             <Lock className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                             <input
-                                type="password"
+                                type={showPassword ? 'text' : 'password'}
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="••••••••"
-                                className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A]"
+                                className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-10 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A]"
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none cursor-pointer"
+                            >
+                                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                            </button>
                         </div>
                     </div>
 

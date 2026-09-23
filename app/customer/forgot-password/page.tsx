@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Mail, ArrowLeft, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle2, AlertCircle, ShieldCheck, Eye, EyeOff, Lock } from 'lucide-react';
 
 export default function CustomerForgotPasswordPage() {
     const [step, setStep] = useState<1 | 2>(1);
@@ -13,6 +13,9 @@ export default function CustomerForgotPasswordPage() {
     const [otp, setOtp] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
@@ -183,26 +186,46 @@ export default function CustomerForgotPasswordPage() {
 
                         <div>
                             <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">New Password</label>
-                            <input
-                                type="password"
-                                required
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                placeholder="••••••••"
-                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A]"
-                            />
+                            <div className="relative">
+                                <Lock className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    type={showNewPassword ? 'text' : 'password'}
+                                    required
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-10 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A]"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowNewPassword(!showNewPassword)}
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none cursor-pointer"
+                                >
+                                    {showNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                </button>
+                            </div>
                         </div>
 
                         <div>
                             <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Confirm New Password</label>
-                            <input
-                                type="password"
-                                required
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                placeholder="••••••••"
-                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A]"
-                            />
+                            <div className="relative">
+                                <Lock className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    type={showConfirmPassword ? 'text' : 'password'}
+                                    required
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-10 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A]"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none cursor-pointer"
+                                >
+                                    {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex gap-3 pt-2">
