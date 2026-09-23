@@ -18,11 +18,13 @@ export const metadata: Metadata = {
   description: "Track your visits and unlock exclusive cashback rewards.",
   icons: {
     icon: [
-      { url: "/logo.png?v=2", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
     ],
-    shortcut: "/logo.png?v=2",
-    apple: "/logo.png?v=2",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
+  manifest: "/site.webmanifest",
   openGraph: {
     title: "Retcash - Digital Loyalty Card",
     description: "Track your visits and unlock exclusive cashback rewards.",
@@ -30,9 +32,9 @@ export const metadata: Metadata = {
     siteName: "Retcash",
     images: [
       {
-        url: "/logo.png?v=2",
-        width: 1200,
-        height: 630,
+        url: "/android-chrome-512x512.png",
+        width: 512,
+        height: 512,
         alt: "Retcash Logo",
       },
     ],
