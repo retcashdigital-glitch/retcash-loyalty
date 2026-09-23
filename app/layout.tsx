@@ -13,50 +13,46 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  // 🔥 கூகுள் தேடலுக்கு உங்கள் டொமைன் பெயர் அவசியம் (உங்கள் உண்மையான URL-ஐ இடவும்)
-  metadataBase: new URL("https://retcashapp.com"), 
-
+  metadataBase: new URL("https://retcashapp.com"),
   title: "Retcash - Digital Loyalty Card",
   description: "Track your visits and unlock exclusive cashback rewards.",
-  
-  // 🔥 பிரவுசர் மற்றும் கூகுள் ஃபாவிகானுக்கான ஐகான் அமைப்புகள்
   icons: {
     icon: [
-      { url: "/favicon.ico" },
-      { url: "/logo.png", type: "image/png" },
+      { url: "/logo.png?v=2", type: "image/png" },
     ],
-    shortcut: "/favicon.ico",
-    apple: "/logo.png",
+    shortcut: "/logo.png?v=2",
+    apple: "/logo.png?v=2",
   },
-
   openGraph: {
     title: "Retcash - Digital Loyalty Card",
     description: "Track your visits and unlock exclusive cashback rewards.",
+    url: "https://retcashapp.com",
+    siteName: "Retcash",
     images: [
       {
-        url: "/logo.png",
+        url: "/logo.png?v=2",
         width: 1200,
         height: 630,
         alt: "Retcash Logo",
       },
     ],
+    type: "website",
   },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-neutral-950 text-white">
-
-        {/* 🔥 மிகத் தூய்மையான மற்றும் நேர்த்தியான ஹெடர் (Clean Header) */}
-        {/* உன்னுடைய மற்ற பக்கங்கள் இயல்பாக வேலை செய்யும் பகுதி */}
-        <main className="flex-1 flex flex-col">
+    <html lang="en">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      >
+        <main className="min-h-full flex flex-col bg-neutral-950 text-white">
           {children}
         </main>
-
       </body>
     </html>
   );
