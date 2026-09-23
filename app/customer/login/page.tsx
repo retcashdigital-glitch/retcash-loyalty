@@ -4,124 +4,70 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Mail, ArrowLeft, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
 
-export default function CustomerForgotPasswordPage() {
-    const [step, setStep] = useState<1 | 2>(1);
-    
+export default function CustomerLoginPage() {
     const [email, setEmail] = useState('');
-    const [otp, setOtp] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
+    const [password, setPassword] = useState('');
 
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [message, setMessage] = useState('');
 
     const router = useRouter();
 
-    const handleSendOtp = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         setMessage('');
 
-        const cleanEmail = email.trim().toLowerCase();
-
         try {
-            const response = await fetch('/api/customer/send-otp', {
+            const response = await fetch('/api/customer/login', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email: cleanEmail }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to send OTP verification code.');
-            }
-
-            setMessage('Verification OTP has been sent to your email.');
-            setStep(2);
-
-        } catch (err: any) {
-            setError(err.message || 'An error occurred while sending OTP.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleResetPassword = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        setMessage('');
-
-        if (newPassword !== confirmPassword) {
-            setError('Passwords do not match.');
-            setLoading(false);
-            return;
-        }
-
-        const cleanEmail = email.trim().toLowerCase();
-
-        try {
-            const response = await fetch('/api/customer/reset-password', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    email: cleanEmail,
-                    otp: otp.trim(),
-                    newPassword: newPassword.trim(),
+                    email: email.trim().toLowerCase(),
+                    password: password.trim(),
                 }),
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to reset password. Please verify your OTP.');
+                throw new Error(data.error || 'Invalid email or password.');
             }
 
-            setMessage('Password reset successful! Redirecting to login...');
-            
+            // Save Session for Persistence
+            if (data.customer) {
+                localStorage.setItem('customer_card_id', data.customer.id);
+                localStorage.setItem('customer_phone', data.customer.phone_number || '');
+            }
+
+            setMessage('Login successful! Redirecting to your card...');
+
             setTimeout(() => {
-                router.push('/customer/login');
-            }, 2000);
+                router.push(`/card/${data.customer.id}`);
+            }, 1200);
 
         } catch (err: any) {
-            setError(err.message || 'An error occurred during password reset.');
+            setError(err.message || 'Failed to login.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-[#F1F5F9] px-4 font-sans text-[#0F172A] selection:bg-[#00875A] selection:text-white">
+        <div className="flex min-h-screen items-center justify-center bg-[#F1F5F9] px-4 font-sans text-[#0F172A]">
             <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-xl space-y-6">
                 
                 <div className="text-center space-y-2">
-                    <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mx-auto mb-3 p-2">
-                        <Image 
-                            src="/logo.png" 
-                            alt="RETCASH Logo" 
-                            width={48} 
-                            height={48} 
-                            className="w-full h-full object-contain"
-                        />
+                    <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md mx-auto mb-3 p-2">
+                        <Image src="/logo.png" alt="RETCASH" width={48} height={48} className="object-contain" />
                     </div>
                     <h1 className="text-2xl font-black tracking-wider text-[#00875A] uppercase">RETCASH</h1>
-                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
-                        {step === 1 ? 'Forgot Password' : 'Reset Password'}
-                    </h2>
-                    <p className="text-xs text-slate-500">
-                        {step === 1 
-                            ? 'Enter your registered email to receive a security OTP.' 
-                            : 'Enter the 6-digit OTP sent to your email and your new password.'}
-                    </p>
+                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Customer Login</h2>
+                    <p className="text-xs text-slate-500">Enter your credentials to access your digital card</p>
                 </div>
 
                 {error && (
@@ -138,113 +84,55 @@ export default function CustomerForgotPasswordPage() {
                     </div>
                 )}
 
-                {step === 1 && (
-                    <form onSubmit={handleSendOtp} className="space-y-4">
-                        <div>
-                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
-                                Registered Email
-                            </label>
-                            <div className="relative">
-                                <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                                <input
-                                    type="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="name@example.com"
-                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
-                                />
-                            </div>
+                <form onSubmit={handleLogin} className="space-y-4">
+                    <div>
+                        <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Email Address</label>
+                        <div className="relative">
+                            <Mail className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="email"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="name@example.com"
+                                className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A]"
+                            />
                         </div>
+                    </div>
 
-                        <div className="flex gap-3 pt-2">
-                            <Link
-                                href="/customer/login"
-                                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-slate-50 py-3 text-center text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-                            >
-                                <ArrowLeft className="size-3.5" /> Back
+                    <div>
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="block text-[10px] font-bold uppercase text-slate-500">Password</label>
+                            <Link href="/customer/forgot-password" className="text-[11px] font-semibold text-[#00875A] hover:underline">
+                                Forgot Password?
                             </Link>
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="flex-[2] rounded-xl bg-[#00875A] hover:bg-[#059669] py-3 text-center text-xs font-extrabold text-white shadow-md shadow-[#00875A]/20 active:scale-[0.98] transition disabled:opacity-50 cursor-pointer"
-                            >
-                                {loading ? 'Sending...' : 'Send OTP'}
-                            </button>
                         </div>
-                    </form>
-                )}
-
-                {step === 2 && (
-                    <form onSubmit={handleResetPassword} className="space-y-4">
-                        <div>
-                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
-                                Verification OTP Code
-                            </label>
-                            <div className="relative">
-                                <ShieldCheck className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                                <input
-                                    type="text"
-                                    required
-                                    maxLength={6}
-                                    value={otp}
-                                    onChange={(e) => setOtp(e.target.value)}
-                                    placeholder="Enter 6-digit OTP"
-                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm font-mono tracking-widest text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
-                                New Password
-                            </label>
+                        <div className="relative">
+                            <Lock className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                             <input
                                 type="password"
                                 required
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
                                 placeholder="••••••••"
-                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
+                                className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A]"
                             />
                         </div>
+                    </div>
 
-                        <div>
-                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
-                                Confirm New Password
-                            </label>
-                            <input
-                                type="password"
-                                required
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                placeholder="••••••••"
-                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
-                            />
-                        </div>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full rounded-xl bg-[#00875A] py-3 text-xs font-extrabold text-white shadow-md hover:bg-[#059669] transition disabled:opacity-50"
+                    >
+                        {loading ? 'Logging in...' : 'Sign In'}
+                    </button>
+                </form>
 
-                        <div className="flex gap-3 pt-2">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setStep(1);
-                                    setError('');
-                                    setMessage('');
-                                }}
-                                className="flex-1 rounded-xl border border-slate-300 bg-slate-50 py-3 text-center text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-                            >
-                                Back
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="flex-[2] rounded-xl bg-[#00875A] hover:bg-[#059669] py-3 text-center text-xs font-extrabold text-white shadow-md shadow-[#00875A]/20 active:scale-[0.98] transition disabled:opacity-50 cursor-pointer"
-                            >
-                                {loading ? 'Resetting...' : 'Submit & Reset'}
-                            </button>
-                        </div>
-                    </form>
-                )}
+                <div className="text-center pt-2 text-xs">
+                    <span className="text-slate-500">Don't have a card yet? </span>
+                    <Link href="/customer/register" className="font-bold text-[#00875A] hover:underline">Register Now</Link>
+                </div>
 
             </div>
         </div>

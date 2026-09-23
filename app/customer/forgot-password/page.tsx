@@ -7,36 +7,32 @@ import Image from 'next/image';
 import { Mail, ArrowLeft, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 
 export default function CustomerForgotPasswordPage() {
-    // Step state: 1 = Enter Email, 2 = Enter OTP & Reset Password
     const [step, setStep] = useState<1 | 2>(1);
     
-    // Form Inputs
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    // Feedback States
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
     const router = useRouter();
 
-    // STEP 1: Send OTP via Secure Backend API
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         setMessage('');
 
+        const cleanEmail = email.trim().toLowerCase();
+
         try {
             const response = await fetch('/api/customer/send-otp', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email: email.trim().toLowerCase() }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: cleanEmail }),
             });
 
             const data = await response.json();
@@ -55,7 +51,6 @@ export default function CustomerForgotPasswordPage() {
         }
     };
 
-    // STEP 2: Verify OTP and Reset Password via Secure Backend
     const handleResetPassword = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -68,16 +63,16 @@ export default function CustomerForgotPasswordPage() {
             return;
         }
 
+        const cleanEmail = email.trim().toLowerCase();
+
         try {
             const response = await fetch('/api/customer/reset-password', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    email: email.trim().toLowerCase(),
+                    email: cleanEmail,
                     otp: otp.trim(),
-                    newPassword,
+                    newPassword: newPassword.trim(),
                 }),
             });
 
@@ -101,19 +96,12 @@ export default function CustomerForgotPasswordPage() {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-[#F1F5F9] px-4 font-sans text-[#0F172A] selection:bg-[#00875A] selection:text-white">
+        <div className="flex min-h-screen items-center justify-center bg-[#F1F5F9] px-4 font-sans text-[#0F172A]">
             <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-xl space-y-6">
                 
-                {/* Header Section with Real Logo Image */}
                 <div className="text-center space-y-2">
-                    <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mx-auto mb-3 p-2">
-                        <Image 
-                            src="/logo.png" 
-                            alt="RETCASH Logo" 
-                            width={48} 
-                            height={48} 
-                            className="w-full h-full object-contain"
-                        />
+                    <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md mx-auto mb-3 p-2">
+                        <Image src="/logo.png" alt="RETCASH" width={48} height={48} className="object-contain" />
                     </div>
                     <h1 className="text-2xl font-black tracking-wider text-[#00875A] uppercase">RETCASH</h1>
                     <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
@@ -126,7 +114,6 @@ export default function CustomerForgotPasswordPage() {
                     </p>
                 </div>
 
-                {/* Error Banner */}
                 {error && (
                     <div className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs font-semibold text-red-600">
                         <AlertCircle className="size-4 shrink-0" />
@@ -134,7 +121,6 @@ export default function CustomerForgotPasswordPage() {
                     </div>
                 )}
 
-                {/* Success Banner */}
                 {message && (
                     <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-xs font-semibold text-[#00875A]">
                         <CheckCircle2 className="size-4 shrink-0" />
@@ -142,22 +128,19 @@ export default function CustomerForgotPasswordPage() {
                     </div>
                 )}
 
-                {/* STEP 1: EMAIL INPUT FORM */}
                 {step === 1 && (
                     <form onSubmit={handleSendOtp} className="space-y-4">
                         <div>
-                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
-                                Registered Email
-                            </label>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Registered Email</label>
                             <div className="relative">
-                                <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                                <Mail className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                                 <input
                                     type="email"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="name@example.com"
-                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
+                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A]"
                                 />
                             </div>
                         </div>
@@ -165,14 +148,14 @@ export default function CustomerForgotPasswordPage() {
                         <div className="flex gap-3 pt-2">
                             <Link
                                 href="/customer/login"
-                                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-slate-50 py-3 text-center text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-slate-50 py-3 text-center text-xs font-bold text-slate-700 hover:bg-slate-100"
                             >
                                 <ArrowLeft className="size-3.5" /> Back
                             </Link>
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="flex-[2] rounded-xl bg-[#00875A] hover:bg-[#059669] py-3 text-center text-xs font-extrabold text-white shadow-md shadow-[#00875A]/20 active:scale-[0.98] transition disabled:opacity-50 cursor-pointer"
+                                className="flex-[2] rounded-xl bg-[#00875A] py-3 text-center text-xs font-extrabold text-white shadow-md hover:bg-[#059669] disabled:opacity-50"
                             >
                                 {loading ? 'Sending...' : 'Send OTP'}
                             </button>
@@ -180,15 +163,12 @@ export default function CustomerForgotPasswordPage() {
                     </form>
                 )}
 
-                {/* STEP 2: OTP & NEW PASSWORD FORM */}
                 {step === 2 && (
                     <form onSubmit={handleResetPassword} className="space-y-4">
                         <div>
-                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
-                                Verification OTP Code
-                            </label>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Verification OTP Code</label>
                             <div className="relative">
-                                <ShieldCheck className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                                <ShieldCheck className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                                 <input
                                     type="text"
                                     required
@@ -196,55 +176,47 @@ export default function CustomerForgotPasswordPage() {
                                     value={otp}
                                     onChange={(e) => setOtp(e.target.value)}
                                     placeholder="Enter 6-digit OTP"
-                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm font-mono tracking-widest text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
+                                    className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 py-3 text-sm font-mono tracking-widest text-slate-900 outline-none focus:border-[#00875A]"
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
-                                New Password
-                            </label>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">New Password</label>
                             <input
                                 type="password"
                                 required
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 placeholder="••••••••"
-                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
+                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A]"
                             />
                         </div>
 
                         <div>
-                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
-                                Confirm New Password
-                            </label>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Confirm New Password</label>
                             <input
                                 type="password"
                                 required
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 placeholder="••••••••"
-                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-[#00875A]/20 transition"
+                                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-900 outline-none focus:border-[#00875A]"
                             />
                         </div>
 
                         <div className="flex gap-3 pt-2">
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setStep(1);
-                                    setError('');
-                                    setMessage('');
-                                }}
-                                className="flex-1 rounded-xl border border-slate-300 bg-slate-50 py-3 text-center text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                                onClick={() => { setStep(1); setError(''); setMessage(''); }}
+                                className="flex-1 rounded-xl border border-slate-300 bg-slate-50 py-3 text-center text-xs font-bold text-slate-700 hover:bg-slate-100"
                             >
                                 Back
                             </button>
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="flex-[2] rounded-xl bg-[#00875A] hover:bg-[#059669] py-3 text-center text-xs font-extrabold text-white shadow-md shadow-[#00875A]/20 active:scale-[0.98] transition disabled:opacity-50 cursor-pointer"
+                                className="flex-[2] rounded-xl bg-[#00875A] py-3 text-center text-xs font-extrabold text-white shadow-md hover:bg-[#059669] disabled:opacity-50"
                             >
                                 {loading ? 'Resetting...' : 'Submit & Reset'}
                             </button>
