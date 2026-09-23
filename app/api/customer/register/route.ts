@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 
-// RLS-ஐ bypass செய்ய Service Role Key பயன்படுத்துதல்
+// Server-side Secure Client
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
         const cleanEmail = email.trim().toLowerCase();
         const cleanPhone = phone_number ? phone_number.trim() : '';
 
-        // 1. Check if user already exists
+        // 1. Check if customer already exists
         const { data: existingUser } = await supabaseAdmin
             .from('customers')
             .select('id, email')
@@ -30,10 +30,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Account with this email already exists. Please Login.' }, { status: 400 });
         }
 
-        // 2. Hash Password
+        // 2. Hash Password securely
         const hashedPassword = await bcrypt.hash(password.trim(), 10);
 
-        // 3. Insert directly into customers table
+        // 3. Create a new row for the new customer
         const { data: newCustomer, error: insertError } = await supabaseAdmin
             .from('customers')
             .insert([
@@ -42,14 +42,18 @@ export async function POST(request: Request) {
                     email: cleanEmail,
                     phone_number: cleanPhone,
                     password: hashedPassword,
+                    visit_count: 0,
+                    total_cashback: 0
                 }
             ])
             .select()
             .single();
 
         if (insertError) {
-            console.error("Registration Insert Error:", insertError);
-            return NextResponse.json({ error: insertError.message }, { status: 500 });
+            console.error("Supabase Customer Registration Insert Error:", insertError);
+            return NextResponse.json({ 
+                error: `Registration Failed: ${insertError.message}` 
+            }, { status: 500 });
         }
 
         return NextResponse.json({
