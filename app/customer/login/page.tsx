@@ -54,7 +54,7 @@ export default function CustomerLoginPage() {
             if (data.customer) {
                 const customerPhone = data.customer.phone_number || '';
                 
-                // Phone standardization to match wallet params format (e.g. 94771234567)
+                // Phone standardization (e.g. 0771234567 -> 94771234567)
                 let cleanPhone = customerPhone.replace(/\D/g, '');
                 if (cleanPhone.startsWith('0') && cleanPhone.length >= 10) {
                     cleanPhone = `94${cleanPhone.slice(1)}`;
@@ -75,7 +75,7 @@ export default function CustomerLoginPage() {
 
                 setMessage('Login successful! Redirecting to your card...');
 
-                // Redirect to the exact wallet route using phone number
+                // Redirect MUST use cleanPhone (e.g., 9477...) to match session keys
                 setTimeout(() => {
                     if (cleanPhone) {
                         router.push(`/wallet/${cleanPhone}`);
