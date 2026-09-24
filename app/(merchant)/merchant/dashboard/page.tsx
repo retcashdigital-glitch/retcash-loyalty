@@ -628,15 +628,6 @@ export default function MerchantDashboardPage() {
   const executeRedeemReward = async () => {
     if (!scannedClaimData || actionLoading) return
 
-    // 🌟 STRICT SUBSCRIPTION EXPIRED CHECK BEFORE REDEEMING REWARD
-    const isExpiredStatus = merchantSession?.subscription_status === 'expired'
-    const isDaysOver = typeof daysRemainingInTrial === 'number' && daysRemainingInTrial <= 0
-
-    if (isTrialExpired || isExpiredStatus || isDaysOver) {
-      showToast('error', 'Subscription expired. Please renew your account to redeem rewards.')
-      return
-    }
-
     setActionLoading(true)
     try {
       const redeemedAmt = Number(scannedClaimData.claimable_amount || 0)
@@ -684,12 +675,9 @@ export default function MerchantDashboardPage() {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
 
-    // 🌟 STRICT SUBSCRIPTION EXPIRED CHECK
-    const isExpiredStatus = merchantSession?.subscription_status === 'expired'
-    const isDaysOver = typeof daysRemainingInTrial === 'number' && daysRemainingInTrial <= 0
-
-    if (isTrialExpired || isExpiredStatus || isDaysOver) {
-      showToast('error', 'Subscription expired. Please renew your account to generate cashback.')
+    // 🌟 1. ACTION LEVEL EXPIRED CHECK
+    if (isTrialExpired) {
+      showToast('error', 'Subscription expired. Please renew your account.')
       return
     }
 
@@ -831,6 +819,32 @@ export default function MerchantDashboardPage() {
 
   if (!merchantSession) return null
 
+  // 🔴 🔒 SUBSCRIPTION EXPIRED FULL-SCREEN LOCK (மாற்றம் செய்யப்பட்ட பகுதி)
+  if (isTrialExpired) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <SubscriptionLockModal
+          isTrialExpired={true}
+          isPendingVerification={isPendingVerification}
+          merchantSession={merchantSession}
+          adminPhone={ADMIN_WHATSAPP_NUMBER}
+          selectedPlan={selectedPlan}
+          setSelectedPlan={setSelectedPlan}
+          receiptFile={receiptFile}
+          setReceiptFile={setReceiptFile}
+          transactionRef={transactionRef}
+          setTransactionRef={setTransactionRef}
+          isSubmittingPayment={isSubmittingPayment}
+          uploadedReceiptUrl={uploadedReceiptUrl}
+          isCancellingPayment={isCancellingPayment}
+          handlePaymentSubmission={handlePaymentSubmission}
+          handleCancelPaymentRequest={handleCancelPaymentRequest}
+          handleLogout={handleLogout}
+        />
+      </div>
+    )
+  }
+
   const targetVisits = Math.min(merchantSession?.target_visits || 6, 10)
   const filteredCustomers = customersList.filter(c => c.customer_phone.includes(customerSearchQuery))
   const totalClaimableSum = customersList.reduce((acc, curr) => acc + Number(curr.claimable_amount || 0), 0)
@@ -838,28 +852,8 @@ export default function MerchantDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 font-sans selection:bg-[#00875A] selection:text-white relative">
-      
-      {/* 1. SUBSCRIPTION EXPIRED LOCK MODAL (Always Available) */}
-      <SubscriptionLockModal
-        isTrialExpired={isTrialExpired}
-        isPendingVerification={isPendingVerification}
-        merchantSession={merchantSession}
-        adminPhone={ADMIN_WHATSAPP_NUMBER}
-        selectedPlan={selectedPlan}
-        setSelectedPlan={setSelectedPlan}
-        receiptFile={receiptFile}
-        setReceiptFile={setReceiptFile}
-        transactionRef={transactionRef}
-        setTransactionRef={setTransactionRef}
-        isSubmittingPayment={isSubmittingPayment}
-        uploadedReceiptUrl={uploadedReceiptUrl}
-        isCancellingPayment={isCancellingPayment}
-        handlePaymentSubmission={handlePaymentSubmission}
-        handleCancelPaymentRequest={handleCancelPaymentRequest}
-        handleLogout={handleLogout}
-      />
 
-      {/* 2. RECEIPT BREAKDOWN CONFIRM MODAL */}
+      {/* RECEIPT BREAKDOWN CONFIRM MODAL */}
       <RedeemConfirmModal
         showModal={showRedeemConfirmModal}
         scannedClaimData={scannedClaimData}
@@ -920,91 +914,88 @@ export default function MerchantDashboardPage() {
         />
       )}
 
-      {/* 🌟 WRAPPER THAT BLURS/DISABLES DASHBOARD CONTENT IF EXPIRED */}
-      <div className={isTrialExpired ? "pointer-events-none select-none blur-xs opacity-40 overflow-hidden max-h-screen" : ""}>
-        <DashboardHeader
-          merchantSession={merchantSession}
-          onOpenProfile={() => setIsProfileOpen(true)}
-          onLogout={handleLogout}
+      <DashboardHeader
+        merchantSession={merchantSession}
+        onOpenProfile={() => setIsProfileOpen(true)}
+        onLogout={handleLogout}
+      />
+
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-5 sm:py-8 lg:px-8 lg:py-10">
+        
+        {/* 5-DAY WARNING BANNER COMPONENT */}
+        <SubscriptionWarningBanner
+          isTrialExpired={isTrialExpired}
+          daysRemainingInTrial={daysRemainingInTrial}
+          storeName={merchantSession.store_name}
+          adminPhone={ADMIN_WHATSAPP_NUMBER}
         />
 
-        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-5 sm:py-8 lg:px-8 lg:py-10">
-          
-          {/* 3. 5-DAY WARNING BANNER COMPONENT */}
-          <SubscriptionWarningBanner
-            isTrialExpired={isTrialExpired}
-            daysRemainingInTrial={daysRemainingInTrial}
-            storeName={merchantSession.store_name}
-            adminPhone={ADMIN_WHATSAPP_NUMBER}
-          />
-
-          <div className="mb-6 flex items-start justify-between gap-3">
-            <div>
-              <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#00875A]">
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-              </p>
-              <h1 className="text-2xl font-black tracking-[-0.04em] text-slate-900 sm:text-4xl">Keep your customers coming back.</h1>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">Reward every visit instantly and keep your regulars in the loop.</p>
-            </div>
+        <div className="mb-6 flex items-start justify-between gap-3">
+          <div>
+            <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#00875A]">
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+            <h1 className="text-2xl font-black tracking-[-0.04em] text-slate-900 sm:text-4xl">Keep your customers coming back.</h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">Reward every visit instantly and keep your regulars in the loop.</p>
           </div>
+        </div>
 
-          <NavigationTabs
-            tabs={tabs}
-            activeTab={activeTab}
-            onSelectTab={(t) => setActiveTab(t)}
+        <NavigationTabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onSelectTab={(t) => setActiveTab(t)}
+        />
+
+        {activeTab === 'billing' && (
+          <QuickBillingSection
+            customerPhone={customerPhone}
+            setCustomerPhone={setCustomerPhone}
+            billAmount={billAmount}
+            setBillAmount={setBillAmount}
+            actionLoading={actionLoading}
+            isCheckingCustomer={isCheckingCustomer}
+            existingCustomerClaim={existingCustomerClaim}
+            currentClaimable={currentClaimable}
+            customersList={customersList}
+            totalClaimableSum={totalClaimableSum}
+            handleGenerateCashback={handleGenerateCashback}
+            startScanner={startScanner}
+            startPhoneScanner={startPhoneScanner}
+            onOpenProfile={() => setIsProfileOpen(true)}
+            merchantStoreId={merchantSession?.id}
           />
+        )}
 
-          {activeTab === 'billing' && (
-            <QuickBillingSection
-              customerPhone={customerPhone}
-              setCustomerPhone={setCustomerPhone}
-              billAmount={billAmount}
-              setBillAmount={setBillAmount}
-              actionLoading={actionLoading}
-              isCheckingCustomer={isCheckingCustomer}
-              existingCustomerClaim={existingCustomerClaim}
-              currentClaimable={currentClaimable}
-              customersList={customersList}
-              totalClaimableSum={totalClaimableSum}
-              handleGenerateCashback={handleGenerateCashback}
-              startScanner={startScanner}
-              startPhoneScanner={startPhoneScanner}
-              onOpenProfile={() => setIsProfileOpen(true)}
-              merchantStoreId={merchantSession?.id}
-            />
-          )}
+        {activeTab === 'offers' && (
+          <StoreOffersSection
+            offers={offers}
+            offerTitle={offerTitle}
+            setOfferTitle={setOfferTitle}
+            offerDesc={offerDesc}
+            setOfferDesc={setOfferDesc}
+            offerExpiry={offerExpiry}
+            setOfferExpiry={setOfferExpiry}
+            offerImage={offerImage}
+            setOfferImage={setOfferImage}
+            offerUploading={offerUploading}
+            offerStatusMsg={offerStatusMsg}
+            handleAddOffer={handleAddOffer}
+            setOfferToDelete={setOfferToDelete}
+          />
+        )}
 
-          {activeTab === 'offers' && (
-            <StoreOffersSection
-              offers={offers}
-              offerTitle={offerTitle}
-              setOfferTitle={setOfferTitle}
-              offerDesc={offerDesc}
-              setOfferDesc={setOfferDesc}
-              offerExpiry={offerExpiry}
-              setOfferExpiry={setOfferExpiry}
-              offerImage={offerImage}
-              setOfferImage={setOfferImage}
-              offerUploading={offerUploading}
-              offerStatusMsg={offerStatusMsg}
-              handleAddOffer={handleAddOffer}
-              setOfferToDelete={setOfferToDelete}
-            />
-          )}
+        {activeTab === 'customers' && (
+          <CustomersSection
+            filteredCustomers={filteredCustomers}
+            customerSearchQuery={customerSearchQuery}
+            setCustomerSearchQuery={setCustomerSearchQuery}
+            targetVisits={targetVisits}
+          />
+        )}
 
-          {activeTab === 'customers' && (
-            <CustomersSection
-              filteredCustomers={filteredCustomers}
-              customerSearchQuery={customerSearchQuery}
-              setCustomerSearchQuery={setCustomerSearchQuery}
-              targetVisits={targetVisits}
-            />
-          )}
+      </main>
 
-        </main>
-      </div>
-
-      {isScanning && !showRedeemConfirmModal && !isTrialExpired && (
+      {isScanning && !showRedeemConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-5" role="dialog" aria-modal="true">
           <div className="w-full max-w-sm rounded-3xl border border-slate-100 bg-white p-6 text-center shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
