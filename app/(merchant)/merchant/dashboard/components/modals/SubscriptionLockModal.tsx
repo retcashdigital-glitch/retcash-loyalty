@@ -47,21 +47,17 @@ export default function SubscriptionLockModal({
   handleCancelPaymentRequest,
   handleLogout
 }: Props) {
-  // தனித்தனி Copy States
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
-  // 🌟 STRICT LOCK CHECK: isTrialExpired OR Status is Expired
   const isLocked = isTrialExpired || merchantSession?.subscription_status === 'expired'
 
   if (!isLocked || !merchantSession) return null
 
-  // வங்கி விவரங்கள்
   const bankName = "Hatton National Bank PLC (HNB)"
   const accountName = "KUMARATHAS RUBASRI"
   const bankAccountNo = "225020124930"
   const branchName = "Trincomalee Metro"
 
-  // காப்பி செய்யும் ஃபங்க்ஷன்
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text)
     setCopiedField(fieldName)
@@ -162,7 +158,6 @@ export default function SubscriptionLockModal({
               </p>
             </div>
 
-            {/* 1. PLAN SELECTION */}
             <div className="space-y-2">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">1. Choose Your Plan:</label>
               <div className="grid grid-cols-2 gap-3">
@@ -204,12 +199,9 @@ export default function SubscriptionLockModal({
               </div>
             </div>
 
-            {/* 2. BANK DETAILS WITH SEPARATE COPY BUTTONS */}
             <div className="space-y-2">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">2. Deposit Payment To:</label>
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 text-xs">
-                
-                {/* Header: Bank Name */}
                 <div className="pb-2.5 border-b border-slate-200">
                   <div className="flex items-center gap-2 text-slate-900 font-extrabold">
                     <Building2 size={18} className="text-[#00875A]" />
@@ -217,9 +209,7 @@ export default function SubscriptionLockModal({
                   </div>
                 </div>
 
-                {/* Vertical Order with Separate Copy Buttons */}
                 <div className="space-y-3">
-                  {/* Account Name */}
                   <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200/60">
                     <div>
                       <p className="text-[10px] text-slate-400 font-extrabold uppercase">Account Name</p>
@@ -235,7 +225,6 @@ export default function SubscriptionLockModal({
                     </button>
                   </div>
 
-                  {/* Account Number */}
                   <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200/60">
                     <div>
                       <p className="text-[10px] text-slate-400 font-extrabold uppercase">Account Number</p>
@@ -251,7 +240,6 @@ export default function SubscriptionLockModal({
                     </button>
                   </div>
 
-                  {/* Branch Name */}
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <p className="text-[10px] text-slate-400 font-extrabold uppercase">Branch</p>
@@ -271,7 +259,6 @@ export default function SubscriptionLockModal({
               </div>
             </div>
 
-            {/* 3. FILE UPLOAD */}
             <div className="space-y-2">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">3. Upload Payment Proof:</label>
               <div className="border-2 border-dashed border-slate-300 hover:border-[#00875A] rounded-2xl p-4 text-center transition cursor-pointer bg-slate-50/50 hover:bg-emerald-50/30 relative">
@@ -298,7 +285,6 @@ export default function SubscriptionLockModal({
               </div>
             </div>
 
-            {/* SUBMIT BUTTON */}
             <button
               type="submit"
               disabled={isSubmittingPayment || !receiptFile}

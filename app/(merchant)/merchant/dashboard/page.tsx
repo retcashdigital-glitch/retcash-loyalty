@@ -61,7 +61,7 @@ export default function MerchantDashboardPage() {
   const [billAmount, setBillAmount] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  // 🌟 SUBSCRIPTION WATCHER HOOK (Auto-Expiry + Interval)
+  // 🌟 SUBSCRIPTION WATCHER HOOK
   const { isTrialExpired, daysRemainingInTrial, setIsTrialExpired } = useSubscriptionWatcher(merchantSession)
 
   const [selectedPlan, setSelectedPlan] = useState<'MONTHLY' | 'YEARLY'>('YEARLY')
@@ -213,7 +213,6 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // 🟢 திருத்தப்பட்ட முக்கிய ஃபங்ஷன் (Payment Submit + Direct WhatsApp Open)
   const handlePaymentSubmission = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!receiptFile || !merchantSession?.id) {
@@ -229,14 +228,12 @@ export default function MerchantDashboardPage() {
       const fileExt = receiptFile.name.split('.').pop() || 'png'
       const filePath = `receipts/${merchantSession.id}_${Date.now()}.${fileExt}`
 
-      // 1. Supabase Storage-ல் ரசீது படத்தைப் பதிவேற்றுதல்
       const { error: uploadErr } = await supabase.storage
         .from('payment-receipts')
         .upload(filePath, receiptFile)
 
       if (uploadErr) throw new Error('Failed to upload receipt file: ' + uploadErr.message)
 
-      // 2.Public URL பெறுதல்
       const { data: urlData } = supabase.storage
         .from('payment-receipts')
         .getPublicUrl(filePath)
@@ -244,7 +241,6 @@ export default function MerchantDashboardPage() {
       const receiptPublicUrl = urlData.publicUrl
       setUploadedReceiptUrl(receiptPublicUrl)
 
-      // 3. Database-ல் பதிவு செய்தல்
       const { error: dbErr } = await supabase.from('payment_requests').insert({
         store_id: merchantSession.id,
         plan_type: planType,
@@ -259,7 +255,6 @@ export default function MerchantDashboardPage() {
       setIsPendingVerification(true)
       showToast('success', 'Receipt uploaded! Opening WhatsApp...')
 
-      // 📲 4. வாட்ஸ்அப் மெசேஜ் தயார் செய்து நேரடியாக திறக்கும் பகுதி
       const storeName = merchantSession.store_name || 'Merchant Store'
       const storePhone = merchantSession.phone_number || 'N/A'
 
@@ -705,7 +700,6 @@ export default function MerchantDashboardPage() {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
 
-    // 🌟 1. ACTION LEVEL EXPIRED CHECK
     if (isTrialExpired || daysRemainingInTrial <= 0) {
       showToast('error', 'Subscription expired. Please renew your account.')
       return
@@ -849,7 +843,6 @@ export default function MerchantDashboardPage() {
 
   if (!merchantSession) return null
 
-  // 🔴 🔒 SUBSCRIPTION EXPIRED / 0 DAYS FULL-SCREEN LOCK
   const isFullyExpired = isTrialExpired || daysRemainingInTrial <= 0;
 
   if (isFullyExpired) {
@@ -885,7 +878,6 @@ export default function MerchantDashboardPage() {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 font-sans selection:bg-[#00875A] selection:text-white relative">
 
-      {/* RECEIPT BREAKDOWN CONFIRM MODAL */}
       <RedeemConfirmModal
         showModal={showRedeemConfirmModal}
         scannedClaimData={scannedClaimData}
@@ -953,8 +945,6 @@ export default function MerchantDashboardPage() {
       />
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-5 sm:py-8 lg:px-8 lg:py-10">
-        
-        {/* 5-DAY WARNING BANNER COMPONENT */}
         <SubscriptionWarningBanner
           isTrialExpired={isTrialExpired}
           daysRemainingInTrial={daysRemainingInTrial}
