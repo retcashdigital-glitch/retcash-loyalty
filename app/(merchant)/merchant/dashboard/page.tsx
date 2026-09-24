@@ -213,6 +213,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
+  // 🟢 திருத்தப்பட்ட முக்கிய ஃபங்ஷன் (Payment Submit + Direct WhatsApp Open)
   const handlePaymentSubmission = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!receiptFile || !merchantSession?.id) {
@@ -223,16 +224,19 @@ export default function MerchantDashboardPage() {
     setIsSubmittingPayment(true)
     try {
       const amount = selectedPlan === 'YEARLY' ? 7900 : 990
+      const planTitle = selectedPlan === 'YEARLY' ? 'Annual Pass (Rs. 7,900/yr)' : 'Monthly Pass (Rs. 990/mo)'
       const planType = selectedPlan.toLowerCase()
       const fileExt = receiptFile.name.split('.').pop() || 'png'
       const filePath = `receipts/${merchantSession.id}_${Date.now()}.${fileExt}`
 
+      // 1. Supabase Storage-ல் ரசீது படத்தைப் பதிவேற்றுதல்
       const { error: uploadErr } = await supabase.storage
         .from('payment-receipts')
         .upload(filePath, receiptFile)
 
       if (uploadErr) throw new Error('Failed to upload receipt file: ' + uploadErr.message)
 
+      // 2.Public URL பெறுதல்
       const { data: urlData } = supabase.storage
         .from('payment-receipts')
         .getPublicUrl(filePath)
@@ -240,6 +244,7 @@ export default function MerchantDashboardPage() {
       const receiptPublicUrl = urlData.publicUrl
       setUploadedReceiptUrl(receiptPublicUrl)
 
+      // 3. Database-ல் பதிவு செய்தல்
       const { error: dbErr } = await supabase.from('payment_requests').insert({
         store_id: merchantSession.id,
         plan_type: planType,
@@ -252,7 +257,32 @@ export default function MerchantDashboardPage() {
       if (dbErr) throw new Error('Failed to log payment request: ' + dbErr.message)
 
       setIsPendingVerification(true)
-      showToast('success', 'Receipt uploaded! Approval pending.')
+      showToast('success', 'Receipt uploaded! Opening WhatsApp...')
+
+      // 📲 4. வாட்ஸ்அப் மெசேஜ் தயார் செய்து நேரடியாக திறக்கும் பகுதி
+      const storeName = merchantSession.store_name || 'Merchant Store'
+      const storePhone = merchantSession.phone_number || 'N/A'
+
+      const whatsappMessage = encodeURIComponent(
+        `🚨 *NEW RENEWAL PAYMENT SUBMITTED*\n\n` +
+        `🏪 *Store Name:* ${storeName}\n` +
+        `🆔 *Store ID:* ${merchantSession.id}\n` +
+        `📞 *Phone:* ${storePhone}\n` +
+        `💳 *Selected Plan:* ${planTitle}\n` +
+        `🔢 *Transaction Ref:* ${transactionRef || 'N/A'}\n\n` +
+        `🧾 *Payment Receipt Image:*\n${receiptPublicUrl}\n\n` +
+        `Please verify the payment receipt and activate my subscription.`
+      )
+
+      const whatsappUrl = `https://wa.me/${ADMIN_WHATSAPP_NUMBER}?text=${whatsappMessage}`
+
+      setTimeout(() => {
+        const opened = window.open(whatsappUrl, '_blank')
+        if (!opened) {
+          window.location.href = whatsappUrl
+        }
+      }, 800)
+
     } catch (err: any) {
       showToast('error', err.message || 'Error submitting receipt')
     } finally {
@@ -1027,7 +1057,7 @@ export default function MerchantDashboardPage() {
                   <span>{scannedClaimData.visit_count} / {targetVisits} Visits</span>
                 </div>
 
-                <div className="bg-white rounded-xl p-3 border border-slate-200 space-y-1.5 shadow-xs">
+                <div className="bg-[#FFFFFF] rounded-xl p-3 border border-slate-200 space-y-1.5 shadow-xs">
                   <div className="flex justify-between text-slate-600">
                     <span>Phone:</span>
                     <span className="font-mono text-slate-900 font-bold">{scannedClaimData.customer_phone}</span>
