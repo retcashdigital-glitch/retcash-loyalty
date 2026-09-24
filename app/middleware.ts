@@ -9,7 +9,7 @@ export async function middleware(req: NextRequest) {
 
   const url = req.nextUrl.clone()
 
-  // 1. ADMIN ROUTE GUARD (உனது பழைய லாஜிக் - மாற்றமில்லை)
+  // 1. ADMIN ROUTE GUARD
   if (url.pathname.startsWith('/admin') && !url.pathname.startsWith('/admin/login')) {
     const adminAuth = req.cookies.get('admin_authenticated')?.value
     if (adminAuth !== 'true') {
@@ -18,11 +18,15 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // 2. MERCHANT SUBSCRIPTION CHECK (Supabase Client பாதுகாப்பான அமைப்பு)
-  if (url.pathname.startsWith('/merchant')) {
+  // 2. MERCHANT SUBSCRIPTION CHECK
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // Environment Variables இருந்தால் மட்டுமே Supabase செக் இயங்கும்
+  if (url.pathname.startsWith('/merchant') && supabaseUrl && supabaseAnonKey) {
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl,
+      supabaseAnonKey,
       {
         cookies: {
           getAll() {
@@ -41,7 +45,6 @@ export async function middleware(req: NextRequest) {
       }
     )
 
-    // பயனர் விபரம் பெறுதல்
     const { data: { user } } = await supabase.auth.getUser()
 
     if (user) {
@@ -53,15 +56,12 @@ export async function middleware(req: NextRequest) {
 
       if (merchant) {
         const now = new Date()
-        
-        // Active அல்லது Trialing நிலைகள் செல்லுபடியாகும்
         const isSubValid = merchant.subscription_status === 'active' || merchant.subscription_status === 'trialing'
         const isExplicitlyExpired = merchant.subscription_status === 'expired' || merchant.subscription_status === 'cancelled'
         
         const trialEnd = merchant.trial_ends_at ? new Date(merchant.trial_ends_at) : null
         const isTrialOver = trialEnd ? now.getTime() >= trialEnd.getTime() : false
 
-        // Expired அல்லது காலம் முடிந்திருந்தால் Header-இல் அனுப்பப்படும்
         if (isExplicitlyExpired || (!isSubValid && isTrialOver) || (merchant.subscription_status === 'trialing' && isTrialOver)) {
           supabaseResponse.headers.set('x-subscription-status', 'expired')
         }
