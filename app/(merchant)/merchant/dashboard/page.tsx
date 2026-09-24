@@ -676,7 +676,7 @@ export default function MerchantDashboardPage() {
     if (!customerPhone || !billAmount || actionLoading) return
 
     // 🌟 1. ACTION LEVEL EXPIRED CHECK
-    if (isTrialExpired) {
+    if (isTrialExpired || daysRemainingInTrial <= 0) {
       showToast('error', 'Subscription expired. Please renew your account.')
       return
     }
@@ -819,8 +819,10 @@ export default function MerchantDashboardPage() {
 
   if (!merchantSession) return null
 
-  // 🔴 🔒 SUBSCRIPTION EXPIRED FULL-SCREEN LOCK (மாற்றம் செய்யப்பட்ட பகுதி)
-  if (isTrialExpired) {
+  // 🔴 🔒 SUBSCRIPTION EXPIRED / 0 DAYS FULL-SCREEN LOCK
+  const isFullyExpired = isTrialExpired || daysRemainingInTrial <= 0;
+
+  if (isFullyExpired) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <SubscriptionLockModal
