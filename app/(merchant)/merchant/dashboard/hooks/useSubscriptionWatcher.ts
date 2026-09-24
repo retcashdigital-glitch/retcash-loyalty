@@ -18,14 +18,20 @@ export function useSubscriptionWatcher(merchantSession: MerchantSession | null) 
 
     const checkSubscriptionStatus = () => {
       const now = new Date()
+      
+      // 1. Explicitly Expired Check
+      const isExplicitlyExpired = merchantSession.subscription_status === 'expired'
+      const isSubActive = merchantSession.subscription_status === 'active'
+
+      // 2. Trial Date Check
       const trialEnd = merchantSession.trial_ends_at
         ? new Date(merchantSession.trial_ends_at)
         : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-      const isSubActive = merchantSession.subscription_status === 'active'
+      const isDatePassed = now.getTime() >= trialEnd.getTime()
 
-      // ரீஃப்ரெஷ் செய்யாவிட்டாலும் தற்போதைய நேரத்துடன் ஒப்பீட்டு பரிசோதனை செய்யப்படுகிறது
-      if (!isSubActive && now.getTime() >= trialEnd.getTime()) {
+      // 🌟 STRICT CONDITION: Expired status OR (!active AND date passed)
+      if (isExplicitlyExpired || (!isSubActive && isDatePassed)) {
         setIsTrialExpired(true)
         setDaysRemainingInTrial(0)
       } else {
@@ -39,10 +45,10 @@ export function useSubscriptionWatcher(merchantSession: MerchantSession | null) 
     // 1. ஆரம்பத்தில் சோதித்தல்
     checkSubscriptionStatus()
 
-    // 2. Refresh செய்யாமலேயே பின்னணியில் ஒவ்வொரு 30 விநாடிக்கும் தற்போதைய நேரத்தை வைத்து சோதிக்கும் முறை
+    // 2. Refresh செய்யாமலேயே பின்னணியில் ஒவ்வொரு 15 விநாடிக்கும் தற்போதைய நேரத்தை வைத்து சோதிக்கும் முறை
     const interval = setInterval(() => {
       checkSubscriptionStatus()
-    }, 30000)
+    }, 15000)
 
     return () => clearInterval(interval)
   }, [merchantSession])

@@ -3,10 +3,17 @@
 import { useState } from 'react'
 import { Lock, Clock, MessageCircle, RotateCcw, Check, FileCheck, Image as ImageIcon, Building2, Copy, CheckCircle2 } from 'lucide-react'
 
+interface MerchantSession {
+  id: string
+  store_name: string
+  trial_ends_at?: string
+  subscription_status?: string
+}
+
 interface Props {
   isTrialExpired: boolean
   isPendingVerification: boolean
-  merchantSession: any
+  merchantSession: MerchantSession | null
   adminPhone: string
   selectedPlan: 'MONTHLY' | 'YEARLY'
   setSelectedPlan: (plan: 'MONTHLY' | 'YEARLY') => void
@@ -43,7 +50,10 @@ export default function SubscriptionLockModal({
   // தனித்தனி Copy States
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
-  if (!isTrialExpired) return null
+  // 🌟 STRICT LOCK CHECK: isTrialExpired OR Status is Expired
+  const isLocked = isTrialExpired || merchantSession?.subscription_status === 'expired'
+
+  if (!isLocked || !merchantSession) return null
 
   // வங்கி விவரங்கள்
   const bankName = "Hatton National Bank PLC (HNB)"

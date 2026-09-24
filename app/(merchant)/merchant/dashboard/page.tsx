@@ -628,6 +628,15 @@ export default function MerchantDashboardPage() {
   const executeRedeemReward = async () => {
     if (!scannedClaimData || actionLoading) return
 
+    // 🌟 STRICT SUBSCRIPTION EXPIRED CHECK BEFORE REDEEMING REWARD
+    const isExpiredStatus = merchantSession?.subscription_status === 'expired'
+    const isDaysOver = typeof daysRemainingInTrial === 'number' && daysRemainingInTrial <= 0
+
+    if (isTrialExpired || isExpiredStatus || isDaysOver) {
+      showToast('error', 'Subscription expired. Please renew your account to redeem rewards.')
+      return
+    }
+
     setActionLoading(true)
     try {
       const redeemedAmt = Number(scannedClaimData.claimable_amount || 0)
@@ -675,9 +684,12 @@ export default function MerchantDashboardPage() {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
 
-    // 🌟 1. ACTION LEVEL EXpiry CHECK
-    if (isTrialExpired) {
-      showToast('error', 'Subscription expired. Please renew your account.')
+    // 🌟 1. STRICT ACTION LEVEL SUBSCRIPTION EXPIRED CHECK
+    const isExpiredStatus = merchantSession?.subscription_status === 'expired'
+    const isDaysOver = typeof daysRemainingInTrial === 'number' && daysRemainingInTrial <= 0
+
+    if (isTrialExpired || isExpiredStatus || isDaysOver) {
+      showToast('error', 'Subscription expired. Please renew your account to generate cashback.')
       return
     }
 
