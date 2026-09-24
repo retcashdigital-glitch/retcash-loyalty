@@ -169,6 +169,32 @@ export default function MerchantDashboardPage() {
     return () => { stopScannerInstance() }
   }, [])
 
+  // 🟢 REALTIME SESSION UPDATE (Supabase-ல் மாற்றம் அடைந்ததும் Session State-ஐ நேரலையாக மாற்ற)
+  useEffect(() => {
+    if (!merchantSession?.id) return
+
+    const pageRealtimeChannel = supabase
+      .channel(`page-store-realtime-${merchantSession.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'stores',
+          filter: `id=eq.${merchantSession.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as Partial<MerchantSession>
+          setMerchantSession((prev) => (prev ? { ...prev, ...updated } : null))
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(pageRealtimeChannel)
+    }
+  }, [merchantSession?.id])
+
   const checkPendingPaymentStatus = async (storeId: string) => {
     try {
       const { data } = await supabase
@@ -700,7 +726,7 @@ export default function MerchantDashboardPage() {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
 
-    if (isTrialExpired || daysRemainingInTrial <= 0) {
+    if (isTrialExpired || (daysRemainingInTrial !== null && daysRemainingInTrial <= 0)) {
       showToast('error', 'Subscription expired. Please renew your account.')
       return
     }
@@ -843,7 +869,8 @@ export default function MerchantDashboardPage() {
 
   if (!merchantSession) return null
 
-  const isFullyExpired = isTrialExpired || daysRemainingInTrial <= 0;
+  // 🔴 🔒 SUBSCRIPTION EXPIRED / 0 DAYS FULL-SCREEN LOCK
+  const isFullyExpired = isTrialExpired || (daysRemainingInTrial !== null && daysRemainingInTrial <= 0);
 
   if (isFullyExpired) {
     return (
