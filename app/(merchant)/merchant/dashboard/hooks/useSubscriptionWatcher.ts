@@ -19,19 +19,26 @@ export function useSubscriptionWatcher(merchantSession: MerchantSession | null) 
     const checkSubscriptionStatus = () => {
       const now = new Date()
       
-      // 1. Explicitly Expired Check
-      const isExplicitlyExpired = merchantSession.subscription_status === 'expired'
-      const isSubActive = merchantSession.subscription_status === 'active'
+      const status = merchantSession.subscription_status
 
-      // 2. Trial Date Check
+      // 1. Explicit Expiry / Cancelled Checks
+      const isExplicitlyExpired = status === 'expired' || status === 'cancelled'
+      
+      // 2. Active & Trialing status-ஐ செல்லுபடியாகும் நிலையாகக் கொள்ளுதல்
+      const isSubValid = status === 'active' || status === 'trialing'
+
+      // 3. Trial End Date Calculation
       const trialEnd = merchantSession.trial_ends_at
         ? new Date(merchantSession.trial_ends_at)
         : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
       const isDatePassed = now.getTime() >= trialEnd.getTime()
 
-      // 🌟 STRICT CONDITION: Expired status OR (!active AND date passed)
-      if (isExplicitlyExpired || (!isSubActive && isDatePassed)) {
+      // 🌟 STRICT LOCK CHECK:
+      // - Explicitly expired ஆக இருந்தால் OR
+      // - Status Valid ஆக இல்லாமல் தேதி முடிந்திருந்தால் OR
+      // - Trialing ஆக இருந்து தேதி முடிந்திருந்தால்
+      if (isExplicitlyExpired || (!isSubValid && isDatePassed) || (status === 'trialing' && isDatePassed)) {
         setIsTrialExpired(true)
         setDaysRemainingInTrial(0)
       } else {
