@@ -24,14 +24,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // output: 'export', <- இது நீக்கப்பட்டுவிட்டது (Supabase மற்றும் PWA தடையின்றி வேலை செய்ய இது அவசியம்)
   typescript: {
     ignoreBuildErrors: true,
   },
   async headers() {
     return [
       {
-        source: '/path*',
+        source: '/:path*', // இங்கே திருத்தம் செய்யப்பட்டுள்ளது
         headers: securityHeaders,
       },
     ];
