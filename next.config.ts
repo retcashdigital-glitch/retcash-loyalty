@@ -24,7 +24,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  output: 'export', // இதுதான் Capacitor-க்கு மிக அவசியமானது
+  // output: 'export', <- இது நீக்கப்பட்டுவிட்டது (Supabase மற்றும் PWA தடையின்றி வேலை செய்ய இது அவசியம்)
   typescript: {
     ignoreBuildErrors: true,
   },
