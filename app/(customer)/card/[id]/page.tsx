@@ -27,7 +27,13 @@ export default function SingleCardPage() {
     // ==========================================
     // ⚡ HELPER: WALLET CACHE-ஐ உடனடியாக Sync செய்யும் Function
     // ==========================================
-    const updateWalletCacheAndNotify = (formattedAuthPhone: string, updatedClaimData: any, updatedSummaryData?: any) => {
+    const updateWalletCacheAndNotify = (
+        formattedAuthPhone: string,
+        updatedClaimData: any,
+        updatedSummaryData?: any,
+        updatedTxData?: any,
+        displayCashbackVal?: number
+    ) => {
         if (typeof window === 'undefined' || !formattedAuthPhone || !updatedClaimData) return
 
         try {
@@ -37,19 +43,27 @@ export default function SingleCardPage() {
             if (cachedWalletRaw) {
                 let parsedStores = JSON.parse(cachedWalletRaw)
                 const storeIdToFind = updatedClaimData.store_id || updatedClaimData.stores?.id
+                const isNowRedeemed = (updatedSummaryData?.status || updatedClaimData.status) === 'REDEEMED'
 
                 // 1. Cache-இல் இருக்கும் குறித்த கடைக் கார்டைப் புதுப்பித்தல்
                 let updated = false
                 parsedStores = parsedStores.map((s: any) => {
                     if (String(s.id) === String(storeIdToFind) || String(s.claimId) === String(updatedClaimData.id)) {
                         updated = true
+                        const resolvedCashback = (displayCashbackVal !== undefined && displayCashbackVal > 0)
+                            ? displayCashbackVal
+                            : (isNowRedeemed && updatedTxData?.transaction_type?.includes('REDEEMED') && Number(updatedTxData.cashback_amount) > 0)
+                                ? Number(updatedTxData.cashback_amount)
+                                : (updatedClaimData.cashback_amount ?? s.cashbackAmount)
+
                         return {
                             ...s,
                             claimId: updatedClaimData.id,
-                            cashbackAmount: updatedClaimData.cashback_amount ?? s.cashbackAmount,
-                            balance: updatedSummaryData?.current_balance ?? updatedClaimData.claimable_amount ?? s.balance,
+                            cashbackAmount: resolvedCashback,
+                            balance: isNowRedeemed ? 0 : (updatedSummaryData?.current_balance ?? updatedClaimData.claimable_amount ?? s.balance),
                             visits: updatedClaimData.visit_count ?? s.visits,
-                            isRedeemed: (updatedSummaryData?.status || updatedClaimData.status) === 'REDEEMED'
+                            isRedeemed: isNowRedeemed,
+                            latestTransaction: updatedTxData !== undefined ? updatedTxData : s.latestTransaction
                         }
                     }
                     return s
@@ -119,7 +133,7 @@ export default function SingleCardPage() {
                 const localPhoneFormat = formattedAuthPhone.replace(/^94/, '0')
 
                 // ==========================================
-                // ⚡ OPTIMISTIC CACHE READ (உடனடி லோடிங் தீர்வு)
+                // ⚡ OPTIMISTIC CACHE READ (Transaction உடன் இருந்தால் மட்டும் உடனடி லோடிங்)
                 // ==========================================
                 let hasLoadedFromCache = false
                 if (typeof window !== 'undefined') {
@@ -129,7 +143,7 @@ export default function SingleCardPage() {
                             const parsedStores = JSON.parse(cachedWallet)
                             const cachedStore = parsedStores.find((s: any) => String(s.id) === String(paramId) || String(s.claimId) === String(paramId))
                             
-                            if (cachedStore) {
+                            if (cachedStore && cachedStore.latestTransaction) {
                                 setClaim({
                                     id: cachedStore.claimId || cachedStore.id,
                                     store_id: cachedStore.id,
@@ -140,6 +154,7 @@ export default function SingleCardPage() {
                                     status: cachedStore.isRedeemed ? 'REDEEMED' : 'ACTIVE',
                                     stores: cachedStore
                                 })
+                                setLatestTransaction(cachedStore.latestTransaction)
                                 setIsAuthorized(true)
                                 setLoading(false)
                                 hasLoadedFromCache = true
@@ -266,7 +281,6 @@ export default function SingleCardPage() {
                 // 🎯 LATEST TRANSACTION FETCH (net_paid_amount சேர்க்கப்பட்டது)
                 // ==========================================
                 if (currentClaim && currentClaim.store_id) {
-                    // 1. கடைசியாக நடந்த அசல் பில், நெட் பேக் தொகை மற்றும் கேஷ்பேக் விவரத்தை எடுப்பது
                     const { data: lastTx } = await supabase
                         .from('cashback_history')
                         .select('bill_amount, cashback_percentage, cashback_amount, net_paid_amount, transaction_type, created_at')
@@ -275,7 +289,6 @@ export default function SingleCardPage() {
                         .limit(1)
                         .maybeSingle()
 
-                    // 2. customer_wallet_summary View-லிருந்து அசல் பில் தொகையை மட்டும் எடுப்பது
                     const { data: walletSummary } = await supabase
                         .from('customer_wallet_summary')
                         .select('last_bill_amount, total_redeemed_amount, current_balance, status')
@@ -283,27 +296,41 @@ export default function SingleCardPage() {
                         .or(`customer_phone.eq.${formattedAuthPhone},customer_phone.eq.${localPhoneFormat}`)
                         .maybeSingle()
 
+                    let resolvedTxObj: any = null
+                    let trueDisplayCashback = Number(currentClaim.cashback_amount || 0)
+
                     if (lastTx) {
                         const calculatedBill = (walletSummary?.last_bill_amount && walletSummary.last_bill_amount > 0) 
                             ? walletSummary.last_bill_amount 
                             : lastTx.bill_amount
 
-                        // net_paid_amount கணக்கீடு
+                        const isTxRedeemed = String(lastTx.transaction_type || '').toUpperCase().includes('REDEEMED')
+                        const redeemedAmt = isTxRedeemed
+                            ? Number(lastTx.cashback_amount || walletSummary?.total_redeemed_amount || 0)
+                            : Number(walletSummary?.total_redeemed_amount || 0)
+
                         const netPaid = lastTx.net_paid_amount !== undefined && lastTx.net_paid_amount !== null
                             ? lastTx.net_paid_amount
-                            : Math.max(0, calculatedBill - (lastTx.transaction_type?.includes('REDEEMED') ? lastTx.cashback_amount : 0))
+                            : Math.max(0, calculatedBill - (isTxRedeemed ? redeemedAmt : 0))
 
-                        setLatestTransaction({
+                        resolvedTxObj = {
                             ...lastTx,
                             bill_amount: calculatedBill,
                             net_paid_amount: netPaid,
+                            redeemed_amount: redeemedAmt,
                             total_redeemed: walletSummary?.total_redeemed_amount || 0,
                             summary_status: walletSummary?.status || currentClaim.status
-                        })
+                        }
+
+                        if ((walletSummary?.status === 'REDEEMED' || currentClaim.status === 'REDEEMED') && redeemedAmt > 0) {
+                            trueDisplayCashback = redeemedAmt
+                        }
+
+                        setLatestTransaction(resolvedTxObj)
                     }
 
-                    // ⚡ வாலட் கேஷை உடனடி அப்டேட் செய்தல்
-                    updateWalletCacheAndNotify(formattedAuthPhone, currentClaim, walletSummary)
+                    // ⚡ வாலட் கேஷை துல்லியமான தொகையுடன் அப்டேட் செய்தல்
+                    updateWalletCacheAndNotify(formattedAuthPhone, currentClaim, walletSummary, resolvedTxObj, trueDisplayCashback)
                 }
 
                 if (currentClaim) {
@@ -351,26 +378,41 @@ export default function SingleCardPage() {
                                             .or(`customer_phone.eq.${formattedAuthPhone},customer_phone.eq.${localPhoneFormat}`)
                                             .maybeSingle()
 
+                                        let resolvedUpdatedTx: any = null
+                                        let updatedDisplayCashback = Number(updatedClaimObj.cashback_amount || 0)
+
                                         if (updatedTx) {
                                             const calculatedBill = (updatedSummary?.last_bill_amount && updatedSummary.last_bill_amount > 0) 
                                                 ? updatedSummary.last_bill_amount 
                                                 : updatedTx.bill_amount
 
+                                            const isTxRedeemed = String(updatedTx.transaction_type || '').toUpperCase().includes('REDEEMED')
+                                            const redeemedAmt = isTxRedeemed
+                                                ? Number(updatedTx.cashback_amount || updatedSummary?.total_redeemed_amount || 0)
+                                                : Number(updatedSummary?.total_redeemed_amount || 0)
+
                                             const netPaid = updatedTx.net_paid_amount !== undefined && updatedTx.net_paid_amount !== null
                                                 ? updatedTx.net_paid_amount
-                                                : Math.max(0, calculatedBill - (updatedTx.transaction_type?.includes('REDEEMED') ? updatedTx.cashback_amount : 0))
+                                                : Math.max(0, calculatedBill - (isTxRedeemed ? redeemedAmt : 0))
 
-                                            setLatestTransaction({
+                                            resolvedUpdatedTx = {
                                                 ...updatedTx,
                                                 bill_amount: calculatedBill,
                                                 net_paid_amount: netPaid,
+                                                redeemed_amount: redeemedAmt,
                                                 total_redeemed: updatedSummary?.total_redeemed_amount || 0,
                                                 summary_status: (updatedSummary as { status?: string } | null)?.status || (payload.new as { status?: string }).status
-                                            })
+                                            }
+
+                                            if ((updatedSummary?.status === 'REDEEMED' || updatedClaimObj.status === 'REDEEMED') && redeemedAmt > 0) {
+                                                updatedDisplayCashback = redeemedAmt
+                                            }
+
+                                            setLatestTransaction(resolvedUpdatedTx)
                                         }
 
                                         // ⚡ REALTIME UPDATE வந்தவுடன் Cache + Broadcast Sync
-                                        updateWalletCacheAndNotify(formattedAuthPhone, updatedClaimObj, updatedSummary)
+                                        updateWalletCacheAndNotify(formattedAuthPhone, updatedClaimObj, updatedSummary, resolvedUpdatedTx, updatedDisplayCashback)
                                     }
                                 }
                             )

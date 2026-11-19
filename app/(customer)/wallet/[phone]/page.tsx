@@ -163,7 +163,6 @@ export default function CustomerWalletPage() {
         const cleanPhone = phone.replace(/\D/g, '')
         const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
-        // 🟢 FIX: replaced .maybeSingle() with limit(1) to avoid crash if duplicate records exist
         const { data: customerList, error } = await supabase
           .from('customers')
           .select('id, full_name, email, avatar_url')
@@ -256,6 +255,22 @@ export default function CustomerWalletPage() {
       const cleanPhone = phone.replace(/\D/g, '')
       const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
+      // Read existing cache to preserve latestTransaction if store state is unchanged
+      const existingCacheMap = new Map<string, any>()
+      if (typeof window !== 'undefined') {
+        try {
+          const existingRaw = localStorage.getItem(`wallet_cache_${phone}`)
+          if (existingRaw) {
+            const existingArr = JSON.parse(existingRaw)
+            if (Array.isArray(existingArr)) {
+              existingArr.forEach((item: any) => existingCacheMap.set(String(item.id), item))
+            }
+          }
+        } catch (e) {
+          console.error('Error reading existing wallet cache:', e)
+        }
+      }
+
       const { data: claimsData, error: claimsError } = await supabase
         .from('cashback_claims')
         .select('*')
@@ -330,6 +345,13 @@ export default function CustomerWalletPage() {
 
         const storeTarget = Number(store.target_visits) || 6
 
+        const prevCached = existingCacheMap.get(String(store.id))
+        const isSameState = prevCached &&
+          prevCached.visits === visitCount &&
+          prevCached.isRedeemed === isRedeemed &&
+          Number(prevCached.balance) === claimableAmount &&
+          Number(prevCached.cashbackAmount) === displayRedeemedCashback
+
         router.prefetch(`/card/${store.id}?phone=${phone}`)
 
         return {
@@ -339,7 +361,8 @@ export default function CustomerWalletPage() {
           cashbackAmount: displayRedeemedCashback,
           isRedeemed: isRedeemed,
           visits: visitCount,
-          targetVisits: storeTarget
+          targetVisits: storeTarget,
+          latestTransaction: isSameState ? prevCached.latestTransaction : undefined
         }
       }) || []
 
