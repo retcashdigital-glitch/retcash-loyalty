@@ -3,6 +3,7 @@
 import { FormEvent, ChangeEvent, useState } from 'react'
 import { Store, X, Percent, Upload, MapPin, Star, Tag, Loader2, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import ProfileInstallSection from '@/components/ProfileInstallSection'
 
 interface MerchantSession {
   id: string
@@ -393,6 +394,9 @@ export default function StoreSettingsModal({
               </p>
             )}
           </form>
+
+          {/* SECTION 4: iOS App Install Guide */}
+          <ProfileInstallSection />
 
         </div>
 
