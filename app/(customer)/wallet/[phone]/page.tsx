@@ -36,6 +36,14 @@ import {
   Lock
 } from 'lucide-react'
 
+const NAV_TABS = [
+  { id: 'wallet', label: 'Wallet', Icon: Wallet },
+  { id: 'offers', label: 'Offers', Icon: Tag },
+  { id: 'profile', label: 'Profile', Icon: User },
+] as const
+
+type NavTabId = (typeof NAV_TABS)[number]['id']
+
 // ─── Visual Helpers ───────────────────────────────────────────────────────────
 
 function getCategoryColor(_category?: string) {
@@ -83,6 +91,16 @@ function VisitCapsules({ visits, maxVisits, color }: { visits: number; maxVisits
   )
 }
 
+// ─── WhatsApp-Style Latest Activity Sort Helper ───────────────────────────────
+
+function sortStoresByLatestActivity(storeList: any[]) {
+  return [...storeList].sort((a, b) => {
+    const timeA = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0
+    const timeB = b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0
+    return timeB - timeA
+  })
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function CustomerWalletPage() {
@@ -102,7 +120,7 @@ export default function CustomerWalletPage() {
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  const [activeTab, setActiveTab] = useState<'wallet' | 'offers' | 'profile'>('wallet')
+  const [activeTab, setActiveTab] = useState<NavTabId>('wallet')
   const [loading, setLoading] = useState(true)
   const [stores, setStores] = useState<any[]>([])
   const [activeOffers, setActiveOffers] = useState<any[]>([])
@@ -115,6 +133,14 @@ export default function CustomerWalletPage() {
   const [navigatingStoreId, setNavigatingStoreId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [, startTransition] = useTransition()
+
+  // ─── Instagram-Style Floating Pill Drag/Slide States ────────────────────────
+  const [dragProgress, setDragProgress] = useState<number | null>(null)
+  const [isDraggingNav, setIsDraggingNav] = useState(false)
+  const navPillRef = useRef<HTMLDivElement>(null)
+  const pointerStartXRef = useRef<number>(0)
+  const hasDraggedRef = useRef<boolean>(false)
+  const isPointerDownRef = useRef<boolean>(false)
 
   const searchInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -135,7 +161,7 @@ export default function CustomerWalletPage() {
       try {
         const parsed = JSON.parse(cachedData)
         if (Array.isArray(parsed)) {
-          setStores(parsed)
+          setStores(sortStoresByLatestActivity(parsed))
           setLoading(false)
         }
       } catch (e) {
@@ -205,6 +231,29 @@ export default function CustomerWalletPage() {
       syncChannel = new BroadcastChannel('retcash_wallet_sync')
       syncChannel.onmessage = (event) => {
         if (event.data && event.data.type === 'WALLET_DATA_UPDATED' && event.data.phone === phone) {
+          if (event.data.updatedClaim) {
+            try {
+              const cachedRaw = localStorage.getItem(`wallet_cache_${phone}`)
+              if (cachedRaw) {
+                const parsed = JSON.parse(cachedRaw)
+                const targetStoreId = String(event.data.updatedClaim.store_id || event.data.updatedClaim.stores?.id || '')
+                const targetClaimId = String(event.data.updatedClaim.id || '')
+                const updatedList = parsed.map((s: any) => {
+                  if (String(s.id) === targetStoreId || String(s.claimId) === targetClaimId) {
+                    return {
+                      ...s,
+                      lastActivityAt: event.data.updatedClaim.updated_at || new Date().toISOString()
+                    }
+                  }
+                  return s
+                })
+                const sortedList = sortStoresByLatestActivity(updatedList)
+                localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(sortedList))
+              }
+            } catch (e) {
+              console.error('Error updating latest activity timestamp in cache:', e)
+            }
+          }
           reloadFromCache()
           fetchWalletAndClaimsData()
         }
@@ -344,6 +393,7 @@ export default function CustomerWalletPage() {
           : Number(latestClaim?.cashback_amount || 0)
 
         const storeTarget = Number(store.target_visits) || 6
+        const lastActivityAt = latestClaim?.updated_at || latestClaim?.created_at || store.created_at || ''
 
         const prevCached = existingCacheMap.get(String(store.id))
         const isSameState = prevCached &&
@@ -362,12 +412,16 @@ export default function CustomerWalletPage() {
           isRedeemed: isRedeemed,
           visits: visitCount,
           targetVisits: storeTarget,
+          lastActivityAt,
           latestTransaction: isSameState ? prevCached.latestTransaction : undefined
         }
       }) || []
 
-      setStores(mergedStores)
-      localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(mergedStores))
+      // ⚡ WhatsApp-Style Floating Sort: கடைசியாகப் பரிவர்த்தனை நடந்த கடை மேலே வரும்
+      const sortedStores = sortStoresByLatestActivity(mergedStores)
+
+      setStores(sortedStores)
+      localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(sortedStores))
 
     } catch (err) {
       console.error('Error in fetching wallet data:', err)
@@ -511,6 +565,96 @@ export default function CustomerWalletPage() {
       setIsSavingProfile(false)
     }
   }
+
+  // ─── Instagram-Style Floating Pill Pointer Handlers (Slide + Tap) ───────────
+  const getProgressFromClientX = (clientX: number) => {
+    if (!navPillRef.current) return 0
+    const rect = navPillRef.current.getBoundingClientRect()
+    const horizontalPadding = 6 // matches p-1.5
+    const innerLeft = rect.left + horizontalPadding
+    const innerWidth = Math.max(1, rect.width - horizontalPadding * 2)
+    const tabWidth = innerWidth / NAV_TABS.length
+    const rawIndex = (clientX - innerLeft - tabWidth / 2) / tabWidth
+    return Math.min(NAV_TABS.length - 1, Math.max(0, rawIndex))
+  }
+
+  const getTappedIndexFromClientX = (clientX: number) => {
+    if (!navPillRef.current) return 0
+    const rect = navPillRef.current.getBoundingClientRect()
+    const relX = Math.min(rect.width - 1, Math.max(0, clientX - rect.left))
+    return Math.min(NAV_TABS.length - 1, Math.floor((relX / rect.width) * NAV_TABS.length))
+  }
+
+  const handleNavPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    isPointerDownRef.current = true
+    hasDraggedRef.current = false
+    pointerStartXRef.current = e.clientX
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      // Ignore if pointer capture is unavailable
+    }
+  }
+
+  const handleNavPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPointerDownRef.current) return
+    const deltaX = Math.abs(e.clientX - pointerStartXRef.current)
+
+    if (deltaX > 6 || hasDraggedRef.current) {
+      hasDraggedRef.current = true
+      setIsDraggingNav(true)
+      const nextProgress = getProgressFromClientX(e.clientX)
+      setDragProgress(nextProgress)
+
+      const nearestIdx = Math.round(nextProgress)
+      const targetTab = NAV_TABS[nearestIdx]?.id
+      if (targetTab && targetTab !== activeTab) {
+        setActiveTab(targetTab)
+      }
+    }
+  }
+
+  const handleNavPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPointerDownRef.current) return
+    isPointerDownRef.current = false
+
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      }
+    } catch {
+      // Ignore
+    }
+
+    if (hasDraggedRef.current) {
+      const finalProgress = getProgressFromClientX(e.clientX)
+      const snappedIdx = Math.round(finalProgress)
+      const targetTab = NAV_TABS[snappedIdx]?.id
+      if (targetTab) {
+        setActiveTab(targetTab)
+      }
+    } else {
+      const tappedIdx = getTappedIndexFromClientX(e.clientX)
+      const targetTab = NAV_TABS[tappedIdx]?.id
+      if (targetTab) {
+        setActiveTab(targetTab)
+      }
+    }
+
+    hasDraggedRef.current = false
+    setIsDraggingNav(false)
+    setDragProgress(null)
+  }
+
+  const handleNavPointerCancel = () => {
+    isPointerDownRef.current = false
+    hasDraggedRef.current = false
+    setIsDraggingNav(false)
+    setDragProgress(null)
+  }
+
+  const activeTabIndex = Math.max(0, NAV_TABS.findIndex((t) => t.id === activeTab))
+  const visualPillIndex = dragProgress !== null ? dragProgress : activeTabIndex
 
   const filteredStores = stores.filter(store => {
     const effectiveQuery = (activeSearch || searchQuery).toLowerCase().trim()
@@ -1034,48 +1178,62 @@ export default function CustomerWalletPage() {
           )}
         </main>
 
+        {/* ⚡ Instagram-Style Floating Pill Bottom Navigation (Slide + Tap) */}
         <nav
-          className="fixed bottom-0 max-w-[430px] w-full z-30 bg-white border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]"
-          style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
+          className="fixed bottom-0 max-w-[430px] w-full z-30 px-4 pt-2 pointer-events-none"
+          style={{ paddingBottom: "max(env(safe-area-inset-bottom), 14px)" }}
         >
-          <div className="flex items-center justify-around px-4 pt-2 pb-1">
-            {[
-              { id: 'wallet', label: 'Wallet', Icon: Wallet },
-              { id: 'offers', label: 'Offers', Icon: Tag },
-              { id: 'profile', label: 'Profile', Icon: User },
-            ].map(({ id, label, Icon }) => {
-              const active = activeTab === id
-              return (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id as any)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 cursor-pointer ${
-                    active ? 'shadow-md' : ''
-                  }`}
-                  style={
-                    active
-                      ? {
-                          background: '#00875A',
-                          color: '#ffffff',
-                          boxShadow: '0 4px 14px rgba(0,135,90,0.35)',
-                        }
-                      : {
-                          background: 'transparent',
-                          color: '#64748B',
-                        }
-                  }
-                >
-                  <Icon
-                    size={18}
-                    style={{ color: active ? '#ffffff' : '#64748B' }}
-                    strokeWidth={active ? 2.2 : 1.8}
-                  />
-                  <span className="text-xs font-xs font-extrabold leading-none">
-                    {label}
-                  </span>
-                </button>
-              )
-            })}
+          <div
+            ref={navPillRef}
+            onPointerDown={handleNavPointerDown}
+            onPointerMove={handleNavPointerMove}
+            onPointerUp={handleNavPointerUp}
+            onPointerCancel={handleNavPointerCancel}
+            style={{ touchAction: 'none' }}
+            className="pointer-events-auto relative mx-auto max-w-[360px] bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-full p-1.5 shadow-[0_10px_30px_rgba(15,23,42,0.12)] select-none cursor-pointer"
+          >
+            <div className="relative grid grid-cols-3 items-center">
+              {/* Sliding Green Highlight Pill */}
+              <div
+                aria-hidden="true"
+                className={`absolute top-0 bottom-0 left-0 w-1/3 rounded-full bg-[#00875A] shadow-[0_4px_14px_rgba(0,135,90,0.35)] ${
+                  isDraggingNav ? 'transition-none' : 'transition-transform duration-300 ease-out'
+                }`}
+                style={{
+                  transform: `translateX(${visualPillIndex * 100}%)`,
+                }}
+              />
+
+              {NAV_TABS.map(({ id, label, Icon }, idx) => {
+                const closeness = Math.max(0, 1 - Math.abs(visualPillIndex - idx))
+                const isHighlighted = closeness > 0.5
+
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      if (!hasDraggedRef.current) {
+                        setActiveTab(id)
+                      }
+                    }}
+                    className="relative z-10 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-full transition-colors duration-150 cursor-pointer"
+                  >
+                    <Icon
+                      size={17}
+                      style={{ color: isHighlighted ? '#ffffff' : '#64748B' }}
+                      strokeWidth={isHighlighted ? 2.3 : 1.9}
+                    />
+                    <span
+                      className="text-xs font-extrabold leading-none tracking-tight"
+                      style={{ color: isHighlighted ? '#ffffff' : '#64748B' }}
+                    >
+                      {label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </nav>
 
