@@ -7,11 +7,16 @@ export default function IosInstallPrompt() {
   const [showBanner, setShowBanner] = useState(false)
 
   useEffect(() => {
-    const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase())
-    const isInStandaloneMode = 'standalone' in window && (window.navigator as any).standalone
+    const isIos =
+      /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase()) ||
+      (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1)
+
+    const isInStandaloneMode =
+      Boolean((window.navigator as any).standalone) ||
+      window.matchMedia('(display-mode: standalone)').matches
 
     if (isIos && !isInStandaloneMode) {
-      const dismissed = sessionStorage.getItem('ios_prompt_dismissed')
+      const dismissed = localStorage.getItem('ios_prompt_dismissed')
       if (!dismissed) {
         setShowBanner(true)
       }
@@ -20,7 +25,7 @@ export default function IosInstallPrompt() {
 
   const handleDismiss = () => {
     setShowBanner(false)
-    sessionStorage.setItem('ios_prompt_dismissed', 'true')
+    localStorage.setItem('ios_prompt_dismissed', 'true')
   }
 
   if (!showBanner) return null
