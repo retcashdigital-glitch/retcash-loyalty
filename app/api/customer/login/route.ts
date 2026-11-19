@@ -17,25 +17,35 @@ export async function POST(request: Request) {
 
         const cleanEmail = email.trim().toLowerCase();
 
-        // 1. Check if Customer exists
-        const { data: customer, error: findError } = await supabaseAdmin
+        // 1. Check if Customer exists (using limit instead of maybeSingle to prevent duplicate-row errors)
+        const { data: customers, error: findError } = await supabaseAdmin
             .from('customers')
             .select('id, email, phone_number, full_name, password')
             .ilike('email', cleanEmail)
-            .maybeSingle();
+            .limit(5);
 
-        // 2. If Customer Not Found
-        if (findError || !customer) {
+        if (findError) {
+            console.error("Supabase Customer Login Lookup Error:", findError);
+            return NextResponse.json({ 
+                error: 'Database error while verifying account. Please try again.' 
+            }, { status: 500 });
+        }
+
+        // 2. If Customer Truly Not Found
+        if (!customers || customers.length === 0) {
             return NextResponse.json({ 
                 error: 'Account not found. Redirecting to registration...',
                 isNewUser: true 
             }, { status: 404 });
         }
 
+        // Pick the record that has a password set (in case duplicate rows exist)
+        const customer = customers.find((c) => Boolean(c.password)) || customers[0];
+
         // 3. Verify Password
         if (!customer.password) {
             return NextResponse.json({ 
-                error: 'Password not set for this account. Please reset your password.',
+                error: 'Password not set for this account. Please register or reset your password.',
             }, { status: 400 });
         }
 
