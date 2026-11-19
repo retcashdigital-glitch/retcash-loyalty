@@ -44,11 +44,18 @@ function RegisterForm() {
         return clean
     }
 
+    // Auto-redirect to merchant dashboard if already logged in
     useEffect(() => {
+        const savedMerchant = localStorage.getItem('retcash_merchant')
+        if (savedMerchant) {
+            router.replace('/merchant/dashboard')
+            return
+        }
+
         if (phoneFromUrl) {
             setFormData(prev => ({ ...prev, phone_number: phoneFromUrl }))
         }
-    }, [phoneFromUrl])
+    }, [phoneFromUrl, router])
 
     // Convert uploaded image file to Base64 Data URL to prevent storage configuration issues
     const convertBase64 = (file: File): Promise<string> => {

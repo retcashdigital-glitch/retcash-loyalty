@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -16,6 +16,20 @@ export default function CustomerLoginPage() {
     const [message, setMessage] = useState('');
 
     const router = useRouter();
+
+    // Auto-redirect to wallet if customer is already logged in
+    useEffect(() => {
+        const savedPhone = localStorage.getItem('customer_phone');
+        if (savedPhone) {
+            const hasSession =
+                localStorage.getItem(`retcash_wallet_session_${savedPhone}`) === 'true' ||
+                localStorage.getItem(`retcash_wallet_auth_${savedPhone}`) === 'true';
+
+            if (hasSession) {
+                router.replace(`/wallet/${savedPhone}`);
+            }
+        }
+    }, [router]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();

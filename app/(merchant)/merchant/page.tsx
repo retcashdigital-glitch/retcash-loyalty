@@ -1,10 +1,35 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { LogIn, UserPlus, ArrowRight } from 'lucide-react'
 
 export default function MerchantMainPage() {
+  const router = useRouter()
+  const [checkingSession, setCheckingSession] = useState(true)
+
+  useEffect(() => {
+    const savedMerchant = localStorage.getItem('retcash_merchant')
+    if (savedMerchant) {
+      router.replace('/merchant/dashboard')
+      return
+    }
+    setCheckingSession(false)
+  }, [router])
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 font-sans">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#00875A] mb-3" />
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+          Opening Merchant Console...
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-between items-center p-4 font-sans text-slate-800 selection:bg-[#00875A] selection:text-white">
       

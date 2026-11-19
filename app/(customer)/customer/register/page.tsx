@@ -19,13 +19,29 @@ function RegisterForm() {
     const [errorMsg, setErrorMsg] = useState('')
     const [successMsg, setSuccessMsg] = useState('')
 
-    // 1. URL Parameter check: Auto-fill phone from login redirect
+    // 1. Auto-redirect to wallet if already logged in + URL Parameter check
     useEffect(() => {
+        const savedPhone = localStorage.getItem('customer_phone')
+        if (savedPhone) {
+            const hasSession =
+                localStorage.getItem(`retcash_wallet_session_${savedPhone}`) === 'true' ||
+                localStorage.getItem(`retcash_wallet_auth_${savedPhone}`) === 'true'
+
+            if (hasSession) {
+                router.replace(`/wallet/${savedPhone}`)
+                return
+            }
+        }
+
         const phoneFromUrl = searchParams.get('phone')
         if (phoneFromUrl) {
             setPhoneInput(phoneFromUrl)
         }
-    }, [searchParams])
+        const emailFromUrl = searchParams.get('email')
+        if (emailFromUrl) {
+            setEmailInput(emailFromUrl)
+        }
+    }, [searchParams, router])
 
     // Standardized Phone normalization logic
     const normalizePhone = (input: string) => {
@@ -70,7 +86,7 @@ function RegisterForm() {
         try {
             setLoading(true)
 
-            // Fix: Call Server API instead of client-side supabase insert to bypass RLS safely
+            // Call Server API instead of client-side supabase insert to bypass RLS safely
             const response = await fetch('/api/customer/register', {
                 method: 'POST',
                 headers: {
