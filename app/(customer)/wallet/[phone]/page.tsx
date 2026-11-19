@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import ProfileInstallSection from '@/components/ProfileInstallSection'
 import {
   Wallet,
   Tag,
@@ -1004,6 +1005,8 @@ export default function CustomerWalletPage() {
                   </button>
                 </div>
               </div>
+
+              <ProfileInstallSection />
             </div>
           )}
         </main>

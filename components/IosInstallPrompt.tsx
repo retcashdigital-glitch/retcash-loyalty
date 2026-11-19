@@ -1,60 +1,58 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { Smartphone, Share, PlusSquare, X } from 'lucide-react'
 
 export default function IosInstallPrompt() {
-  const [showPrompt, setShowPrompt] = useState(false);
+  const [showBanner, setShowBanner] = useState(false)
 
   useEffect(() => {
-    // 1. Check if the device is iOS (iPhone, iPad, iPod)
-    const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
-    
-    // 2. Check if the app is already running in standalone mode (Home Screen PWA)
-    const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase())
+    const isInStandaloneMode = 'standalone' in window && (window.navigator as any).standalone
 
-    // 3. Show prompt only if on iOS Safari and NOT installed yet
     if (isIos && !isInStandaloneMode) {
-      const dismissed = sessionStorage.getItem('ios_prompt_dismissed');
+      const dismissed = sessionStorage.getItem('ios_prompt_dismissed')
       if (!dismissed) {
-        setShowPrompt(true);
+        setShowBanner(true)
       }
     }
-  }, []);
+  }, [])
 
   const handleDismiss = () => {
-    setShowPrompt(false);
-    sessionStorage.setItem('ios_prompt_dismissed', 'true');
-  };
+    setShowBanner(false)
+    sessionStorage.setItem('ios_prompt_dismissed', 'true')
+  }
 
-  if (!showPrompt) return null;
+  if (!showBanner) return null
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: '20px',
-      left: '20px',
-      right: '20px',
-      backgroundColor: '#ffffff',
-      color: '#0d5c3f',
-      padding: '16px',
-      borderRadius: '12px',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-      zIndex: 9999,
-      border: '1px solid #0d5c3f',
-      fontFamily: 'sans-serif'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <strong style={{ fontSize: '15px' }}>📱 Install Retcash App</strong>
-        <button 
-          onClick={handleDismiss} 
-          style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#666' }}
+    <div className="fixed bottom-20 left-4 right-4 max-w-[398px] mx-auto z-50 bg-white rounded-3xl p-4 shadow-2xl border border-slate-200 text-slate-800">
+      <div className="flex items-start justify-between gap-3">
+        <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center text-[#00875A] flex-shrink-0">
+          <Smartphone className="w-5 h-5" />
+        </div>
+        <div className="flex-1">
+          <h4 className="font-extrabold text-[#0F172A] text-xs">Install App on iPhone</h4>
+          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+            Tap{' '}
+            <span className="inline-flex items-center gap-0.5 font-bold text-slate-800">
+              <Share className="w-3 h-3 text-blue-600" /> Share
+            </span>{' '}
+            below and select{' '}
+            <span className="inline-flex items-center gap-0.5 font-bold text-slate-800">
+              <PlusSquare className="w-3 h-3 text-slate-700" /> Add to Home Screen
+            </span>
+            . (Also available anytime in your Profile).
+          </p>
+        </div>
+        <button
+          onClick={handleDismiss}
+          className="text-slate-400 hover:text-slate-600 p-1 rounded-full cursor-pointer"
+          aria-label="Close"
         >
-          ✕
+          <X className="w-4 h-4" />
         </button>
       </div>
-      <p style={{ fontSize: '13px', margin: '0 0 10px 0', color: '#333', lineHeight: '1.4' }}>
-        For the best experience, tap the <b>Share button</b> ⎋ at the bottom of your Safari browser and select <b>'Add to Home Screen'</b>.
-      </p>
     </div>
-  );
+  )
 }
