@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
-import { QrCode, Download, Copy, Check, ExternalLink } from 'lucide-react'
+import { QrCode, Download, Copy, Check, ExternalLink, Share2, X } from 'lucide-react'
 
 interface StoreQrSectionProps {
   storeId: string
@@ -20,6 +20,8 @@ export default function StoreQrSection({
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const [origin, setOrigin] = useState('')
   const [copied, setCopied] = useState(false)
+  const [isGeneratingCard, setIsGeneratingCard] = useState(false)
+  const [iosFallbackImageUrl, setIosFallbackImageUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -65,15 +67,15 @@ export default function StoreQrSection({
     }
   }
 
-  // Generate high-res branded print standee PNG (900 x 1200) and download
-  const handleDownloadBrandedQr = async () => {
+  // Build high-res branded print standee canvas (900 x 1200)
+  const buildBrandedStandeeCanvas = async (): Promise<HTMLCanvasElement | null> => {
     const exportCanvas = document.createElement('canvas')
     const W = 900
     const H = 1200
     exportCanvas.width = W
     exportCanvas.height = H
     const ctx = exportCanvas.getContext('2d')
-    if (!ctx) return
+    if (!ctx) return null
 
     // Background
     ctx.fillStyle = '#F8FAFC'
@@ -171,15 +173,74 @@ export default function StoreQrSection({
       1096
     )
 
-    const safeFileName = storeName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '')
+    return exportCanvas
+  }
 
-    const link = document.createElement('a')
-    link.download = `${safeFileName || 'store'}-retcash-qr.png`
-    link.href = exportCanvas.toDataURL('image/png')
-    link.click()
+  // Universal Download / Save Handler (iOS Safari + Android + Desktop)
+  const handleDownloadBrandedQr = async () => {
+    if (isGeneratingCard) return
+    setIsGeneratingCard(true)
+
+    try {
+      const exportCanvas = await buildBrandedStandeeCanvas()
+      if (!exportCanvas) return
+
+      const safeFileName = storeName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+      const fileName = `${safeFileName || 'store'}-retcash-qr.png`
+
+      const blob = await new Promise<Blob | null>((resolve) =>
+        exportCanvas.toBlob((b) => resolve(b), 'image/png')
+      )
+
+      if (!blob) {
+        setIosFallbackImageUrl(exportCanvas.toDataURL('image/png'))
+        return
+      }
+
+      const isIOS =
+        typeof navigator !== 'undefined' &&
+        (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
+
+      // 1. On iOS, prefer native Share Sheet (allows "Save Image" directly to Photos)
+      if (isIOS && typeof navigator !== 'undefined' && navigator.share) {
+        const file = new File([blob], fileName, { type: 'image/png' })
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: `${storeName} - RETCASH QR`,
+            })
+            return
+          } catch (shareErr: any) {
+            // If user cancelled share sheet, don't force popup; otherwise show fallback image
+            if (shareErr?.name === 'AbortError') return
+          }
+        }
+      }
+
+      // 2. If iOS without Web Share file support, open Save-to-Photos preview card
+      if (isIOS) {
+        setIosFallbackImageUrl(exportCanvas.toDataURL('image/png'))
+        return
+      }
+
+      // 3. Standard Blob download for Android & Desktop browsers
+      const blobUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = fileName
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000)
+    } finally {
+      setIsGeneratingCard(false)
+    }
   }
 
   return (
@@ -219,14 +280,39 @@ export default function StoreQrSection({
         </p>
       </div>
 
+      {/* iOS Fallback Image Preview (Long-press to Save to Photos) */}
+      {iosFallbackImageUrl && (
+        <div className="rounded-2xl border-2 border-[#00875A] bg-emerald-50/70 p-3 space-y-2.5 text-center">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-extrabold text-[#00875A] flex items-center gap-1">
+              <Share2 className="size-3.5" /> Press & hold image → Save to Photos
+            </span>
+            <button
+              type="button"
+              onClick={() => setIosFallbackImageUrl(null)}
+              className="rounded-lg p-1 text-slate-500 hover:bg-white cursor-pointer"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+          <img
+            src={iosFallbackImageUrl}
+            alt={`${storeName} RETCASH QR Card`}
+            className="mx-auto max-h-72 w-auto rounded-xl border border-slate-200 shadow-sm"
+          />
+        </div>
+      )}
+
       {/* Download & Copy Actions */}
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={handleDownloadBrandedQr}
-          className="flex items-center justify-center gap-1.5 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white py-2.5 px-3 text-xs font-extrabold shadow-sm transition cursor-pointer"
+          disabled={isGeneratingCard}
+          className="flex items-center justify-center gap-1.5 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white py-2.5 px-3 text-xs font-extrabold shadow-sm transition cursor-pointer disabled:opacity-60"
         >
-          <Download className="size-3.5 shrink-0" /> Download Card
+          <Download className="size-3.5 shrink-0" />
+          {isGeneratingCard ? 'Preparing...' : 'Download Card'}
         </button>
 
         <button
