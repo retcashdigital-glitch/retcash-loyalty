@@ -1,6 +1,6 @@
 'use client'
 
-import { WalletCards, User, LogOut } from 'lucide-react'
+import { WalletCards, LogOut, QrCode } from 'lucide-react'
 
 interface MerchantSession {
   id: string
@@ -15,15 +15,16 @@ interface MerchantSession {
 interface DashboardHeaderProps {
   merchantSession: MerchantSession
   onOpenProfile: () => void
+  onOpenStoreQr?: () => void
   onLogout: () => void
 }
 
 export default function DashboardHeader({
   merchantSession,
   onOpenProfile,
+  onOpenStoreQr,
   onLogout
 }: DashboardHeaderProps) {
-  // கடையின் பெயரின் முதல் எழுத்தைப் பெறுவதற்கான Fallback Helper
   const storeInitial = merchantSession.store_name ? merchantSession.store_name.trim()[0].toUpperCase() : 'S'
 
   return (
@@ -52,8 +53,17 @@ export default function DashboardHeader({
           </div>
         </div>
         
-        {/* Profile Avatar & Action Buttons */}
+        {/* Store QR, Profile Avatar & Action Buttons */}
         <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={onOpenStoreQr || onOpenProfile}
+            className="flex items-center gap-1.5 rounded-xl border border-orange-300/60 bg-[#F97316] hover:bg-[#EA580C] px-2.5 py-1.5 sm:px-3 text-xs font-extrabold text-white shadow-xs transition cursor-pointer"
+            type="button"
+          >
+            <QrCode className="size-3.5" />
+            <span>Store QR</span>
+          </button>
+
           <button
             onClick={onOpenProfile}
             className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition cursor-pointer backdrop-blur-xs"

@@ -1,9 +1,10 @@
 'use client'
 
-import { FormEvent, ChangeEvent, useState } from 'react'
+import { FormEvent, ChangeEvent, useState, useEffect, useRef } from 'react'
 import { Store, X, Percent, Upload, MapPin, Star, Tag, Loader2, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import ProfileInstallSection from '@/components/ProfileInstallSection'
+import StoreQrSection from './StoreQrSection'
 
 interface MerchantSession {
   id: string
@@ -20,6 +21,7 @@ interface MerchantSession {
 interface StoreSettingsModalProps {
   merchantSession: MerchantSession
   onClose: () => void
+  focusQrSection?: boolean
   cashbackPercentInput: string
   setCashbackPercentInput: (val: string) => void
   cashbackSettingLoading: boolean
@@ -34,7 +36,6 @@ interface StoreSettingsModalProps {
   handleUpdateLogo?: (file: File) => void
 }
 
-// ─── 100% Clear & Refined Single-Purpose Categories ───────────────────────────
 const CATEGORIES = [
   'Food',
   'Groceries',
@@ -54,6 +55,7 @@ const CATEGORIES = [
 export default function StoreSettingsModal({
   merchantSession,
   onClose,
+  focusQrSection = false,
   cashbackPercentInput,
   setCashbackPercentInput,
   cashbackSettingLoading,
@@ -67,14 +69,13 @@ export default function StoreSettingsModal({
   logoUploading: externalLogoUploading,
   handleUpdateLogo: externalHandleUpdateLogo
 }: StoreSettingsModalProps) {
+  const qrBlockRef = useRef<HTMLDivElement | null>(null)
 
-  // Dynamic States for Additional Fields
   const [logoUrl, setLogoUrl] = useState<string>(merchantSession.logo_url || '')
   const [locationUrl, setLocationUrl] = useState<string>(merchantSession.location_url || '')
   const [reviewUrl, setReviewUrl] = useState<string>(merchantSession.review_url || '')
   const [category, setCategory] = useState<string>(merchantSession.category || 'others')
 
-  // Internal Loading and Success States for Logo (Fallback)
   const [internalLogoUploading, setInternalLogoUploading] = useState<boolean>(false)
   const [logoSuccess, setLogoSuccess] = useState<boolean>(false)
 
@@ -83,18 +84,21 @@ export default function StoreSettingsModal({
 
   const isLogoUploading = externalLogoUploading ?? internalLogoUploading
 
-  // Handle Logo Upload Event
+  useEffect(() => {
+    if (focusQrSection && qrBlockRef.current) {
+      qrBlockRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [focusQrSection])
+
   const handleLogoChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // 1. If Parent component provided `handleUpdateLogo`, use it
     if (externalHandleUpdateLogo) {
       externalHandleUpdateLogo(file)
       return
     }
 
-    // 2. Otherwise run internal logic
     try {
       setInternalLogoUploading(true)
       setLogoSuccess(false)
@@ -102,21 +106,18 @@ export default function StoreSettingsModal({
       const fileExt = file.name.split('.').pop() || 'png'
       const filePath = `store_${merchantSession.id}.${fileExt}`
 
-      // Upsert to Storage
       const { error: uploadError } = await supabase.storage
         .from('store-logos')
         .upload(filePath, file, { upsert: true })
 
       if (uploadError) throw uploadError
 
-      // Get Public URL
       const { data: publicUrlData } = supabase.storage
         .from('store-logos')
         .getPublicUrl(filePath)
 
       const newPublicUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`
 
-      // Update DB
       const { error: dbError } = await supabase
         .from('stores')
         .update({ logo_url: newPublicUrl })
@@ -135,7 +136,6 @@ export default function StoreSettingsModal({
     }
   }
 
-  // Handle Category, Location, and Review URL Updates
   const handleUpdateStoreDetails = async (e: FormEvent) => {
     e.preventDefault()
     try {
@@ -186,7 +186,7 @@ export default function StoreSettingsModal({
             </div>
             <div>
               <h3 className="font-bold text-sm text-white">{merchantSession.store_name}</h3>
-              <p className="text-[11px] text-emerald-100">Store Profile & Settings</p>
+              <p className="text-[11px] text-emerald-100">Store QR, Profile & Settings</p>
             </div>
           </div>
           <button
@@ -200,6 +200,16 @@ export default function StoreSettingsModal({
         {/* Modal Scrollable Body */}
         <div className="p-5 space-y-6 max-h-[80vh] overflow-y-auto">
           
+          {/* SECTION 0: Store Counter QR Code & Branded Card Download */}
+          <div ref={qrBlockRef}>
+            <StoreQrSection
+              storeId={merchantSession.id}
+              storeName={merchantSession.store_name}
+              cashbackPercent={merchantSession.default_cashback_percent ?? 5}
+              targetVisits={merchantSession.target_visits ?? 6}
+            />
+          </div>
+
           {/* Account Details Box */}
           <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-4 space-y-3">
             <h4 className="text-xs font-bold text-[#00875A] uppercase tracking-wider">Account Details</h4>
@@ -217,7 +227,7 @@ export default function StoreSettingsModal({
             </div>
           </div>
 
-          {/* SECTION 1: Change Logo (Supabase Storage Integration) */}
+          {/* SECTION 1: Change Logo */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
             <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
               <Upload className="size-3.5 text-[#00875A]" /> Store Logo
@@ -330,7 +340,6 @@ export default function StoreSettingsModal({
           <form onSubmit={handleUpdateStoreDetails} className="bg-white border border-slate-200 rounded-xl p-4 space-y-4 shadow-xs">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Store Information & Links</h4>
 
-            {/* Store Category Select */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                 <Tag className="size-3.5 text-[#00875A]" /> Store Category
@@ -352,7 +361,6 @@ export default function StoreSettingsModal({
               </select>
             </div>
 
-            {/* Google Location Link */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                 <MapPin className="size-3.5 text-[#00875A]" /> Google Maps Location Link
@@ -366,7 +374,6 @@ export default function StoreSettingsModal({
               />
             </div>
 
-            {/* Google Review Link */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                 <Star className="size-3.5 text-[#00875A]" /> Google Review Link

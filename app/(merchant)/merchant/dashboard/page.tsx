@@ -79,6 +79,7 @@ export default function MerchantDashboardPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>('billing')
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [focusQrInProfile, setFocusQrInProfile] = useState(false)
 
   const [targetVisitsInput, setTargetVisitsInput] = useState('6')
   const [settingLoading, setSettingLoading] = useState(false)
@@ -1079,7 +1080,11 @@ export default function MerchantDashboardPage() {
       {isProfileOpen && (
         <StoreSettingsModal
           merchantSession={merchantSession}
-          onClose={() => setIsProfileOpen(false)}
+          onClose={() => {
+            setIsProfileOpen(false)
+            setFocusQrInProfile(false)
+          }}
+          focusQrSection={focusQrInProfile}
           cashbackPercentInput={cashbackPercentInput}
           setCashbackPercentInput={setCashbackPercentInput}
           cashbackSettingLoading={cashbackSettingLoading}
@@ -1097,7 +1102,14 @@ export default function MerchantDashboardPage() {
 
       <DashboardHeader
         merchantSession={merchantSession}
-        onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenProfile={() => {
+          setFocusQrInProfile(false)
+          setIsProfileOpen(true)
+        }}
+        onOpenStoreQr={() => {
+          setFocusQrInProfile(true)
+          setIsProfileOpen(true)
+        }}
         onLogout={handleLogout}
       />
 
@@ -1140,7 +1152,10 @@ export default function MerchantDashboardPage() {
             handleGenerateCashback={handleGenerateCashback}
             startScanner={startScanner}
             startPhoneScanner={startPhoneScanner}
-            onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenProfile={() => {
+              setFocusQrInProfile(false)
+              setIsProfileOpen(true)
+            }}
             merchantStoreId={merchantSession?.id}
             lastAddedClaim={lastAddedClaim}
             targetVisits={targetVisits}

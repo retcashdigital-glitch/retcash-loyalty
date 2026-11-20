@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import { createClient } from '@supabase/supabase-js'
 import {
   Phone,
   Lock,
@@ -14,7 +15,18 @@ import {
   ArrowLeft,
   User,
   Sparkles,
+  Store,
 } from 'lucide-react'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null
+
+interface StoreBrandInfo {
+  id: string
+  name: string
+  logoUrl: string | null
+}
 
 function CustomerPinLoginContent() {
   const router = useRouter()
@@ -22,6 +34,10 @@ function CustomerPinLoginContent() {
 
   const redirectParam = searchParams.get('redirect') || ''
   const phoneParam = searchParams.get('phone') || ''
+  const storeParam = searchParams.get('store') || searchParams.get('storeId') || ''
+
+  const [storeInfo, setStoreInfo] = useState<StoreBrandInfo | null>(null)
+  const [logoLoadError, setLogoLoadError] = useState(false)
 
   const [step, setStep] = useState<'phone' | 'login' | 'setup'>('phone')
   const [phoneInput, setPhoneInput] = useState('')
@@ -46,30 +62,111 @@ function CustomerPinLoginContent() {
     return cleaned.length === 9 ? `94${cleaned}` : ''
   }
 
+  // 1. Fetch scanned store branding (Logo & Name) if ?store= is present
   useEffect(() => {
-    const savedPhone =
-      localStorage.getItem('customer_phone') || localStorage.getItem('retcash_phone') || ''
-    if (savedPhone) {
-      const hasSession =
-        localStorage.getItem(`retcash_wallet_session_${savedPhone}`) === 'true' ||
-        localStorage.getItem(`retcash_wallet_auth_${savedPhone}`) === 'true'
+    if (!storeParam || !supabase) return
 
-      if (hasSession) {
-        if (redirectParam && redirectParam.startsWith('/')) {
-          router.replace(redirectParam)
-        } else {
-          router.replace(`/wallet/${savedPhone}`)
+    let isMounted = true
+    const loadStoreBranding = async () => {
+      try {
+        // Try 'stores' table first, fallback to 'merchants' if needed
+        let { data } = await supabase
+          .from('stores')
+          .select('*')
+          .eq('id', storeParam)
+          .maybeSingle()
+
+        if (!data) {
+          const fallback = await supabase
+            .from('merchants')
+            .select('*')
+            .eq('id', storeParam)
+            .maybeSingle()
+          data = fallback.data
         }
-        return
-      }
 
-      const localDisplay = savedPhone.startsWith('94') ? `0${savedPhone.slice(2)}` : savedPhone
-      setPhoneInput(localDisplay)
+        if (isMounted && data) {
+          const resolvedName =
+            data.store_name || data.business_name || data.name || 'Partner Store'
+          const resolvedLogo =
+            data.logo_url || data.store_logo || data.avatar_url || null
+
+          setLogoLoadError(false)
+          setStoreInfo({
+            id: String(data.id),
+            name: resolvedName,
+            logoUrl: resolvedLogo,
+          })
+          localStorage.setItem('retcash_last_scanned_store', String(data.id))
+        }
+      } catch {
+        // Fail silently and keep standard RETCASH login UI
+      }
     }
 
-    if (phoneParam) {
-      const localFromUrl = phoneParam.startsWith('94') ? `0${phoneParam.slice(2)}` : phoneParam
-      setPhoneInput(localFromUrl)
+    loadStoreBranding()
+    return () => {
+      isMounted = false
+    }
+  }, [storeParam])
+
+  // 2. Check existing session (Server HttpOnly cookie + localStorage) for instant wallet redirect
+  useEffect(() => {
+    let isMounted = true
+
+    const checkSessionAndPrefill = async () => {
+      const targetUrl = (phone: string) =>
+        redirectParam && redirectParam.startsWith('/') ? redirectParam : `/wallet/${phone}`
+
+      // Fast path via localStorage session
+      const savedPhone =
+        localStorage.getItem('customer_phone') || localStorage.getItem('retcash_phone') || ''
+
+      if (savedPhone) {
+        const hasLocalSession =
+          localStorage.getItem(`retcash_wallet_session_${savedPhone}`) === 'true' ||
+          localStorage.getItem(`retcash_wallet_auth_${savedPhone}`) === 'true'
+
+        if (hasLocalSession) {
+          router.replace(targetUrl(savedPhone))
+          return
+        }
+
+        const localDisplay = savedPhone.startsWith('94') ? `0${savedPhone.slice(2)}` : savedPhone
+        if (isMounted) setPhoneInput(localDisplay)
+      }
+
+      // Verify signed HttpOnly cookie session on server (in case localStorage was cleared)
+      try {
+        const res = await fetch('/api/customer/pin-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'session' }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data?.authenticated && data?.phone) {
+            localStorage.setItem(`retcash_wallet_session_${data.phone}`, 'true')
+            localStorage.setItem(`retcash_wallet_auth_${data.phone}`, 'true')
+            localStorage.setItem('customer_phone', data.phone)
+            localStorage.setItem('retcash_phone', data.phone)
+            router.replace(targetUrl(data.phone))
+            return
+          }
+        }
+      } catch {
+        // Ignore network errors and let user log in normally
+      }
+
+      if (phoneParam && isMounted) {
+        const localFromUrl = phoneParam.startsWith('94') ? `0${phoneParam.slice(2)}` : phoneParam
+        setPhoneInput(localFromUrl)
+      }
+    }
+
+    checkSessionAndPrefill()
+    return () => {
+      isMounted = false
     }
   }, [router, redirectParam, phoneParam])
 
@@ -116,7 +213,11 @@ function CustomerPinLoginContent() {
       const res = await fetch('/api/customer/pin-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'check', phone: cleanPhone }),
+        body: JSON.stringify({
+          action: 'check',
+          phone: cleanPhone,
+          ...(storeInfo?.id ? { storeId: storeInfo.id } : {}),
+        }),
       })
       const data = await res.json()
 
@@ -159,6 +260,7 @@ function CustomerPinLoginContent() {
           action: 'login',
           phone: cleanPhone,
           pin,
+          ...(storeInfo?.id ? { storeId: storeInfo.id } : {}),
         }),
       })
       const data = await res.json()
@@ -202,6 +304,7 @@ function CustomerPinLoginContent() {
           phone: cleanPhone,
           pin,
           full_name: fullName.trim(),
+          ...(storeInfo?.id ? { storeId: storeInfo.id } : {}),
         }),
       })
       const data = await res.json()
@@ -222,11 +325,41 @@ function CustomerPinLoginContent() {
   return (
     <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-xl space-y-6">
       <div className="text-center space-y-2">
-        <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md mx-auto mb-3 p-2">
+        {/* MASTER RETCASH BRAND */}
+        <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md mx-auto mb-2 p-2">
           <Image src="/logo.png" alt="RETCASH" width={48} height={48} className="object-contain" />
         </div>
         <h1 className="text-2xl font-black tracking-wider text-[#00875A] uppercase">RETCASH</h1>
-        <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+
+        {/* SCANNED STORE CO-BRANDING (Shows Store Logo & Name below RETCASH) */}
+        {storeInfo && (
+          <div className="pt-1 pb-2">
+            <div className="inline-flex items-center gap-3 rounded-2xl border border-orange-200/80 bg-orange-50/60 px-4 py-2.5 shadow-xs">
+              {storeInfo.logoUrl && !logoLoadError ? (
+                <img
+                  src={storeInfo.logoUrl}
+                  alt={storeInfo.name}
+                  onError={() => setLogoLoadError(true)}
+                  className="h-10 w-10 rounded-xl border border-slate-200 bg-white object-cover shrink-0"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F97316] text-white font-black text-base shrink-0 shadow-xs">
+                  {storeInfo.name.charAt(0).toUpperCase() || <Store className="size-4" />}
+                </div>
+              )}
+              <div className="text-left">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#F97316]">
+                  Official Partner Store
+                </p>
+                <p className="text-sm font-extrabold text-slate-900 leading-tight">
+                  {storeInfo.name}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide pt-1">
           {step === 'phone'
             ? 'Customer Wallet'
             : step === 'login'
