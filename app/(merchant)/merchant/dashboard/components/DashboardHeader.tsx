@@ -29,11 +29,11 @@ export default function DashboardHeader({
 
   return (
     <header className="border-b border-emerald-800/20 bg-gradient-to-r from-[#00875A] via-[#059669] to-[#0d9488] text-white sticky top-0 z-40 shadow-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-5 lg:px-8">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:px-5 sm:py-3.5 lg:px-8">
         
         {/* RETCASH Logo & Store Name Identity */}
-        <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-white/20 border border-white/30 backdrop-blur-xs text-white shadow-xs overflow-hidden">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-white/20 border border-white/30 backdrop-blur-xs text-white shadow-xs overflow-hidden shrink-0">
             <img
               src="/logo.png"
               alt="RETCASH Logo"
@@ -45,32 +45,31 @@ export default function DashboardHeader({
             />
             <WalletCards className="size-5 hidden" />
           </div>
-          <div>
-            <p className="font-mono text-[13px] font-extrabold text-white">{merchantSession.store_name}</p>
-            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-emerald-100">
-              <span className="size-2 rounded-full bg-emerald-300 animate-pulse" /> Store dashboard
+          <div className="min-w-0">
+            <p className="font-mono text-[13px] font-extrabold text-white truncate">{merchantSession.store_name}</p>
+            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-emerald-100 whitespace-nowrap">
+              <span className="size-2 rounded-full bg-emerald-300 animate-pulse shrink-0" /> Store dashboard
             </div>
           </div>
         </div>
         
         {/* Store QR, Profile Avatar & Action Buttons */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <button
             onClick={onOpenStoreQr || onOpenProfile}
-            className="flex items-center gap-1.5 rounded-xl border border-orange-300/60 bg-[#F97316] hover:bg-[#EA580C] px-2.5 py-1.5 sm:px-3 text-xs font-extrabold text-white shadow-xs transition cursor-pointer"
+            className="flex items-center gap-1.5 rounded-xl border border-orange-300/60 bg-[#F97316] hover:bg-[#EA580C] px-2.5 py-1.5 sm:px-3 text-xs font-extrabold text-white shadow-xs transition cursor-pointer whitespace-nowrap"
             type="button"
           >
-            <QrCode className="size-3.5" />
+            <QrCode className="size-3.5 shrink-0" />
             <span>Store QR</span>
           </button>
 
           <button
             onClick={onOpenProfile}
-            className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition cursor-pointer backdrop-blur-xs"
+            className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 p-1.5 sm:px-3 sm:py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition cursor-pointer backdrop-blur-xs whitespace-nowrap"
             type="button"
           >
-            {/* Store Logo / Initial Avatar */}
-            <div className="size-5 rounded-md bg-white/20 border border-white/30 flex items-center justify-center overflow-hidden flex-shrink-0">
+            <div className="size-5 rounded-md bg-white/20 border border-white/30 flex items-center justify-center overflow-hidden shrink-0">
               {merchantSession.logo_url ? (
                 <img
                   src={merchantSession.logo_url}
@@ -83,16 +82,16 @@ export default function DashboardHeader({
                 </span>
               )}
             </div>
-
             <span className="hidden sm:inline">Store Profile</span>
           </button>
 
           <button
             onClick={onLogout}
-            className="flex items-center gap-2 rounded-xl border border-red-200/40 bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500/30 transition cursor-pointer backdrop-blur-xs"
+            className="flex items-center gap-1.5 rounded-xl border border-red-200/40 bg-red-500/20 px-2.5 py-1.5 sm:px-3 text-xs font-semibold text-white hover:bg-red-500/30 transition cursor-pointer backdrop-blur-xs whitespace-nowrap"
             type="button"
           >
-            <LogOut className="size-3.5" /> Logout
+            <LogOut className="size-3.5 shrink-0" />
+            <span className="hidden xs:inline sm:inline">Logout</span>
           </button>
         </div>
       </div>
