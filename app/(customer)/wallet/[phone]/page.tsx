@@ -186,6 +186,20 @@ export default function CustomerWalletPage() {
           return
         }
 
+        // Verify signed HttpOnly session cookie on the server
+        const sessionRes = await fetch('/api/customer/pin-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'session', phone }),
+        })
+
+        if (!sessionRes.ok) {
+          localStorage.removeItem(`retcash_wallet_session_${phone}`)
+          localStorage.removeItem(`retcash_wallet_auth_${phone}`)
+          router.replace('/customer/login')
+          return
+        }
+
         const cleanPhone = phone.replace(/\D/g, '')
         const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
@@ -304,7 +318,6 @@ export default function CustomerWalletPage() {
       const cleanPhone = phone.replace(/\D/g, '')
       const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
 
-      // Read existing cache to preserve latestTransaction if store state is unchanged
       const existingCacheMap = new Map<string, any>()
       if (typeof window !== 'undefined') {
         try {
@@ -417,7 +430,6 @@ export default function CustomerWalletPage() {
         }
       }) || []
 
-      // ⚡ WhatsApp-Style Floating Sort: கடைசியாகப் பரிவர்த்தனை நடந்த கடை மேலே வரும்
       const sortedStores = sortStoresByLatestActivity(mergedStores)
 
       setStores(sortedStores)
@@ -465,7 +477,16 @@ export default function CustomerWalletPage() {
     })
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/customer/pin-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'logout' }),
+      })
+    } catch {
+      // Proceed with local cleanup even if offline
+    }
     localStorage.removeItem(`wallet_cache_${phone}`)
     localStorage.removeItem(`retcash_wallet_session_${phone}`)
     localStorage.removeItem(`retcash_wallet_auth_${phone}`)
@@ -570,7 +591,7 @@ export default function CustomerWalletPage() {
   const getProgressFromClientX = (clientX: number) => {
     if (!navPillRef.current) return 0
     const rect = navPillRef.current.getBoundingClientRect()
-    const horizontalPadding = 6 // matches p-1.5
+    const horizontalPadding = 6
     const innerLeft = rect.left + horizontalPadding
     const innerWidth = Math.max(1, rect.width - horizontalPadding * 2)
     const tabWidth = innerWidth / NAV_TABS.length
@@ -1193,7 +1214,6 @@ export default function CustomerWalletPage() {
             className="pointer-events-auto relative mx-auto max-w-[360px] bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-full p-1.5 shadow-[0_10px_30px_rgba(15,23,42,0.12)] select-none cursor-pointer"
           >
             <div className="relative grid grid-cols-3 items-center">
-              {/* Sliding Green Highlight Pill */}
               <div
                 aria-hidden="true"
                 className={`absolute top-0 bottom-0 left-0 w-1/3 rounded-full bg-[#00875A] shadow-[0_4px_14px_rgba(0,135,90,0.35)] ${

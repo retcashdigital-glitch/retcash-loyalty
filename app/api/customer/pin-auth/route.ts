@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
+import {
+  CUSTOMER_SESSION_COOKIE,
+  createCustomerSessionToken,
+  verifyCustomerSessionToken,
+  getCustomerSessionCookieOptions,
+} from '@/lib/customerSession'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey =
@@ -38,10 +45,56 @@ function verifyPin(pin: string, stored: string): boolean {
   return crypto.timingSafeEqual(hashBuffer, originalBuffer)
 }
 
+function attachCustomerSessionCookie(
+  res: NextResponse,
+  customerId: string,
+  normalizedPhone: string
+) {
+  const token = createCustomerSessionToken({
+    customerId,
+    phone: normalizedPhone,
+  })
+  res.cookies.set(CUSTOMER_SESSION_COOKIE, token, getCustomerSessionCookieOptions())
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { action, phone, pin, full_name, store_id } = body
+
+    // ─── ACTION 0A: VERIFY SIGNED SESSION COOKIE ─────────────────────────────
+    if (action === 'session') {
+      const cookieStore = await cookies()
+      const rawToken = cookieStore.get(CUSTOMER_SESSION_COOKIE)?.value
+      const session = verifyCustomerSessionToken(rawToken)
+
+      const requestedPhoneObj = phone ? normalizePhone(phone) : null
+      if (!session) {
+        return NextResponse.json({ authenticated: false }, { status: 401 })
+      }
+
+      if (requestedPhoneObj && session.phone !== requestedPhoneObj.full) {
+        return NextResponse.json({ authenticated: false }, { status: 403 })
+      }
+
+      return NextResponse.json({
+        authenticated: true,
+        session: {
+          customerId: session.customerId,
+          phone: session.phone,
+        },
+      })
+    }
+
+    // ─── ACTION 0B: LOGOUT & CLEAR SESSION COOKIE ───────────────────────────
+    if (action === 'logout') {
+      const res = NextResponse.json({ success: true })
+      res.cookies.set(CUSTOMER_SESSION_COOKIE, '', {
+        ...getCustomerSessionCookieOptions(),
+        maxAge: 0,
+      })
+      return res
+    }
 
     const phoneObj = normalizePhone(phone)
     if (!phoneObj) {
@@ -96,7 +149,7 @@ export async function POST(request: Request) {
         )
       }
 
-      return NextResponse.json({
+      const res = NextResponse.json({
         success: true,
         customer: {
           id: rowWithPin.id,
@@ -104,6 +157,9 @@ export async function POST(request: Request) {
           phone_number: phoneObj.full,
         },
       })
+
+      attachCustomerSessionCookie(res, String(rowWithPin.id), phoneObj.full)
+      return res
     }
 
     // ─── ACTION 3: FIRST-TIME PIN SETUP (AUTO-REGISTER + AUTO-LOGIN) ─────────
@@ -151,7 +207,7 @@ export async function POST(request: Request) {
         activeCustomer = inserted
       }
 
-      return NextResponse.json({
+      const res = NextResponse.json({
         success: true,
         customer: {
           id: activeCustomer?.id,
@@ -159,6 +215,11 @@ export async function POST(request: Request) {
           phone_number: phoneObj.full,
         },
       })
+
+      if (activeCustomer?.id) {
+        attachCustomerSessionCookie(res, String(activeCustomer.id), phoneObj.full)
+      }
+      return res
     }
 
     // ─── ACTION 4: SMART STORE CHECK FOR FORGOT PIN ──────────────────────────
@@ -246,7 +307,7 @@ export async function POST(request: Request) {
 
       if (resetErr) throw resetErr
 
-      return NextResponse.json({
+      const res = NextResponse.json({
         success: true,
         customer: {
           id: rowWithPin.id,
@@ -254,6 +315,9 @@ export async function POST(request: Request) {
           phone_number: phoneObj.full,
         },
       })
+
+      attachCustomerSessionCookie(res, String(rowWithPin.id), phoneObj.full)
+      return res
     }
 
     // ─── ACTION 6: MERCHANT COUNTER PIN RESET ────────────────────────────────
