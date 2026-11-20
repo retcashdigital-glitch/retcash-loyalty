@@ -729,7 +729,7 @@ export default function CustomerWalletPage() {
                 <span className="text-[15px] font-black tracking-tight text-slate-800 leading-none block uppercase">
                   RETCASH
                 </span>
-                <span className="text-[10px] text-slate-400 font-bold tracking-wide block mt-0.5 truncate">
+                <span className="text-[10px] text-slate-400 font-bold tracking-wide block mt-0.5 truncate leading-normal">
                   {t.loyaltyWallet}
                 </span>
               </div>
@@ -755,8 +755,8 @@ export default function CustomerWalletPage() {
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-1.5 bg-white/15 px-2.5 py-1 rounded-full backdrop-blur-xs">
-                      <Sparkles size={11} className="text-emerald-200" />
-                      <span className="text-[10px] font-bold text-white uppercase tracking-wider">
+                      <Sparkles size={11} className="text-emerald-200 shrink-0" />
+                      <span className="text-[10px] font-bold text-white uppercase tracking-wider leading-normal">
                         {t.digitalLoyaltyPass}
                       </span>
                     </div>
@@ -770,9 +770,9 @@ export default function CustomerWalletPage() {
                         {customerName ? customerName[0].toUpperCase() : 'U'}
                       </div>
                     )}
-                    <div>
-                      <p className="text-[11px] text-white/80 font-medium">{t.welcomeBackShort}</p>
-                      <h1 className="text-[20px] font-extrabold leading-tight text-white">
+                    <div className="min-w-0">
+                      <p className="text-[11px] text-white/80 font-medium leading-normal">{t.welcomeBackShort}</p>
+                      <h1 className="text-[20px] font-extrabold leading-tight text-white truncate">
                         {customerName ? customerName : loading ? '...' : t.valuedCustomer}
                       </h1>
                     </div>
@@ -780,24 +780,24 @@ export default function CustomerWalletPage() {
 
                   <button
                     onClick={() => setShowQrModal(true)}
-                    className="w-full bg-white hover:bg-emerald-50 text-[#00875A] font-extrabold text-xs py-3 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition cursor-pointer"
+                    className="w-full bg-white hover:bg-emerald-50 text-[#00875A] font-extrabold text-xs py-3 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition cursor-pointer leading-normal"
                   >
-                    <QrCode size={16} />
+                    <QrCode size={16} className="shrink-0" />
                     <span>{t.showPassAtCheckout}</span>
                   </button>
 
-                  <div className="mt-4 pt-3.5 border-t border-white/20 flex items-center justify-between">
-                    <span className="text-[11px] text-white/90 font-semibold">
+                  <div className="mt-4 pt-3.5 border-t border-white/20 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-white/90 font-semibold truncate leading-normal">
                       {t.connectedStores(stores.length)}
                     </span>
 
                     <button
                       onClick={handleCopyPhone}
-                      className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 px-2.5 py-1 rounded-lg transition text-[11px] font-semibold text-white cursor-pointer"
+                      className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 px-2.5 py-1 rounded-lg transition text-[11px] font-semibold text-white cursor-pointer whitespace-nowrap shrink-0"
                       title="Click to copy member ID"
                     >
                       <span>ID: {formatPhoneNumber(phone)}</span>
-                      {copied ? <Check size={12} className="text-emerald-200" /> : <Copy size={12} className="text-white/80" />}
+                      {copied ? <Check size={12} className="text-emerald-200 shrink-0" /> : <Copy size={12} className="text-white/80 shrink-0" />}
                     </button>
                   </div>
                 </div>
@@ -807,7 +807,7 @@ export default function CustomerWalletPage() {
                 <form onSubmit={handleSearchSubmit} className="relative">
                   <button
                     type="submit"
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-[#00875A] transition-colors cursor-pointer p-1"
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center text-slate-500 hover:text-[#00875A] transition-colors cursor-pointer p-1"
                     title="Search"
                   >
                     <Search size={16} />
@@ -822,7 +822,7 @@ export default function CustomerWalletPage() {
                       setSearchQuery(e.target.value)
                       setActiveSearch('')
                     }}
-                    className="w-full bg-white rounded-2xl pl-11 pr-10 py-3.5 text-sm text-slate-800 font-medium placeholder-slate-500 shadow-xs border border-slate-200 outline-none focus:ring-2 focus:ring-[#00875A]/20 focus:border-[#00875A] transition"
+                    className="w-full bg-white rounded-2xl pl-11 pr-10 py-3.5 text-sm text-slate-800 font-medium placeholder-slate-500 shadow-xs border border-slate-200 outline-none focus:ring-2 focus:ring-[#00875A]/20 focus:border-[#00875A] transition leading-normal"
                   />
                   {searchQuery && (
                     <button
@@ -831,7 +831,7 @@ export default function CustomerWalletPage() {
                         setSearchQuery('')
                         setActiveSearch('')
                       }}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors p-1"
                     >
                       <X size={14} />
                     </button>
@@ -846,7 +846,7 @@ export default function CustomerWalletPage() {
                       <button
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-semibold transition-all duration-200 cursor-pointer"
+                        className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-semibold transition-all duration-200 cursor-pointer leading-normal"
                         style={
                           active
                             ? {
@@ -863,6 +863,7 @@ export default function CustomerWalletPage() {
                       >
                         <CatIcon
                           size={13}
+                          className="shrink-0"
                           style={{ color: active ? '#fff' : '#94a3b8' }}
                         />
                         {cat === 'All' ? t.allCategory : cat}
@@ -873,7 +874,7 @@ export default function CustomerWalletPage() {
               </div>
 
               <div className="flex items-center justify-between px-0.5 pt-1">
-                <h2 className="text-[13px] font-bold text-slate-700">
+                <h2 className="text-[13px] font-bold text-slate-700 leading-normal">
                   {t.storesCount(filteredStores.length, selectedCategory)}
                 </h2>
               </div>
@@ -897,8 +898,8 @@ export default function CustomerWalletPage() {
                   <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center mb-4">
                     <ShoppingBag size={28} className="text-slate-300" />
                   </div>
-                  <p className="text-sm font-semibold text-slate-500">{t.noStoreCards}</p>
-                  <p className="text-xs text-slate-400 mt-1">{t.shareIdHint}</p>
+                  <p className="text-sm font-semibold text-slate-500 leading-normal">{t.noStoreCards}</p>
+                  <p className="text-xs text-slate-400 mt-1 leading-normal">{t.shareIdHint}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -957,19 +958,19 @@ export default function CustomerWalletPage() {
                               <div className="text-right flex-shrink-0">
                                 {store.isRedeemed ? (
                                   <div>
-                                    <p className="text-[10px] text-black font-black uppercase tracking-wider flex items-center justify-end gap-1">
+                                    <p className="text-[10px] text-black font-black uppercase tracking-wider flex items-center justify-end gap-1 leading-normal">
                                       <span>✓</span> {t.claimedLabel}
                                     </p>
-                                    <p className="text-sm font-bold text-slate-400 leading-tight mt-0.5">
+                                    <p className="text-sm font-bold text-slate-400 leading-tight mt-0.5 whitespace-nowrap">
                                       Rs. {Number(store.cashbackAmount || 0).toFixed(2)}
                                     </p>
                                   </div>
                                 ) : (
                                   <div>
-                                    <p className="text-[10px] text-slate-700 font-black uppercase tracking-wider">
+                                    <p className="text-[10px] text-slate-700 font-black uppercase tracking-wider leading-normal">
                                       {t.cashbackLabel}
                                     </p>
-                                    <p className="text-sm font-extrabold text-[#00875A] leading-tight mt-0.5">
+                                    <p className="text-sm font-extrabold text-[#00875A] leading-tight mt-0.5 whitespace-nowrap">
                                       Rs. {Number(store.balance).toFixed(2)}
                                     </p>
                                   </div>
@@ -978,7 +979,7 @@ export default function CustomerWalletPage() {
                             </div>
 
                             <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-bold text-slate-700 flex-shrink-0 whitespace-nowrap">
+                              <span className="text-[11px] font-bold text-slate-700 flex-shrink-0 whitespace-nowrap leading-normal">
                                 {t.visitsProgress(visits, targetVisits)}
                               </span>
                               <VisitCapsules
@@ -1003,33 +1004,33 @@ export default function CustomerWalletPage() {
             <div className="space-y-4 pt-1">
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
-                  <Megaphone className="w-5 h-5 text-[#00875A]" />
-                  <h1 className="text-lg font-black text-[#0F172A]">{t.storeOffersTitle}</h1>
+                  <Megaphone className="w-5 h-5 text-[#00875A] shrink-0" />
+                  <h1 className="text-lg font-black text-[#0F172A] leading-normal">{t.storeOffersTitle}</h1>
                 </div>
-                <p className="text-xs text-slate-500">{t.storeOffersDesc}</p>
+                <p className="text-xs text-slate-500 leading-normal">{t.storeOffersDesc}</p>
               </div>
 
               {offersLoading ? (
-                <div className="text-center py-12 text-slate-400 text-xs font-bold">{t.loadingOffers}</div>
+                <div className="text-center py-12 text-slate-400 text-xs font-bold leading-normal">{t.loadingOffers}</div>
               ) : activeOffers.length === 0 ? (
                 <div className="bg-white rounded-3xl p-8 text-center space-y-2 shadow-xs border border-slate-100">
                   <Megaphone className="w-8 h-8 text-slate-300 mx-auto" />
-                  <p className="text-xs text-slate-500 font-bold">{t.noActiveOffers}</p>
+                  <p className="text-xs text-slate-500 font-bold leading-normal">{t.noActiveOffers}</p>
                 </div>
               ) : (
                 activeOffers.map((offer) => (
                   <div key={offer.id} className="bg-white rounded-3xl p-4 space-y-3 shadow-xs border border-slate-100">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                      <div className="flex items-center space-x-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-xs text-[#00875A]">
+                    <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                      <div className="flex items-center space-x-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-xs text-[#00875A] shrink-0">
                           {offer.stores?.store_name?.[0] || 'S'}
                         </div>
-                        <div>
-                          <h3 className="text-xs font-bold text-[#0F172A]">{offer.stores?.store_name || 'Store'}</h3>
-                          <p className="text-[10px] text-slate-400 font-medium">{t.activePromotion}</p>
+                        <div className="min-w-0">
+                          <h3 className="text-xs font-bold text-[#0F172A] truncate leading-normal">{offer.stores?.store_name || 'Store'}</h3>
+                          <p className="text-[10px] text-slate-400 font-medium leading-normal">{t.activePromotion}</p>
                         </div>
                       </div>
-                      <span className="text-[10px] bg-emerald-50 text-[#00875A] px-2.5 py-1 rounded-full font-bold border border-emerald-100 uppercase tracking-wider">
+                      <span className="text-[10px] bg-emerald-50 text-[#00875A] px-2.5 py-1 rounded-full font-bold border border-emerald-100 uppercase tracking-wider whitespace-nowrap shrink-0">
                         {t.dealBadge}
                       </span>
                     </div>
@@ -1051,23 +1052,23 @@ export default function CustomerWalletPage() {
                     )}
 
                     <div className="space-y-1">
-                      <h4 className="font-bold text-sm text-[#0F172A]">{offer.title}</h4>
+                      <h4 className="font-bold text-sm text-[#0F172A] leading-normal">{offer.title}</h4>
                       {offer.description && (
                         <p className="text-xs text-slate-500 leading-relaxed">{offer.description}</p>
                       )}
                     </div>
 
-                    <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                      <span className="text-[10px] font-semibold text-slate-400">
+                    <div className="pt-2 flex items-center justify-between gap-2 border-t border-slate-100">
+                      <span className="text-[10px] font-semibold text-slate-400 leading-normal">
                         {t.endsLabel} {new Date(offer.expires_at).toLocaleDateString()}
                       </span>
                       {offer.stores?.id && (
                         <button
                           onClick={() => handleStoreClick(offer.stores.id)}
-                          className="text-xs font-bold text-[#00875A] hover:underline flex items-center space-x-1 cursor-pointer"
+                          className="text-xs font-bold text-[#00875A] hover:underline flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0"
                         >
                           <span>{t.viewCard}</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
+                          <ChevronRight className="w-3.5 h-3.5 shrink-0" />
                         </button>
                       )}
                     </div>
@@ -1080,13 +1081,13 @@ export default function CustomerWalletPage() {
           {activeTab === 'profile' && (
             <div className="space-y-4 pt-1">
               <div className="space-y-1">
-                <h1 className="text-lg font-black text-[#0F172A]">{t.myProfileTitle}</h1>
-                <p className="text-xs text-slate-500">{t.myProfileDesc}</p>
+                <h1 className="text-lg font-black text-[#0F172A] leading-normal">{t.myProfileTitle}</h1>
+                <p className="text-xs text-slate-500 leading-normal">{t.myProfileDesc}</p>
               </div>
 
               {profileMessage && (
                 <div
-                  className={`p-3 rounded-2xl text-xs font-semibold ${
+                  className={`p-3 rounded-2xl text-xs font-semibold leading-normal ${
                     profileMessage.type === 'success'
                       ? 'bg-emerald-50 text-[#00875A] border border-emerald-100'
                       : 'bg-red-50 text-red-600 border border-red-100'
@@ -1129,14 +1130,14 @@ export default function CustomerWalletPage() {
                       className="hidden"
                     />
                   </div>
-                  <span className="text-[11px] font-semibold text-slate-400">
+                  <span className="text-[11px] font-semibold text-slate-400 leading-normal">
                     {t.uploadPhotoHint}
                   </span>
                 </div>
 
                 <form onSubmit={handleUpdateProfile} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1 leading-normal">
                       {t.fullNameLabel}
                     </label>
                     <input
@@ -1150,9 +1151,9 @@ export default function CustomerWalletPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1 leading-normal">
                       <span>{t.mobileLabel}</span>
-                      <Lock className="w-3 h-3 text-slate-400" />
+                      <Lock className="w-3 h-3 text-slate-400 shrink-0" />
                     </label>
                     <input
                       type="text"
@@ -1164,9 +1165,9 @@ export default function CustomerWalletPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1 leading-normal">
                       <span>{t.emailAddressLabel}</span>
-                      <Lock className="w-3 h-3 text-slate-400" />
+                      <Lock className="w-3 h-3 text-slate-400 shrink-0" />
                     </label>
                     <input
                       type="text"
@@ -1180,11 +1181,11 @@ export default function CustomerWalletPage() {
                   <button
                     type="submit"
                     disabled={isSavingProfile}
-                    className="w-full bg-[#00875A] hover:bg-emerald-700 text-white font-extrabold text-xs py-3 rounded-2xl flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-[0.98] disabled:opacity-50"
+                    className="w-full bg-[#00875A] hover:bg-emerald-700 text-white font-extrabold text-xs py-3 rounded-2xl flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-[0.98] disabled:opacity-50 leading-normal"
                   >
                     {isSavingProfile ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                         <span>{t.savingChangesBtn}</span>
                       </>
                     ) : (
@@ -1196,9 +1197,9 @@ export default function CustomerWalletPage() {
                 <div className="pt-2 border-t border-slate-100">
                   <button
                     onClick={handleLogout}
-                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition cursor-pointer"
+                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition cursor-pointer leading-normal"
                   >
-                    <LogOut className="w-4 h-4" />
+                    <LogOut className="w-4 h-4 shrink-0" />
                     <span>{t.logoutBtn}</span>
                   </button>
                 </div>
@@ -1211,7 +1212,7 @@ export default function CustomerWalletPage() {
 
         {/* ⚡ Instagram-Style Floating Pill Bottom Navigation (Slide + Tap) */}
         <nav
-          className="fixed bottom-0 max-w-[430px] w-full z-30 px-4 pt-2 pointer-events-none"
+          className="fixed bottom-0 max-w-[430px] w-full z-30 px-3 pt-2 pointer-events-none"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 14px)" }}
         >
           <div
@@ -1221,7 +1222,7 @@ export default function CustomerWalletPage() {
             onPointerUp={handleNavPointerUp}
             onPointerCancel={handleNavPointerCancel}
             style={{ touchAction: 'none' }}
-            className="pointer-events-auto relative mx-auto max-w-[360px] bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-full p-1.5 shadow-[0_10px_30px_rgba(15,23,42,0.12)] select-none cursor-pointer"
+            className="pointer-events-auto relative mx-auto max-w-[375px] bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-full p-1.5 shadow-[0_10px_30px_rgba(15,23,42,0.12)] select-none cursor-pointer"
           >
             <div className="relative grid grid-cols-3 items-center">
               <div
@@ -1247,15 +1248,16 @@ export default function CustomerWalletPage() {
                         setActiveTab(id)
                       }
                     }}
-                    className="relative z-10 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-full transition-colors duration-150 cursor-pointer"
+                    className="relative z-10 min-w-0 flex items-center justify-center gap-1 py-2.5 px-1.5 rounded-full transition-colors duration-150 cursor-pointer"
                   >
                     <Icon
-                      size={17}
+                      size={16}
+                      className="shrink-0"
                       style={{ color: isHighlighted ? '#ffffff' : '#64748B' }}
                       strokeWidth={isHighlighted ? 2.3 : 1.9}
                     />
                     <span
-                      className="text-xs font-extrabold leading-none tracking-tight"
+                      className="text-xs font-extrabold leading-normal tracking-tight truncate"
                       style={{ color: isHighlighted ? '#ffffff' : '#64748B' }}
                     >
                       {label}
@@ -1299,21 +1301,21 @@ export default function CustomerWalletPage() {
               </button>
 
               <div className="space-y-1 pt-2">
-                <h3 className="text-sm font-black text-[#0F172A] uppercase tracking-wider">
+                <h3 className="text-sm font-black text-[#0F172A] uppercase tracking-wider leading-normal">
                   {t.myDigitalPassModalTitle}
                 </h3>
-                <p className="text-[11px] text-slate-500 font-medium">{t.showQrCheckoutDesc}</p>
+                <p className="text-[11px] text-slate-500 font-medium leading-normal">{t.showQrCheckoutDesc}</p>
               </div>
 
               <div className="bg-slate-50 p-4 rounded-2xl inline-block border border-slate-100 shadow-inner">
                 <img src={qrCodeUrl} alt="Customer QR Code" className="w-48 h-48 mx-auto rounded-xl" />
               </div>
 
-              <div className="bg-emerald-50 border border-emerald-100 py-2.5 px-4 rounded-xl flex items-center justify-between">
-                <p className="text-xs font-bold text-[#00875A]">{formatPhoneNumber(phone)}</p>
+              <div className="bg-emerald-50 border border-emerald-100 py-2.5 px-4 rounded-xl flex items-center justify-between gap-2">
+                <p className="text-xs font-bold text-[#00875A] whitespace-nowrap">{formatPhoneNumber(phone)}</p>
                 <button
                   onClick={handleCopyPhone}
-                  className="text-[10px] bg-[#00875A] text-white px-2 py-1 rounded-md font-semibold cursor-pointer"
+                  className="text-[10px] bg-[#00875A] text-white px-2 py-1 rounded-md font-semibold cursor-pointer whitespace-nowrap shrink-0"
                 >
                   {copied ? t.copiedBtn : t.copyBtn}
                 </button>
