@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
+
+function CustomerLangSwitcher() {
+    return null
+}
 
 function IconCheck() {
     return (
@@ -109,6 +114,7 @@ export default function ClientCardView({
     latestTransaction?: any 
 }) {
     const router = useRouter()
+    const { t } = useCustomerLang()
     const [claimData, setClaimData] = useState<any>(initialClaim)
     const [offers, setOffers] = useState<any[]>([])
     const [history, setHistory] = useState<any[]>([])
@@ -279,20 +285,21 @@ export default function ClientCardView({
         <div className="flex justify-center min-h-screen bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
             <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen border-x border-slate-200/50 shadow-2xl p-4 pb-20">
                 
-                {/* Header Section */}
-                <div className="w-full flex items-center justify-between pt-1 pb-3 border-b border-slate-200/80 mb-4">
+                {/* Header Section with Language Switcher */}
+                <div className="w-full flex items-center justify-between gap-2 pt-1 pb-3 border-b border-slate-200/80 mb-4">
                     {customerPhone ? (
                         <button
                             onClick={() => router.push(`/wallet/${customerPhone}`)}
-                            className="flex items-center gap-2 text-xs font-bold text-[#00875A] bg-emerald-50 border border-emerald-200/80 px-3.5 py-1.5 rounded-xl hover:bg-emerald-100/80 transition active:scale-95 cursor-pointer shadow-xs"
+                            className="flex items-center gap-1.5 text-xs font-bold text-[#00875A] bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-xl hover:bg-emerald-100/80 transition active:scale-95 cursor-pointer shadow-xs shrink-0"
                         >
                             <IconWallet />
-                            <span>My Wallet</span>
+                            <span>{t.myWalletBtn}</span>
                         </button>
                     ) : (
                         <div className="text-xs text-slate-500 font-bold tracking-wider">RETCASH CARD</div>
                     )}
-                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Digital Loyalty Card</span>
+
+                    <CustomerLangSwitcher />
                 </div>
 
                 <div className="w-full space-y-4 flex-1">
@@ -308,8 +315,8 @@ export default function ClientCardView({
                         <div className="absolute right-4 top-14 w-20 h-20 rounded-full bg-white/8 pointer-events-none" />
 
                         <div className="relative z-10">
-                            <div className="flex justify-between items-center mb-6">
-                                <div className="flex items-center gap-3">
+                            <div className="flex justify-between items-start gap-2 mb-6">
+                                <div className="flex items-center gap-3 min-w-0">
                                     <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/30 backdrop-blur-xs flex items-center justify-center font-extrabold text-white text-base shadow-xs overflow-hidden shrink-0">
                                         {store?.logo_url ? (
                                             <img src={store.logo_url} alt={store.store_name} className="w-full h-full object-cover" />
@@ -317,14 +324,21 @@ export default function ClientCardView({
                                             storeInitials
                                         )}
                                     </div>
-                                    <div>
-                                        <h1 className="text-xl font-black text-white leading-tight tracking-tight">{store?.store_name || 'PARTNER STORE'}</h1>
+                                    <div className="min-w-0">
+                                        <span className="text-[9px] text-emerald-100/90 font-extrabold uppercase tracking-wider block">
+                                            {t.digitalLoyaltyCard}
+                                        </span>
+                                        <h1 className="text-xl font-black text-white leading-tight tracking-tight truncate">
+                                            {store?.store_name || 'PARTNER STORE'}
+                                        </h1>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="mb-5">
-                                <span className="text-[10px] text-emerald-100 font-bold uppercase tracking-widest block mb-1">STORE CREDIT BALANCE</span>
+                                <span className="text-[10px] text-emerald-100 font-bold uppercase tracking-widest block mb-1">
+                                    {t.storeCreditBalance}
+                                </span>
                                 <div className="text-3xl font-black text-white tracking-tight">
                                     Rs. {claimableBalance.toFixed(2)}
                                 </div>
@@ -335,10 +349,10 @@ export default function ClientCardView({
                                     <IconGift />
                                     <span className="text-white font-bold text-[11px] tracking-wide">
                                         {isRewardReady
-                                            ? 'Reward Unlocked & Ready!'
+                                            ? t.rewardUnlockedReady
                                             : isRedeemed
-                                            ? 'Reward Successfully Redeemed'
-                                            : `${visitsLeft} ${visitsLeft === 1 ? 'Visit' : 'Visits'} Remaining for Reward`}
+                                            ? t.rewardSuccessfullyRedeemed
+                                            : t.visitsRemaining(visitsLeft)}
                                     </span>
                                 </div>
                             </div>
@@ -348,8 +362,8 @@ export default function ClientCardView({
                     {/* 2. Standalone Visit Challenge Card */}
                     <div className="bg-white border border-slate-100 rounded-3xl p-5 text-center shadow-xs">
                         <div className="flex justify-between text-[11px] font-bold tracking-wider uppercase mb-3.5">
-                            <span className="text-slate-600">{totalVisits} Visit Challenge</span>
-                            <span className="text-[#00875A] font-extrabold">{currentVisits} / {totalVisits} Visits</span>
+                            <span className="text-slate-600">{t.visitChallengeTitle(totalVisits)}</span>
+                            <span className="text-[#00875A] font-extrabold">{t.visitsCaps(currentVisits, totalVisits)}</span>
                         </div>
 
                         <div className={`grid gap-2.5 ${getGridColumnsClass(totalVisits)}`}>
@@ -399,7 +413,7 @@ export default function ClientCardView({
                             <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
                                 <div className="flex items-center gap-1.5 shrink-0">
                                     <span className="text-slate-800 font-extrabold text-[11px] uppercase tracking-wider">
-                                        {isRedeemed ? "RECEIPT" : "BILL DETAILS"}
+                                        {isRedeemed ? t.receiptTitle : t.billDetailsTitle}
                                     </span>
                                     {cashbackPercentage > 0 && (
                                         <span className="text-[9px] font-black bg-emerald-100 text-[#00875A] px-1.5 py-0.5 rounded-md">
@@ -412,26 +426,26 @@ export default function ClientCardView({
                                     className="text-[10px] font-extrabold text-[#00875A] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer shrink-0"
                                 >
                                     <IconHistory />
-                                    <span>SEE ALL</span>
+                                    <span>{t.seeAllBtn}</span>
                                 </button>
                             </div>
 
                             {/* செங்குத்தான கணக்கீடு (Vertical Invoice Breakdown) */}
                             <div className="space-y-2 text-xs font-semibold">
                                 <div className="flex justify-between text-slate-600">
-                                    <span>Bill Amount</span>
+                                    <span>{t.billAmountLabel}</span>
                                     <span>Rs. {Number(billAmount).toFixed(2)}</span>
                                 </div>
 
                                 {activeDiscount > 0 && (isRewardReady || isRedeemed) && (
                                     <div className="flex justify-between text-rose-600 font-bold bg-rose-50/80 px-2 py-1 rounded-lg border border-rose-100">
-                                        <span>Cashback Discount</span>
+                                        <span>{t.cashbackDiscountLabel}</span>
                                         <span>- Rs. {Number(activeDiscount).toFixed(2)}</span>
                                     </div>
                                 )}
 
                                 <div className="flex justify-between text-slate-900 font-black text-sm pt-2 border-t border-slate-200/80">
-                                    <span>{isRedeemed ? "Paid" : "To Pay"}</span>
+                                    <span>{isRedeemed ? t.paidLabel : t.toPayLabel}</span>
                                     <span className="text-[#00875A]">Rs. {Number(calculatedToPay).toFixed(2)}</span>
                                 </div>
                             </div>
@@ -443,7 +457,7 @@ export default function ClientCardView({
                                     <div className="space-y-3 animate-fade-in pt-1">
                                         <div className="bg-amber-50 border border-amber-200/80 text-amber-900 font-bold text-xs py-2.5 px-3 rounded-xl shadow-xs flex items-center justify-center gap-2">
                                             <span className="text-amber-600 shrink-0"><IconQrScan /></span>
-                                            <span>Show QR to cashier to redeem <strong>Rs. {Number(activeDiscount).toFixed(2)}</strong></span>
+                                            <span>{t.showQrToRedeemPrefix} <strong>Rs. {Number(activeDiscount).toFixed(2)}</strong></span>
                                         </div>
                                         <div className="bg-white p-3 rounded-2xl inline-block shadow-md border border-slate-100">
                                             <img
@@ -458,16 +472,16 @@ export default function ClientCardView({
                                     <div className="bg-emerald-50 text-emerald-900 font-bold text-xs p-3 rounded-xl border border-emerald-200 shadow-xs animate-fade-in flex flex-col items-center gap-1">
                                         <div className="flex items-center gap-1.5 text-[#00875A] font-black tracking-wide">
                                             <IconCheckCircle />
-                                            <span>REWARD REDEEMED</span>
+                                            <span>{t.rewardRedeemedTitle}</span>
                                         </div>
                                         <p className="text-[10px] font-medium text-emerald-700">
-                                            Rs. {Number(activeDiscount).toFixed(2)} discount applied to this bill.
+                                            {t.discountAppliedDesc(Number(activeDiscount).toFixed(2))}
                                         </p>
                                     </div>
                                 ) : (
                                     /* 3. சாதாரண விசிட்களில்: Cashback Earned Badge */
                                     <div className="flex justify-between items-center text-[11px] text-emerald-800 font-bold pt-1">
-                                        <span>Cashback Earned:</span>
+                                        <span>{t.cashbackEarnedLabel}</span>
                                         <span className="bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md text-[#00875A] font-black">
                                             + Rs. {Number(earnedCashback).toFixed(2)}
                                         </span>
@@ -481,7 +495,7 @@ export default function ClientCardView({
                             <div className="pt-2 border-t border-slate-100 text-left">
                                 <div className="flex items-center gap-1.5 text-[#00875A] font-extrabold text-xs uppercase tracking-wider mb-3">
                                     <IconMegaphone />
-                                    <span>STORE OFFERS & DEALS</span>
+                                    <span>{t.storeOffersSectionTitle}</span>
                                 </div>
                                 <div className="space-y-3">
                                     {offers.map((offer) => (
@@ -501,7 +515,7 @@ export default function ClientCardView({
                                             )}
                                             {offer.expires_at && (
                                                 <div className="mt-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                                                    Ends: {new Date(offer.expires_at).toLocaleDateString()}
+                                                    {t.endsLabel} {new Date(offer.expires_at).toLocaleDateString()}
                                                 </div>
                                             )}
                                         </div>
@@ -520,12 +534,12 @@ export default function ClientCardView({
                                     className="py-3 px-3 bg-emerald-50 border border-emerald-300/80 text-[#00875A] font-black rounded-2xl text-center text-xs hover:bg-emerald-100 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
                                 >
                                     <IconLocation />
-                                    <span>LOCATION</span>
+                                    <span>{t.locationBtn}</span>
                                 </a>
                             ) : (
                                 <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200 rounded-2xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 opacity-60 cursor-not-allowed">
                                     <IconLocation />
-                                    <span>LOCATION</span>
+                                    <span>{t.locationBtn}</span>
                                 </button>
                             )}
 
@@ -537,12 +551,12 @@ export default function ClientCardView({
                                     className="py-3 px-3 bg-[#00875A] text-white font-black rounded-2xl text-center text-xs hover:bg-[#00704a] transition flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-[#00875A]/20 active:scale-95"
                                 >
                                     <IconStar />
-                                    <span>REVIEW</span>
+                                    <span>{t.reviewBtn}</span>
                                 </a>
                             ) : (
                                 <button disabled className="py-3 px-3 bg-slate-100 border border-slate-200 rounded-2xl text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2 opacity-60 cursor-not-allowed">
                                     <IconStar />
-                                    <span>REVIEW</span>
+                                    <span>{t.reviewBtn}</span>
                                 </button>
                             )}
                         </div>
@@ -564,13 +578,13 @@ export default function ClientCardView({
                                     <IconHistory />
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-black text-slate-800">Visit & Cashback History</h3>
+                                    <h3 className="text-sm font-black text-slate-800">{t.historyModalTitle}</h3>
                                     <p className="text-[10px] text-slate-400 font-medium">{store?.store_name}</p>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setShowHistoryModal(false)}
-                                className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 font-bold text-xs flex items-center justify-center hover:bg-slate-200 transition"
+                                className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 font-bold text-xs flex items-center justify-center hover:bg-slate-200 transition cursor-pointer"
                             >
                                 ✕
                             </button>
@@ -578,9 +592,9 @@ export default function ClientCardView({
 
                         <div className="overflow-y-auto flex-1 space-y-2.5 pr-1">
                             {loadingHistory ? (
-                                <div className="text-center py-8 text-xs text-slate-400 font-medium">Loading history...</div>
+                                <div className="text-center py-8 text-xs text-slate-400 font-medium">{t.loadingHistory}</div>
                             ) : history.length === 0 ? (
-                                <div className="text-center py-8 text-xs text-slate-400 font-medium">No prior transactions found.</div>
+                                <div className="text-center py-8 text-xs text-slate-400 font-medium">{t.noPriorTx}</div>
                             ) : (
                                 history.map((item) => {
                                     const paidVal = item.net_paid_amount !== undefined && item.net_paid_amount !== null
@@ -591,10 +605,10 @@ export default function ClientCardView({
                                         <div key={item.id} className="bg-slate-50 border border-slate-100/80 rounded-2xl p-3 flex justify-between items-center text-xs">
                                             <div>
                                                 <div className="font-extrabold text-slate-700">
-                                                    Visit #{item.visit_count ?? item.visit_number ?? 1}
+                                                    {t.visitNumber(item.visit_count ?? item.visit_number ?? 1)}
                                                 </div>
                                                 <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
-                                                    Bill: Rs. {Number(item.bill_amount || 0).toFixed(2)} | <span className="text-emerald-700 font-bold">Paid: Rs. {Number(paidVal).toFixed(2)}</span>
+                                                    {t.billShort} Rs. {Number(item.bill_amount || 0).toFixed(2)} | <span className="text-emerald-700 font-bold">{t.paidShort} Rs. {Number(paidVal).toFixed(2)}</span>
                                                 </div>
                                                 <div className="text-[10px] text-slate-400 font-medium mt-0.5">
                                                     {new Date(item.created_at).toLocaleDateString('en-US', {
@@ -611,7 +625,7 @@ export default function ClientCardView({
                                                     + Rs. {Number(item.cashback_amount || 0).toFixed(2)}
                                                 </div>
                                                 <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-0.5 bg-emerald-100 text-[#00875A]">
-                                                    Earned
+                                                    {t.earnedBadge}
                                                 </span>
                                             </div>
                                         </div>

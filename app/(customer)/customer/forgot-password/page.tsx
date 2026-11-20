@@ -13,11 +13,14 @@ import {
   Eye,
   EyeOff,
   Store,
+  ChevronRight,
 } from 'lucide-react'
+import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
 
 function ForgotPinContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { t } = useCustomerLang()
 
   const [step, setStep] = useState<1 | 2>(1)
   const [phoneInput, setPhoneInput] = useState('')
@@ -57,7 +60,7 @@ function ForgotPinContent() {
 
     const cleanPhone = normalizePhone(phoneInput)
     if (!cleanPhone) {
-      setError('Please enter a valid mobile number.')
+      setError(t.invalidPhoneErr)
       return
     }
 
@@ -92,11 +95,11 @@ function ForgotPinContent() {
 
     const cleanPhone = normalizePhone(phoneInput)
     if (!selectedStoreId) {
-      setError('Please select the store you last visited.')
+      setError(t.selectStoreErr)
       return
     }
     if (!/^\d{4}$/.test(newPin)) {
-      setError('New PIN must be exactly 4 digits.')
+      setError(t.pin4DigitErr)
       return
     }
 
@@ -129,7 +132,7 @@ function ForgotPinContent() {
         }
       }
 
-      setMessage('PIN updated! Opening your wallet...')
+      setMessage(t.pinUpdatedMsg)
       setTimeout(() => {
         router.replace(`/wallet/${cleanPhone}`)
       }, 700)
@@ -141,125 +144,35 @@ function ForgotPinContent() {
   }
 
   return (
-    <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-xl space-y-6">
-      <div className="text-center space-y-2">
-        <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md mx-auto mb-3 p-2">
-          <Image src="/logo.png" alt="RETCASH" width={48} height={48} className="object-contain" />
-        </div>
-        <h1 className="text-2xl font-black tracking-wider text-[#00875A] uppercase">RETCASH</h1>
-        <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Reset 4-Digit PIN</h2>
-        <p className="text-xs text-slate-500">
-          {step === 1
-            ? 'Enter your mobile number to verify your wallet'
-            : 'Quickly verify your recent activity to set a new PIN'}
-        </p>
-      </div>
-
-      {error && (
-        <div className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs font-semibold text-red-600">
-          <AlertCircle className="size-4 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {message && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-xs font-semibold text-[#00875A]">
-          <CheckCircle2 className="size-4 shrink-0" />
-          <span>{message}</span>
-        </div>
-      )}
-
-      {step === 1 && (
-        <form onSubmit={handleFindAccount} className="space-y-4">
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">
-              Mobile Number
-            </label>
-            <div className="flex items-center w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 focus-within:border-[#00875A] focus-within:bg-white transition">
-              <Phone className="size-4 text-slate-400 mr-2 shrink-0" />
-              <span className="text-slate-500 font-bold text-sm pr-2 border-r border-slate-300">+94</span>
-              <input
-                type="tel"
-                required
-                value={phoneInput}
-                onChange={(e) => setPhoneInput(e.target.value)}
-                placeholder="0771234567"
-                className="w-full bg-transparent pl-3 text-sm font-bold text-slate-900 outline-none"
-              />
+    <div className="min-h-dvh w-full bg-white sm:max-w-md sm:mx-auto sm:border-x sm:border-slate-200/80 flex flex-col justify-between">
+      <div>
+        {/* TOP NATIVE APP BAR WITH LANGUAGE SWITCHER */}
+        <header className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center p-1 shrink-0">
+              <Image src="/logo.png" alt="RETCASH" width={24} height={24} className="object-contain" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-sm font-black tracking-wider text-[#00875A] uppercase block leading-none">
+                RETCASH
+              </span>
+              <span className="text-[10px] font-semibold text-slate-400 truncate block mt-0.5">
+                {t.cashbackWallet}
+              </span>
             </div>
           </div>
 
-          <div className="flex gap-3 pt-2">
+        </header>
+
+        <main className="px-5 pt-6">
+          {step === 1 ? (
             <Link
               href="/customer/login"
-              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-slate-50 py-3 text-center text-xs font-bold text-slate-700 hover:bg-slate-100"
+              className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-slate-100 hover:bg-slate-200/80 px-3 py-1.5 text-xs font-bold text-slate-700 transition"
             >
-              <ArrowLeft className="size-3.5" /> Back
+              <ArrowLeft className="size-3.5" /> {t.back}
             </Link>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-[2] rounded-xl bg-[#00875A] py-3 text-center text-xs font-extrabold text-white shadow-md hover:bg-[#059669] disabled:opacity-50 cursor-pointer"
-            >
-              {loading ? 'Checking...' : 'Continue'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {step === 2 && hasStoreVerification && (
-        <form onSubmit={handleResetPin} className="space-y-4">
-          <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl space-y-2.5">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-[#00875A]">
-              <Store className="size-3.5" />
-              <span>Select the store you last visited</span>
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {storeOptions.map((st) => (
-                <button
-                  key={st.id}
-                  type="button"
-                  onClick={() => setSelectedStoreId(st.id)}
-                  className={`w-full text-left px-3.5 py-2.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
-                    selectedStoreId === st.id
-                      ? 'bg-emerald-50 border-[#00875A] text-[#00875A] shadow-xs'
-                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
-                  }`}
-                >
-                  {st.store_name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
-              New 4-Digit PIN
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-              <input
-                type={showNewPin ? 'text' : 'password'}
-                inputMode="numeric"
-                pattern="\d{4}"
-                maxLength={4}
-                required
-                value={newPin}
-                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="••••"
-                className="w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-10 py-3.5 text-center text-xl font-black tracking-[0.55em] text-slate-900 outline-none focus:border-[#00875A] focus:bg-white"
-              />
-              <button
-                type="button"
-                onClick={() => setShowNewPin(!showNewPin)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none cursor-pointer"
-              >
-                {showNewPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-2">
+          ) : (
             <button
               type="button"
               onClick={() => {
@@ -267,48 +180,169 @@ function ForgotPinContent() {
                 setError('')
                 setMessage('')
               }}
-              className="flex-1 rounded-xl border border-slate-300 bg-slate-50 py-3 text-center text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+              className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-slate-100 hover:bg-slate-200/80 px-3 py-1.5 text-xs font-bold text-slate-700 transition cursor-pointer"
             >
-              Back
+              <ArrowLeft className="size-3.5" /> {t.back}
             </button>
-            <button
-              type="submit"
-              disabled={loading || !selectedStoreId || newPin.length !== 4}
-              className="flex-[2] rounded-xl bg-[#00875A] py-3 text-center text-xs font-extrabold text-white shadow-md hover:bg-[#059669] disabled:opacity-50 cursor-pointer"
-            >
-              {loading ? 'Updating...' : 'Save New PIN'}
-            </button>
-          </div>
-        </form>
-      )}
+          )}
 
-      {step === 2 && !hasStoreVerification && (
-        <div className="space-y-4">
-          <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl text-center space-y-2">
-            <div className="w-10 h-10 rounded-full bg-emerald-50 text-[#00875A] flex items-center justify-center mx-auto">
-              <Store className="size-5" />
-            </div>
-            <h3 className="text-xs font-extrabold text-slate-800 uppercase">Counter Verification Needed</h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              No store visits were found on this number yet. Please ask the cashier at any RETCASH partner store to reset your PIN on their counter screen.
+          <div className="space-y-1.5 mb-6">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+              {t.resetPinTitle}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+              {step === 1 ? t.resetStep1Desc : t.resetStep2Desc}
             </p>
           </div>
 
+          {error && (
+            <div className="mb-5 flex items-center gap-2.5 rounded-2xl bg-red-50 border border-red-200/80 p-3.5 text-xs font-bold text-red-600">
+              <AlertCircle className="size-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {message && (
+            <div className="mb-5 flex items-center gap-2.5 rounded-2xl bg-emerald-50 border border-emerald-200/80 p-3.5 text-xs font-bold text-[#00875A]">
+              <CheckCircle2 className="size-4 shrink-0" />
+              <span>{message}</span>
+            </div>
+          )}
+
+          {step === 1 && (
+            <form id="forgot-step-1" onSubmit={handleFindAccount} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-2">
+                  {t.mobileLabel}
+                </label>
+                <div className="flex items-center w-full rounded-2xl border-2 border-slate-200 bg-slate-50/70 px-4 py-3.5 focus-within:border-[#00875A] focus-within:bg-white transition">
+                  <Phone className="size-5 text-slate-400 mr-3 shrink-0" />
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    required
+                    value={phoneInput}
+                    onChange={(e) => setPhoneInput(e.target.value)}
+                    placeholder="077 123 4567"
+                    className="w-full bg-transparent text-lg font-extrabold tracking-wide text-slate-900 placeholder:text-slate-300 outline-none"
+                  />
+                </div>
+              </div>
+            </form>
+          )}
+
+          {step === 2 && hasStoreVerification && (
+            <form id="forgot-step-2" onSubmit={handleResetPin} className="space-y-5">
+              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl space-y-2.5">
+                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-[#00875A]">
+                  <Store className="size-3.5" />
+                  <span>{t.selectLastStoreLabel}</span>
+                </div>
+                <div className="grid grid-cols-1 gap-2">
+                  {storeOptions.map((st) => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => setSelectedStoreId(st.id)}
+                      className={`w-full text-left px-4 py-3 rounded-xl border text-xs font-extrabold transition cursor-pointer ${
+                        selectedStoreId === st.id
+                          ? 'bg-emerald-50 border-[#00875A] text-[#00875A] shadow-2xs'
+                          : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      {st.store_name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                    {t.newPinLabel}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPin(!showNewPin)}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
+                  >
+                    {showNewPin ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    <span>{showNewPin ? t.hide : t.show}</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type={showNewPin ? 'text' : 'password'}
+                    inputMode="numeric"
+                    pattern="\d{4}"
+                    maxLength={4}
+                    required
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="••••"
+                    className="w-full rounded-2xl border-2 border-slate-200 bg-slate-50/70 pl-11 pr-11 py-3.5 text-center text-2xl font-black tracking-[0.55em] text-slate-900 outline-none focus:border-[#00875A] focus:bg-white transition"
+                  />
+                </div>
+              </div>
+            </form>
+          )}
+
+          {step === 2 && !hasStoreVerification && (
+            <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl text-center space-y-2.5">
+              <div className="w-11 h-11 rounded-full bg-emerald-50 text-[#00875A] flex items-center justify-center mx-auto">
+                <Store className="size-5" />
+              </div>
+              <h3 className="text-xs font-black text-slate-800 uppercase">{t.counterVerifyTitle}</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">{t.counterVerifyDesc}</p>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* BOTTOM ACTION FOOTER */}
+      <footer className="px-5 pt-6 pb-7 bg-white">
+        {step === 1 && (
+          <button
+            type="submit"
+            form="forgot-step-1"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#00875A] py-4 text-sm font-extrabold tracking-wide text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] transition disabled:opacity-50 cursor-pointer"
+          >
+            <span>{loading ? t.checkingBtn : t.continueBtn}</span>
+            {!loading && <ChevronRight className="size-4" />}
+          </button>
+        )}
+
+        {step === 2 && hasStoreVerification && (
+          <button
+            type="submit"
+            form="forgot-step-2"
+            disabled={loading || !selectedStoreId || newPin.length !== 4}
+            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#00875A] py-4 text-sm font-extrabold tracking-wide text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] transition disabled:opacity-40 cursor-pointer"
+          >
+            <span>{loading ? t.updatingBtn : t.saveNewPinBtn}</span>
+            {!loading && <ChevronRight className="size-4" />}
+          </button>
+        )}
+
+        {step === 2 && !hasStoreVerification && (
           <Link
             href="/customer/login"
-            className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-[#00875A] py-3 text-xs font-extrabold text-white shadow-md hover:bg-[#059669]"
+            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#00875A] py-4 text-sm font-extrabold tracking-wide text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669]"
           >
-            <ArrowLeft className="size-3.5" /> Back to Login
+            <ArrowLeft className="size-4" />
+            <span>{t.backToLogin}</span>
           </Link>
-        </div>
-      )}
+        )}
+      </footer>
     </div>
   )
 }
 
 export default function CustomerForgotPasswordPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F1F5F9] px-4 py-6 font-sans text-[#0F172A]">
+    <div className="min-h-dvh w-full bg-white sm:bg-slate-50 font-sans text-[#0F172A]">
       <Suspense fallback={null}>
         <ForgotPinContent />
       </Suspense>

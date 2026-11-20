@@ -36,13 +36,13 @@ import {
   Lock
 } from 'lucide-react'
 
-const NAV_TABS = [
-  { id: 'wallet', label: 'Wallet', Icon: Wallet },
-  { id: 'offers', label: 'Offers', Icon: Tag },
-  { id: 'profile', label: 'Profile', Icon: User },
+const NAV_TAB_IDS = [
+  { id: 'wallet', Icon: Wallet },
+  { id: 'offers', Icon: Tag },
+  { id: 'profile', Icon: User },
 ] as const
 
-type NavTabId = (typeof NAV_TABS)[number]['id']
+type NavTabId = (typeof NAV_TAB_IDS)[number]['id']
 
 // ─── Visual Helpers ───────────────────────────────────────────────────────────
 
@@ -145,6 +145,12 @@ export default function CustomerWalletPage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const navTabs = [
+    { id: 'wallet' as const, label: 'Wallet', Icon: Wallet },
+    { id: 'offers' as const, label: 'Offers', Icon: Tag },
+    { id: 'profile' as const, label: 'Profile', Icon: User },
+  ]
+
   const availableCategories = Array.from(
     new Set(
       stores
@@ -186,7 +192,6 @@ export default function CustomerWalletPage() {
           return
         }
 
-        // Verify signed HttpOnly session cookie on the server
         const sessionRes = await fetch('/api/customer/pin-auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -553,7 +558,7 @@ export default function CustomerWalletPage() {
       if (updateError) throw updateError
 
       setAvatarUrl(publicUrl)
-      setProfileMessage({ type: 'success', text: 'Profile picture updated successfully!' })
+      setProfileMessage({ type: 'success', text: 'Avatar updated successfully.' })
     } catch (err: any) {
       console.error('Avatar upload error:', err)
       setProfileMessage({ type: 'error', text: err.message || 'Failed to update profile picture.' })
@@ -578,7 +583,7 @@ export default function CustomerWalletPage() {
       if (error) throw error
 
       localStorage.setItem(`customer_name_${phone}`, customerName)
-      setProfileMessage({ type: 'success', text: 'Name updated successfully!' })
+      setProfileMessage({ type: 'success', text: 'Profile updated successfully.' })
     } catch (err: any) {
       console.error('Update profile error:', err)
       setProfileMessage({ type: 'error', text: err.message || 'Failed to save changes.' })
@@ -594,16 +599,16 @@ export default function CustomerWalletPage() {
     const horizontalPadding = 6
     const innerLeft = rect.left + horizontalPadding
     const innerWidth = Math.max(1, rect.width - horizontalPadding * 2)
-    const tabWidth = innerWidth / NAV_TABS.length
+    const tabWidth = innerWidth / navTabs.length
     const rawIndex = (clientX - innerLeft - tabWidth / 2) / tabWidth
-    return Math.min(NAV_TABS.length - 1, Math.max(0, rawIndex))
+    return Math.min(navTabs.length - 1, Math.max(0, rawIndex))
   }
 
   const getTappedIndexFromClientX = (clientX: number) => {
     if (!navPillRef.current) return 0
     const rect = navPillRef.current.getBoundingClientRect()
     const relX = Math.min(rect.width - 1, Math.max(0, clientX - rect.left))
-    return Math.min(NAV_TABS.length - 1, Math.floor((relX / rect.width) * NAV_TABS.length))
+    return Math.min(navTabs.length - 1, Math.floor((relX / rect.width) * navTabs.length))
   }
 
   const handleNavPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -628,7 +633,7 @@ export default function CustomerWalletPage() {
       setDragProgress(nextProgress)
 
       const nearestIdx = Math.round(nextProgress)
-      const targetTab = NAV_TABS[nearestIdx]?.id
+      const targetTab = navTabs[nearestIdx]?.id
       if (targetTab && targetTab !== activeTab) {
         setActiveTab(targetTab)
       }
@@ -650,13 +655,13 @@ export default function CustomerWalletPage() {
     if (hasDraggedRef.current) {
       const finalProgress = getProgressFromClientX(e.clientX)
       const snappedIdx = Math.round(finalProgress)
-      const targetTab = NAV_TABS[snappedIdx]?.id
+      const targetTab = navTabs[snappedIdx]?.id
       if (targetTab) {
         setActiveTab(targetTab)
       }
     } else {
       const tappedIdx = getTappedIndexFromClientX(e.clientX)
-      const targetTab = NAV_TABS[tappedIdx]?.id
+      const targetTab = navTabs[tappedIdx]?.id
       if (targetTab) {
         setActiveTab(targetTab)
       }
@@ -674,7 +679,7 @@ export default function CustomerWalletPage() {
     setDragProgress(null)
   }
 
-  const activeTabIndex = Math.max(0, NAV_TABS.findIndex((t) => t.id === activeTab))
+  const activeTabIndex = Math.max(0, navTabs.findIndex((tab) => tab.id === activeTab))
   const visualPillIndex = dragProgress !== null ? dragProgress : activeTabIndex
 
   const filteredStores = stores.filter(store => {
@@ -700,7 +705,7 @@ export default function CustomerWalletPage() {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
         <div className="w-10 h-10 border-3 border-slate-200 border-t-[#00875A] rounded-full animate-spin"></div>
-        <p className="text-xs text-slate-500 font-semibold mt-3">Verifying wallet session...</p>
+        <p className="text-xs text-slate-500 font-semibold mt-3">Verifying session...</p>
       </div>
     )
   }
@@ -709,22 +714,27 @@ export default function CustomerWalletPage() {
     <div className="flex justify-center min-h-full bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
       <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen border-x border-slate-200/50 shadow-2xl">
         
-        <header className="sticky top-0 z-40 flex-shrink-0 bg-white border-b border-slate-200/80 px-5 pt-4 pb-3.5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-40 flex-shrink-0 bg-white border-b border-slate-200/80 px-4 pt-3.5 pb-3 shadow-xs">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
               <img
                 src="/logo.png"
                 alt="RETCASH Logo"
-                className="h-9 w-auto object-contain"
+                className="h-8 w-auto object-contain shrink-0"
               />
-              <div>
-                <span className="text-[16px] font-black tracking-tight text-slate-800 leading-none block uppercase">
+              <div className="min-w-0">
+                <span className="text-[15px] font-black tracking-tight text-slate-800 leading-none block uppercase">
                   RETCASH
                 </span>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mt-0.5">
+                <span className="text-[10px] text-slate-400 font-bold tracking-wide block mt-0.5 truncate">
                   Loyalty Wallet
                 </span>
               </div>
+            </div>
+
+            <div className="text-sm font-semibold text-slate-700">
+              {/* Local language label, replace with actual language switcher if available */}
+              <span className="cursor-default">🇱🇰 Sinhala</span>
             </div>
           </div>
         </header>
@@ -761,7 +771,7 @@ export default function CustomerWalletPage() {
                       </div>
                     )}
                     <div>
-                      <p className="text-[11px] text-white/80 font-medium">Welcome back,</p>
+                      <p className="text-[11px] text-white/80 font-medium">Welcome back!</p>
                       <h1 className="text-[20px] font-extrabold leading-tight text-white">
                         {customerName ? customerName : loading ? '...' : 'Valued Customer'}
                       </h1>
@@ -773,12 +783,12 @@ export default function CustomerWalletPage() {
                     className="w-full bg-white hover:bg-emerald-50 text-[#00875A] font-extrabold text-xs py-3 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition cursor-pointer"
                   >
                     <QrCode size={16} />
-                    <span>Show My Pass at Checkout</span>
+                    <span>Show Pass at Checkout</span>
                   </button>
 
                   <div className="mt-4 pt-3.5 border-t border-white/20 flex items-center justify-between">
                     <span className="text-[11px] text-white/90 font-semibold">
-                      {stores.length} Connected {stores.length === 1 ? 'Store' : 'Stores'}
+                      {stores.length} Connected Stores
                     </span>
 
                     <button
@@ -806,7 +816,7 @@ export default function CustomerWalletPage() {
                     ref={searchInputRef}
                     type="search"
                     enterKeyHint="search"
-                    placeholder="Search any store or category…"
+                    placeholder="Search stores, offers..."
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value)
@@ -855,7 +865,7 @@ export default function CustomerWalletPage() {
                           size={13}
                           style={{ color: active ? '#fff' : '#94a3b8' }}
                         />
-                        {cat}
+                        {cat === 'All' ? 'All Categories' : cat}
                       </button>
                     )
                   })}
@@ -864,7 +874,7 @@ export default function CustomerWalletPage() {
 
               <div className="flex items-center justify-between px-0.5 pt-1">
                 <h2 className="text-[13px] font-bold text-slate-700">
-                  {filteredStores.length} {selectedCategory === 'All' ? 'stores' : selectedCategory + ' stores'}
+                  {filteredStores.length} Stores Found
                 </h2>
               </div>
 
@@ -887,8 +897,8 @@ export default function CustomerWalletPage() {
                   <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center mb-4">
                     <ShoppingBag size={28} className="text-slate-300" />
                   </div>
-                  <p className="text-sm font-semibold text-slate-500">No store cards found</p>
-                  <p className="text-xs text-slate-400 mt-1">Share member ID at store checkout</p>
+                  <p className="text-sm font-semibold text-slate-500">No stores found.</p>
+                  <p className="text-xs text-slate-400 mt-1">Share your ID to receive offers.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -929,7 +939,7 @@ export default function CustomerWalletPage() {
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
                                 <h3 className="text-sm font-bold text-slate-800 leading-snug truncate" title={store.store_name}>
-                                  {store.store_name} {isThisNavigating && '(Opening...)'}
+                                  {store.store_name} {isThisNavigating && ' (Opening...)'}
                                 </h3>
 
                                 {hasValidCategory && (
@@ -948,7 +958,7 @@ export default function CustomerWalletPage() {
                                 {store.isRedeemed ? (
                                   <div>
                                     <p className="text-[10px] text-black font-black uppercase tracking-wider flex items-center justify-end gap-1">
-                                      <span>✓</span> CLAIMED
+                                      <span>✓</span> Claimed
                                     </p>
                                     <p className="text-sm font-bold text-slate-400 leading-tight mt-0.5">
                                       Rs. {Number(store.cashbackAmount || 0).toFixed(2)}
@@ -957,7 +967,7 @@ export default function CustomerWalletPage() {
                                 ) : (
                                   <div>
                                     <p className="text-[10px] text-slate-700 font-black uppercase tracking-wider">
-                                      CASHBACK
+                                      Cashback
                                     </p>
                                     <p className="text-sm font-extrabold text-[#00875A] leading-tight mt-0.5">
                                       Rs. {Number(store.balance).toFixed(2)}
@@ -994,17 +1004,17 @@ export default function CustomerWalletPage() {
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
                   <Megaphone className="w-5 h-5 text-[#00875A]" />
-                  <h1 className="text-lg font-black text-[#0F172A]">Store Offers & Deals</h1>
+                  <h1 className="text-lg font-black text-[#0F172A]">Store Offers</h1>
                 </div>
-                <p className="text-xs text-slate-500">Exclusive active offers posted by stores.</p>
+                <p className="text-xs text-slate-500">Check out the latest offers from your favorite stores.</p>
               </div>
 
               {offersLoading ? (
-                <div className="text-center py-12 text-slate-400 text-xs font-bold">Loading store offers...</div>
+                <div className="text-center py-12 text-slate-400 text-xs font-bold">Loading offers...</div>
               ) : activeOffers.length === 0 ? (
                 <div className="bg-white rounded-3xl p-8 text-center space-y-2 shadow-xs border border-slate-100">
                   <Megaphone className="w-8 h-8 text-slate-300 mx-auto" />
-                  <p className="text-xs text-slate-500 font-bold">No active store offers available right now.</p>
+                  <p className="text-xs text-slate-500 font-bold">No active offers at the moment.</p>
                 </div>
               ) : (
                 activeOffers.map((offer) => (
@@ -1016,7 +1026,7 @@ export default function CustomerWalletPage() {
                         </div>
                         <div>
                           <h3 className="text-xs font-bold text-[#0F172A]">{offer.stores?.store_name || 'Store'}</h3>
-                          <p className="text-[10px] text-slate-400 font-medium">Active Promotion</p>
+                          <p className="text-[10px] text-slate-400 font-medium">Active promotion</p>
                         </div>
                       </div>
                       <span className="text-[10px] bg-emerald-50 text-[#00875A] px-2.5 py-1 rounded-full font-bold border border-emerald-100 uppercase tracking-wider">
@@ -1049,14 +1059,14 @@ export default function CustomerWalletPage() {
 
                     <div className="pt-2 flex items-center justify-between border-t border-slate-100">
                       <span className="text-[10px] font-semibold text-slate-400">
-                        Ends: {new Date(offer.expires_at).toLocaleDateString()}
+                        Ends {new Date(offer.expires_at).toLocaleDateString()}
                       </span>
                       {offer.stores?.id && (
                         <button
                           onClick={() => handleStoreClick(offer.stores.id)}
                           className="text-xs font-bold text-[#00875A] hover:underline flex items-center space-x-1 cursor-pointer"
                         >
-                          <span>View Card</span>
+                          <span>View card</span>
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -1071,7 +1081,7 @@ export default function CustomerWalletPage() {
             <div className="space-y-4 pt-1">
               <div className="space-y-1">
                 <h1 className="text-lg font-black text-[#0F172A]">My Profile</h1>
-                <p className="text-xs text-slate-500">Manage your personal information.</p>
+                <p className="text-xs text-slate-500">Manage your profile information and settings.</p>
               </div>
 
               {profileMessage && (
@@ -1120,7 +1130,7 @@ export default function CustomerWalletPage() {
                     />
                   </div>
                   <span className="text-[11px] font-semibold text-slate-400">
-                    Click camera button to upload new photo
+                    Upload a photo for your profile
                   </span>
                 </div>
 
@@ -1134,14 +1144,14 @@ export default function CustomerWalletPage() {
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       required
-                      placeholder="Enter full name"
+                      placeholder="Enter your full name"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#00875A]/20 transition"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
-                      <span>Phone Number</span>
+                      <span>Mobile Number</span>
                       <Lock className="w-3 h-3 text-slate-400" />
                     </label>
                     <input
@@ -1175,7 +1185,7 @@ export default function CustomerWalletPage() {
                     {isSavingProfile ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Saving Changes...</span>
+                        <span>Saving changes...</span>
                       </>
                     ) : (
                       <span>Save Changes</span>
@@ -1224,7 +1234,7 @@ export default function CustomerWalletPage() {
                 }}
               />
 
-              {NAV_TABS.map(({ id, label, Icon }, idx) => {
+              {navTabs.map(({ id, label, Icon }, idx) => {
                 const closeness = Math.max(0, 1 - Math.abs(visualPillIndex - idx))
                 const isHighlighted = closeness > 0.5
 
@@ -1289,21 +1299,23 @@ export default function CustomerWalletPage() {
               </button>
 
               <div className="space-y-1 pt-2">
-                <h3 className="text-sm font-black text-[#0F172A] uppercase tracking-wider">My Digital Loyalty Pass</h3>
-                <p className="text-[11px] text-slate-500 font-medium">Show phone number or QR at store checkout</p>
+                <h3 className="text-sm font-black text-[#0F172A] uppercase tracking-wider">
+                  My Digital Pass
+                </h3>
+                <p className="text-[11px] text-slate-500 font-medium">Show this QR code at checkout.</p>
               </div>
 
               <div className="bg-slate-50 p-4 rounded-2xl inline-block border border-slate-100 shadow-inner">
                 <img src={qrCodeUrl} alt="Customer QR Code" className="w-48 h-48 mx-auto rounded-xl" />
               </div>
 
-              <div className="bg-emerald-50 border border-emerald-100 py-2.5 px-4 rounded-xl flex items-between justify-between">
+              <div className="bg-emerald-50 border border-emerald-100 py-2.5 px-4 rounded-xl flex items-center justify-between">
                 <p className="text-xs font-bold text-[#00875A]">{formatPhoneNumber(phone)}</p>
                 <button
                   onClick={handleCopyPhone}
                   className="text-[10px] bg-[#00875A] text-white px-2 py-1 rounded-md font-semibold cursor-pointer"
                 >
-                  {copied ? 'Copied!' : 'Copy'}
+                  {copied ? 'Copied!' : 'Copy ID'}
                 </button>
               </div>
             </div>

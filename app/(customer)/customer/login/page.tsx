@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   ChevronRight,
 } from 'lucide-react'
+import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -33,6 +34,7 @@ interface StoreBrandInfo {
 function CustomerPinLoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { t } = useCustomerLang()
 
   const redirectParam = searchParams.get('redirect') || ''
   const phoneParam = searchParams.get('phone') || ''
@@ -221,7 +223,7 @@ function CustomerPinLoginContent() {
 
     const cleanPhone = normalizePhone(phoneInput)
     if (!cleanPhone) {
-      setError('Please enter a valid mobile number (e.g., 0771234567)')
+      setError(t.invalidPhoneErr)
       return
     }
 
@@ -263,7 +265,7 @@ function CustomerPinLoginContent() {
 
     const cleanPhone = normalizePhone(phoneInput)
     if (!/^\d{4}$/.test(pinValue)) {
-      setError('Please enter your 4-digit PIN.')
+      setError(t.invalidPinErr)
       return
     }
 
@@ -290,7 +292,7 @@ function CustomerPinLoginContent() {
         throw new Error(data.error || 'Incorrect PIN.')
       }
 
-      setMessage('Welcome back! Opening your wallet...')
+      setMessage(t.welcomeRedirectMsg)
       completeSessionAndRedirect(data.customer)
     } catch (err: any) {
       setError(err.message || 'Login failed.')
@@ -313,7 +315,7 @@ function CustomerPinLoginContent() {
 
     const cleanPhone = normalizePhone(phoneInput)
     if (!/^\d{4}$/.test(pin)) {
-      setError('Please create a 4-digit numeric PIN.')
+      setError(t.createPinErr)
       return
     }
 
@@ -336,7 +338,7 @@ function CustomerPinLoginContent() {
         throw new Error(data.error || 'Failed to create PIN.')
       }
 
-      setMessage('PIN created! Opening your wallet...')
+      setMessage(t.pinCreatedMsg)
       completeSessionAndRedirect(data.customer)
     } catch (err: any) {
       setError(err.message || 'Setup failed.')
@@ -401,34 +403,21 @@ function CustomerPinLoginContent() {
     <div className="min-h-dvh w-full bg-white sm:max-w-md sm:mx-auto sm:border-x sm:border-slate-200/80 flex flex-col justify-between">
       {/* TOP NATIVE APP BAR */}
       <div>
-        <header className="flex items-center justify-between px-5 pt-5 pb-3.5 border-b border-slate-100">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center p-1.5">
-              <Image src="/logo.png" alt="RETCASH" width={28} height={28} className="object-contain" />
+        <header className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center p-1 shrink-0">
+              <Image src="/logo.png" alt="RETCASH" width={24} height={24} className="object-contain" />
             </div>
-            <div>
-              <span className="text-base font-black tracking-wider text-[#00875A] uppercase block leading-none">
+            <div className="min-w-0">
+              <span className="text-sm font-black tracking-wider text-[#00875A] uppercase block leading-none">
                 RETCASH
               </span>
-              <span className="text-[10px] font-semibold text-slate-400 tracking-wide">
-                Cashback Wallet
+              <span className="text-[10px] font-semibold text-slate-400 truncate block mt-0.5">
+                {t.cashbackWallet}
               </span>
             </div>
           </div>
 
-          {step !== 'phone' && (
-            <button
-              type="button"
-              onClick={() => {
-                setStep('phone')
-                setPinDigits(['', '', '', ''])
-                setError('')
-              }}
-              className="inline-flex items-center gap-1 rounded-full bg-slate-100 hover:bg-slate-200/80 px-3 py-1.5 text-xs font-bold text-slate-700 transition cursor-pointer"
-            >
-              <ArrowLeft className="size-3.5" /> Back
-            </button>
-          )}
         </header>
 
         {/* SCANNED PARTNER STORE CO-BRANDING STRIP */}
@@ -449,15 +438,15 @@ function CustomerPinLoginContent() {
               )}
               <div className="min-w-0">
                 <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#F97316]">
-                  Official Partner Store
+                  {t.officialPartner}
                 </p>
                 <p className="text-sm font-black text-slate-900 truncate">
                   {storeInfo.name}
                 </p>
                 {storeInfo.cashbackPercent ? (
                   <p className="text-[11px] font-semibold text-[#00875A] mt-0.5">
-                    Earn {storeInfo.cashbackPercent}% Cashback
-                    {storeInfo.targetVisits ? ` • Visit #${storeInfo.targetVisits} Reward` : ''}
+                    {t.earnCashback(storeInfo.cashbackPercent)}
+                    {storeInfo.targetVisits ? ` • ${t.visitReward(storeInfo.targetVisits)}` : ''}
                   </p>
                 ) : null}
               </div>
@@ -466,23 +455,37 @@ function CustomerPinLoginContent() {
         )}
 
         {/* MAIN LEFT-ALIGNED CONTENT AREA */}
-        <main className="px-5 pt-7">
+        <main className="px-5 pt-6">
+          {step !== 'phone' && (
+            <button
+              type="button"
+              onClick={() => {
+                setStep('phone')
+                setPinDigits(['', '', '', ''])
+                setError('')
+              }}
+              className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-slate-100 hover:bg-slate-200/80 px-3 py-1.5 text-xs font-bold text-slate-700 transition cursor-pointer"
+            >
+              <ArrowLeft className="size-3.5" /> {t.back}
+            </button>
+          )}
+
           <div className="space-y-1.5 mb-6">
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-snug">
               {step === 'phone'
-                ? 'Enter your mobile number'
+                ? t.enterMobileTitle
                 : step === 'login'
                 ? existingName
-                  ? `Welcome back, ${existingName}`
-                  : 'Enter your 4-digit PIN'
-                : 'Create your wallet PIN'}
+                  ? t.welcomeBackName(existingName)
+                  : t.enterPinTitle
+                : t.createPinTitle}
             </h1>
-            <p className="text-sm text-slate-500 leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
               {step === 'phone'
-                ? 'Access your cashback balance and loyalty rewards instantly.'
+                ? t.enterMobileDesc
                 : step === 'login'
-                ? `Enter the 4-digit PIN linked to ${phoneInput}`
-                : 'Set a quick 4-digit PIN to keep your rewards safe.'}
+                ? t.enterPinDesc(phoneInput)
+                : t.createPinDesc}
             </p>
           </div>
 
@@ -505,7 +508,7 @@ function CustomerPinLoginContent() {
             <form id="phone-step-form" onSubmit={handleCheckPhone} className="space-y-4">
               <div>
                 <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-2">
-                  Mobile Number
+                  {t.mobileLabel}
                 </label>
                 <div className="flex items-center w-full rounded-2xl border-2 border-slate-200 bg-slate-50/70 px-4 py-3.5 focus-within:border-[#00875A] focus-within:bg-white transition">
                   <Phone className="size-5 text-slate-400 mr-3 shrink-0" />
@@ -530,7 +533,7 @@ function CustomerPinLoginContent() {
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
-                    4-Digit Security PIN
+                    {t.securityPinLabel}
                   </label>
                   <button
                     type="button"
@@ -538,7 +541,7 @@ function CustomerPinLoginContent() {
                     className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
                   >
                     {showPin ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                    <span>{showPin ? 'Hide' : 'Show'}</span>
+                    <span>{showPin ? t.hide : t.show}</span>
                   </button>
                 </div>
 
@@ -572,13 +575,13 @@ function CustomerPinLoginContent() {
                   }}
                   className="text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
                 >
-                  Change number
+                  {t.changeNumber}
                 </button>
                 <Link
                   href={`/customer/forgot-password?phone=${encodeURIComponent(phoneInput)}`}
                   className="text-xs font-extrabold text-[#00875A] hover:underline"
                 >
-                  Forgot PIN?
+                  {t.forgotPin}
                 </Link>
               </div>
             </form>
@@ -589,7 +592,7 @@ function CustomerPinLoginContent() {
             <form id="setup-step-form" onSubmit={handlePinSetup} className="space-y-5">
               <div>
                 <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-2">
-                  Your Name (Optional)
+                  {t.yourNameLabel}
                 </label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -597,7 +600,7 @@ function CustomerPinLoginContent() {
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. Kasun Perera"
+                    placeholder={t.namePlaceholder}
                     className="w-full rounded-2xl border-2 border-slate-200 bg-slate-50/70 pl-11 pr-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-[#00875A] focus:bg-white transition"
                   />
                 </div>
@@ -606,7 +609,7 @@ function CustomerPinLoginContent() {
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
-                    Create 4-Digit PIN
+                    {t.createPinLabel}
                   </label>
                   <button
                     type="button"
@@ -614,7 +617,7 @@ function CustomerPinLoginContent() {
                     className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
                   >
                     {showPin ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                    <span>{showPin ? 'Hide' : 'Show'}</span>
+                    <span>{showPin ? t.hide : t.show}</span>
                   </button>
                 </div>
 
@@ -651,7 +654,7 @@ function CustomerPinLoginContent() {
             disabled={loading}
             className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#00875A] py-4 text-sm font-extrabold tracking-wide text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] active:scale-[0.99] transition disabled:opacity-50 cursor-pointer"
           >
-            <span>{loading ? 'Checking...' : 'Continue'}</span>
+            <span>{loading ? t.checkingBtn : t.continueBtn}</span>
             {!loading && <ChevronRight className="size-4" />}
           </button>
         )}
@@ -663,7 +666,7 @@ function CustomerPinLoginContent() {
             disabled={loading || pin.length !== 4}
             className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#00875A] py-4 text-sm font-extrabold tracking-wide text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] active:scale-[0.99] transition disabled:opacity-40 cursor-pointer"
           >
-            <span>{loading ? 'Unlocking Wallet...' : 'Open My Wallet'}</span>
+            <span>{loading ? t.unlockingBtn : t.openWalletBtn}</span>
             {!loading && <ChevronRight className="size-4" />}
           </button>
         )}
@@ -675,14 +678,14 @@ function CustomerPinLoginContent() {
             disabled={loading || pin.length !== 4}
             className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#00875A] py-4 text-sm font-extrabold tracking-wide text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] active:scale-[0.99] transition disabled:opacity-40 cursor-pointer"
           >
-            <span>{loading ? 'Creating Wallet...' : 'Save PIN & Open Wallet'}</span>
+            <span>{loading ? t.creatingBtn : t.savePinBtn}</span>
             {!loading && <ChevronRight className="size-4" />}
           </button>
         )}
 
         <p className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-400 text-center">
-          <ShieldCheck className="size-3.5 text-[#00875A]" />
-          <span>No app download needed • Instant cashback</span>
+          <ShieldCheck className="size-3.5 text-[#00875A] shrink-0" />
+          <span>{t.trustFooter}</span>
         </p>
       </footer>
     </div>
