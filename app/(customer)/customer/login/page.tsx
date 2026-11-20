@@ -121,13 +121,20 @@ function CustomerPinLoginContent() {
     }
   }, [storeParam])
 
-  // 2. Check existing session (Server HttpOnly cookie + localStorage) for instant wallet redirect
+  // 2. Check existing session (Server HttpOnly cookie + localStorage) for instant redirect
   useEffect(() => {
     let isMounted = true
 
     const checkSessionAndPrefill = async () => {
-      const targetUrl = (phone: string) =>
-        redirectParam && redirectParam.startsWith('/') ? redirectParam : `/wallet/${phone}`
+      const targetUrl = (phone: string) => {
+        if (redirectParam && redirectParam.startsWith('/')) {
+          return redirectParam
+        }
+        if (storeParam) {
+          return `/card/${encodeURIComponent(storeParam)}?phone=${encodeURIComponent(phone)}`
+        }
+        return `/wallet/${phone}`
+      }
 
       const savedPhone =
         localStorage.getItem('customer_phone') || localStorage.getItem('retcash_phone') || ''
@@ -177,7 +184,7 @@ function CustomerPinLoginContent() {
     return () => {
       isMounted = false
     }
-  }, [router, redirectParam, phoneParam])
+  }, [router, redirectParam, phoneParam, storeParam])
 
   // Focus first PIN box automatically when entering login/setup step
   useEffect(() => {
@@ -208,9 +215,13 @@ function CustomerPinLoginContent() {
       localStorage.setItem(`customer_name_${cleanPhone}`, customer.full_name)
     }
 
+    const targetStoreId = storeInfo?.id || storeParam
+
     setTimeout(() => {
       if (redirectParam && redirectParam.startsWith('/')) {
         router.replace(redirectParam)
+      } else if (targetStoreId) {
+        router.replace(`/card/${encodeURIComponent(targetStoreId)}?phone=${encodeURIComponent(cleanPhone)}`)
       } else {
         router.replace(`/wallet/${cleanPhone}`)
       }

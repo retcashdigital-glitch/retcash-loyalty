@@ -156,8 +156,8 @@ export default function StoreQrSection({
 
     // Scan Call to Action
     ctx.fillStyle = '#00875A'
-    ctx.font = '900 30px sans-serif'
-    ctx.fillText('SCAN TO OPEN YOUR WALLET', W / 2, 965)
+    ctx.font = '900 28px sans-serif'
+    ctx.fillText('SCAN TO VIEW YOUR STORE CARD', W / 2, 965)
 
     // Bottom Offer Highlight Pill
     ctx.fillStyle = '#F97316'
@@ -251,7 +251,7 @@ export default function StoreQrSection({
             <QrCode className="size-4 text-[#F97316] shrink-0" /> Customer Counter QR Code
           </h4>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Print and place at your counter. Customers scan to open their wallet.
+            Print and place at your counter. Customers scan to view their store loyalty card.
           </p>
         </div>
         <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[10px] font-extrabold text-[#EA580C] whitespace-nowrap shrink-0">
@@ -273,7 +273,7 @@ export default function StoreQrSection({
         </div>
 
         <p className="mt-2.5 text-[11px] font-bold text-slate-700">
-          Scan to Earn {cashbackPercent}% Cashback
+          Scan to View Card & Earn {cashbackPercent}% Cashback
         </p>
         <p className="text-[10px] text-slate-400 font-mono truncate max-w-full mt-1">
           {storeQrUrl}
