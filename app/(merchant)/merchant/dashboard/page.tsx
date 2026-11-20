@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode'
-import { MessageCircle, Upload, Users, CheckCircle2, X, Trash2 } from 'lucide-react'
+import { Zap, Upload, Users, CheckCircle2, X, Trash2 } from 'lucide-react'
 
 // Custom Hooks & Modals Import
 import { useSubscriptionWatcher } from './hooks/useSubscriptionWatcher'
@@ -31,7 +31,7 @@ interface MerchantSession {
   plan_type?: string
 }
 
-interface CashbackClaim {
+export interface CashbackClaim {
   id: string
   customer_phone: string
   claimable_amount: number
@@ -41,6 +41,7 @@ interface CashbackClaim {
   bill_amount?: number
   cashback_amount?: number
   store_id?: string
+  updated_at?: string
 }
 
 interface Offer {
@@ -62,7 +63,7 @@ export default function MerchantDashboardPage() {
   const [actionLoading, setActionLoading] = useState(false)
 
   // 🌟 SUBSCRIPTION WATCHER HOOK
-  const { isTrialExpired, daysRemainingInTrial, setIsTrialExpired } = useSubscriptionWatcher(merchantSession)
+  const { isTrialExpired, daysRemainingInTrial } = useSubscriptionWatcher(merchantSession)
 
   const [selectedPlan, setSelectedPlan] = useState<'MONTHLY' | 'YEARLY'>('YEARLY')
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
@@ -74,6 +75,7 @@ export default function MerchantDashboardPage() {
 
   const [existingCustomerClaim, setExistingCustomerClaim] = useState<CashbackClaim | null>(null)
   const [isCheckingCustomer, setIsCheckingCustomer] = useState(false)
+  const [lastAddedClaim, setLastAddedClaim] = useState<CashbackClaim | null>(null)
 
   const [activeTab, setActiveTab] = useState<Tab>('billing')
   const [isProfileOpen, setIsProfileOpen] = useState(false)
@@ -86,7 +88,6 @@ export default function MerchantDashboardPage() {
   const [cashbackSettingLoading, setCashbackSettingLoading] = useState(false)
   const [cashbackSuccessMsg, setCashbackSuccessMsg] = useState(false)
 
-  const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoUploading, setLogoUploading] = useState(false)
 
   const [scannedClaimData, setScannedClaimData] = useState<CashbackClaim | null>(null)
@@ -111,7 +112,7 @@ export default function MerchantDashboardPage() {
 
   const showToast = (type: 'success' | 'error', text: string) => {
     setToastMessage({ type, text })
-    setTimeout(() => setToastMessage(null), 3500)
+    setTimeout(() => setToastMessage(null), 4000)
   }
 
   useEffect(() => {
@@ -169,7 +170,7 @@ export default function MerchantDashboardPage() {
     return () => { stopScannerInstance() }
   }, [])
 
-  // 🟢 REALTIME SESSION UPDATE (Supabase-ல் மாற்றம் அடைந்ததும் Session State-ஐ நேரலையாக மாற்ற)
+  // 🟢 REALTIME SESSION UPDATE
   useEffect(() => {
     if (!merchantSession?.id) return
 
@@ -441,7 +442,7 @@ export default function MerchantDashboardPage() {
 
   const handleUpdateCashbackPercent = async (e: React.FormEvent) => {
     e.preventDefault()
-    let newPercent = parseFloat(cashbackPercentInput)
+    const newPercent = parseFloat(cashbackPercentInput)
 
     if (isNaN(newPercent) || newPercent <= 0 || newPercent > 100) {
       showToast('error', 'Please enter a valid percentage between 1 and 100.')
@@ -505,7 +506,6 @@ export default function MerchantDashboardPage() {
       localStorage.setItem('retcash_merchant', JSON.stringify(updatedSession))
 
       showToast('success', '🎉 Store logo updated successfully!')
-      setLogoFile(null)
     } catch (err: any) {
       showToast('error', 'Failed to update logo: ' + err.message)
     } finally {
@@ -689,6 +689,7 @@ export default function MerchantDashboardPage() {
         .from('cashback_claims')
         .update({
           claimable_amount: 0,
+          cashback_amount: 0,
           status: 'REDEEMED',
           updated_at: new Date().toISOString()
         })
@@ -712,6 +713,7 @@ export default function MerchantDashboardPage() {
       setShowRedeemConfirmModal(false)
       setScannedClaimData(null)
       setIsScanning(false)
+      setLastAddedClaim(null)
       showToast('success', '🎉 Reward successfully redeemed! Balance cleared.')
 
       if (merchantSession?.id) fetchStoreCustomers(merchantSession.id)
@@ -722,6 +724,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
+  // ✅ 1. INSTANT CASHBACK BILLING (NO WHATSAPP REDIRECT)
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -731,12 +734,17 @@ export default function MerchantDashboardPage() {
       return
     }
 
+    const initialBillNum = parseFloat(billAmount)
+    if (isNaN(initialBillNum) || initialBillNum <= 0) {
+      showToast('error', 'Please enter a valid bill amount.')
+      return
+    }
+
     setActionLoading(true)
     try {
       const cashbackPercentage = merchantSession?.default_cashback_percent || 5
       const targetVisits = Math.min(merchantSession?.target_visits || 6, 10)
 
-      const initialBillNum = parseFloat(billAmount)
       const cleanCustPhone = formatPhoneNumber(customerPhone)
       const storeId = merchantSession?.id
 
@@ -782,6 +790,7 @@ export default function MerchantDashboardPage() {
       }
 
       const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
+      const nowIso = new Date().toISOString()
 
       const { data: upsertedData, error: upsertError } = await supabase
         .from('cashback_claims')
@@ -794,9 +803,9 @@ export default function MerchantDashboardPage() {
           status: claimStatus,
           bill_amount: initialBillNum,
           cashback_amount: cashbackAmount,
-          updated_at: new Date().toISOString()
+          updated_at: nowIso
         }, { onConflict: 'customer_phone, store_id' })
-        .select('id')
+        .select('*')
         .single()
 
       if (upsertError) throw new Error('Cashback claim update failed: ' + upsertError.message)
@@ -820,28 +829,150 @@ export default function MerchantDashboardPage() {
         console.error('History exception:', hErr)
       }
 
-      const baseUrl = window.location.origin
-      const cardLink = `${baseUrl}/card/${claimId}`
-      const storeName = merchantSession?.store_name || 'RETCASH Partner'
-
-      const message = `🎉 *Visit Confirmed at ${storeName}!*\n\n` +
-        `You've earned cashback rewards on your bill of *Rs. ${initialBillNum}*.\n\n` +
-        `⭐ Progress: *${newVisitCount} / ${targetVisits} Visits Completed*\n` +
-        `🎁 Cashback Pass Updated!\n\n` +
-        `👇 *Tap to check your balance & unlock rewards:*\n` +
-        `${cardLink}`
-
-      const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${encodeURIComponent(message)}`
-
+      setLastAddedClaim(upsertedData)
       setCustomerPhone('')
       setBillAmount('')
       setExistingCustomerClaim(null)
       fetchStoreCustomers(storeId)
 
-      const opened = window.open(whatsappUrl, '_blank')
-      if (!opened) window.location.href = whatsappUrl
+      showToast(
+        'success',
+        `✅ Added Rs. ${cashbackAmount.toFixed(2)} cashback (${newVisitCount}/${targetVisits} visits) for ${cleanCustPhone}`
+      )
     } catch (err: any) {
       showToast('error', 'Error processing cashback: ' + err.message)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // ✅ 2. SAFE 15-MINUTE UNDO / VOID LAST CASHBACK
+  const handleVoidCashback = async (claim: CashbackClaim) => {
+    if (!merchantSession?.id || !claim?.id || actionLoading) return
+
+    setActionLoading(true)
+    try {
+      const storeId = merchantSession.id
+      const targetVisits = Math.min(merchantSession?.target_visits || 6, 10)
+
+      // Fetch latest DB state to prevent double-voiding or voiding after redeem
+      const { data: freshClaim, error: fetchErr } = await supabase
+        .from('cashback_claims')
+        .select('*')
+        .eq('id', claim.id)
+        .eq('store_id', storeId)
+        .single()
+
+      if (fetchErr || !freshClaim) {
+        throw new Error('Transaction record not found.')
+      }
+
+      if (freshClaim.status === 'REDEEMED' || freshClaim.status === 'VOIDED') {
+        throw new Error('This transaction has already been redeemed or voided.')
+      }
+
+      const voidCashbackAmt = Number(freshClaim.cashback_amount || 0)
+      const voidBillAmt = Number(freshClaim.bill_amount || 0)
+
+      if (voidCashbackAmt <= 0) {
+        throw new Error('No recent cashback available to undo on this record.')
+      }
+
+      const elapsedMs = Date.now() - new Date(freshClaim.updated_at).getTime()
+      if (elapsedMs > 15 * 60 * 1000) {
+        throw new Error('The 15-minute undo window has expired for this transaction.')
+      }
+
+      const revertedClaimable = Math.max(
+        0,
+        Math.round((Number(freshClaim.claimable_amount || 0) - voidCashbackAmt) * 100) / 100
+      )
+
+      const currentVisits = Number(freshClaim.visit_count || 0)
+      let revertedVisitCount = 0
+      if (currentVisits > 1) {
+        revertedVisitCount = currentVisits - 1
+      } else if (currentVisits === 1 && revertedClaimable > 0) {
+        revertedVisitCount = targetVisits
+      } else {
+        revertedVisitCount = 0
+      }
+
+      const revertedStatus =
+        revertedVisitCount === 0 && revertedClaimable === 0
+          ? 'VOIDED'
+          : revertedVisitCount >= targetVisits
+          ? 'READY'
+          : 'PENDING'
+
+      const { error: updateErr } = await supabase
+        .from('cashback_claims')
+        .update({
+          claimable_amount: revertedClaimable,
+          visit_count: revertedVisitCount,
+          status: revertedStatus,
+          bill_amount: 0,
+          cashback_amount: 0,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', freshClaim.id)
+        .eq('store_id', storeId)
+
+      if (updateErr) throw new Error('Failed to void transaction: ' + updateErr.message)
+
+      try {
+        await supabase.from('cashback_history').insert({
+          claim_id: freshClaim.id,
+          store_id: storeId,
+          customer_phone: freshClaim.customer_phone,
+          visit_count: revertedVisitCount,
+          bill_amount: voidBillAmt,
+          cashback_percentage: 0,
+          cashback_amount: -voidCashbackAmt,
+          net_paid_amount: 0,
+          transaction_type: 'VOIDED',
+          status: 'VOIDED'
+        })
+      } catch (hErr) {
+        console.error('Void history exception:', hErr)
+      }
+
+      if (lastAddedClaim?.id === freshClaim.id) {
+        setLastAddedClaim(null)
+      }
+
+      await fetchStoreCustomers(storeId)
+      showToast('success', `↩️ Voided Rs. ${voidCashbackAmt.toFixed(2)} cashback for ${freshClaim.customer_phone}`)
+    } catch (err: any) {
+      showToast('error', err.message || 'Could not undo transaction.')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // ✅ 3. COUNTER 1-CLICK CUSTOMER PIN RESET
+  const handleMerchantResetPin = async (phone: string) => {
+    if (!phone || actionLoading) return
+
+    setActionLoading(true)
+    try {
+      const res = await fetch('/api/customer/pin-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'merchant-reset-pin',
+          phone,
+        }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to reset customer PIN.')
+      }
+
+      showToast('success', `🔑 PIN cleared for ${phone}. Customer can set a new 4-digit PIN on next login.`)
+    } catch (err: any) {
+      showToast('error', err.message || 'Could not reset PIN.')
     } finally {
       setActionLoading(false)
     }
@@ -853,8 +984,8 @@ export default function MerchantDashboardPage() {
     window.location.href = '/merchant/login'
   }
 
-  const tabs: { id: Tab; label: string; icon: typeof MessageCircle }[] = [
-    { id: 'billing', label: 'Quick Billing & Scanner', icon: MessageCircle },
+  const tabs: { id: Tab; label: string; icon: typeof Zap }[] = [
+    { id: 'billing', label: 'Quick Billing & Scanner', icon: Zap },
     { id: 'offers', label: 'Store Offers', icon: Upload },
     { id: 'customers', label: 'Customers', icon: Users },
   ]
@@ -869,8 +1000,7 @@ export default function MerchantDashboardPage() {
 
   if (!merchantSession) return null
 
-  // 🔴 🔒 SUBSCRIPTION EXPIRED / 0 DAYS FULL-SCREEN LOCK
-  const isFullyExpired = isTrialExpired || (daysRemainingInTrial !== null && daysRemainingInTrial <= 0);
+  const isFullyExpired = isTrialExpired || (daysRemainingInTrial !== null && daysRemainingInTrial <= 0)
 
   if (isFullyExpired) {
     return (
@@ -1012,6 +1142,10 @@ export default function MerchantDashboardPage() {
             startPhoneScanner={startPhoneScanner}
             onOpenProfile={() => setIsProfileOpen(true)}
             merchantStoreId={merchantSession?.id}
+            lastAddedClaim={lastAddedClaim}
+            targetVisits={targetVisits}
+            onVoidLastClaim={handleVoidCashback}
+            onDismissLastClaim={() => setLastAddedClaim(null)}
           />
         )}
 
@@ -1039,6 +1173,9 @@ export default function MerchantDashboardPage() {
             customerSearchQuery={customerSearchQuery}
             setCustomerSearchQuery={setCustomerSearchQuery}
             targetVisits={targetVisits}
+            onVoidCashback={handleVoidCashback}
+            onResetCustomerPin={handleMerchantResetPin}
+            actionLoading={actionLoading}
           />
         )}
 
