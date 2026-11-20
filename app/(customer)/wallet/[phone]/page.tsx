@@ -4,6 +4,8 @@ import { useState, useEffect, useTransition, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import ProfileInstallSection from '@/components/ProfileInstallSection'
+import CustomerLangSwitcher from '@/components/CustomerLangSwitcher'
+import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
 import {
   Wallet,
   Tag,
@@ -106,6 +108,7 @@ function sortStoresByLatestActivity(storeList: any[]) {
 export default function CustomerWalletPage() {
   const params = useParams()
   const router = useRouter()
+  const { t } = useCustomerLang()
   const rawPhone = (params?.phone as string) || ''
 
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
@@ -146,9 +149,9 @@ export default function CustomerWalletPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const navTabs = [
-    { id: 'wallet' as const, label: 'Wallet', Icon: Wallet },
-    { id: 'offers' as const, label: 'Offers', Icon: Tag },
-    { id: 'profile' as const, label: 'Profile', Icon: User },
+    { id: 'wallet' as const, label: t.navWallet, Icon: Wallet },
+    { id: 'offers' as const, label: t.navOffers, Icon: Tag },
+    { id: 'profile' as const, label: t.navProfile, Icon: User },
   ]
 
   const availableCategories = Array.from(
@@ -558,7 +561,7 @@ export default function CustomerWalletPage() {
       if (updateError) throw updateError
 
       setAvatarUrl(publicUrl)
-      setProfileMessage({ type: 'success', text: 'Avatar updated successfully.' })
+      setProfileMessage({ type: 'success', text: t.avatarSuccess })
     } catch (err: any) {
       console.error('Avatar upload error:', err)
       setProfileMessage({ type: 'error', text: err.message || 'Failed to update profile picture.' })
@@ -583,7 +586,7 @@ export default function CustomerWalletPage() {
       if (error) throw error
 
       localStorage.setItem(`customer_name_${phone}`, customerName)
-      setProfileMessage({ type: 'success', text: 'Profile updated successfully.' })
+      setProfileMessage({ type: 'success', text: t.nameSuccess })
     } catch (err: any) {
       console.error('Update profile error:', err)
       setProfileMessage({ type: 'error', text: err.message || 'Failed to save changes.' })
@@ -705,7 +708,7 @@ export default function CustomerWalletPage() {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
         <div className="w-10 h-10 border-3 border-slate-200 border-t-[#00875A] rounded-full animate-spin"></div>
-        <p className="text-xs text-slate-500 font-semibold mt-3">Verifying session...</p>
+        <p className="text-xs text-slate-500 font-semibold mt-3">{t.verifyingSession}</p>
       </div>
     )
   }
@@ -727,15 +730,12 @@ export default function CustomerWalletPage() {
                   RETCASH
                 </span>
                 <span className="text-[10px] text-slate-400 font-bold tracking-wide block mt-0.5 truncate">
-                  Loyalty Wallet
+                  {t.loyaltyWallet}
                 </span>
               </div>
             </div>
 
-            <div className="text-sm font-semibold text-slate-700">
-              {/* Local language label, replace with actual language switcher if available */}
-              <span className="cursor-default">🇱🇰 Sinhala</span>
-            </div>
+            <CustomerLangSwitcher />
           </div>
         </header>
 
@@ -757,7 +757,7 @@ export default function CustomerWalletPage() {
                     <div className="flex items-center gap-1.5 bg-white/15 px-2.5 py-1 rounded-full backdrop-blur-xs">
                       <Sparkles size={11} className="text-emerald-200" />
                       <span className="text-[10px] font-bold text-white uppercase tracking-wider">
-                        Digital Loyalty Pass
+                        {t.digitalLoyaltyPass}
                       </span>
                     </div>
                   </div>
@@ -771,9 +771,9 @@ export default function CustomerWalletPage() {
                       </div>
                     )}
                     <div>
-                      <p className="text-[11px] text-white/80 font-medium">Welcome back!</p>
+                      <p className="text-[11px] text-white/80 font-medium">{t.welcomeBackShort}</p>
                       <h1 className="text-[20px] font-extrabold leading-tight text-white">
-                        {customerName ? customerName : loading ? '...' : 'Valued Customer'}
+                        {customerName ? customerName : loading ? '...' : t.valuedCustomer}
                       </h1>
                     </div>
                   </div>
@@ -783,12 +783,12 @@ export default function CustomerWalletPage() {
                     className="w-full bg-white hover:bg-emerald-50 text-[#00875A] font-extrabold text-xs py-3 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition cursor-pointer"
                   >
                     <QrCode size={16} />
-                    <span>Show Pass at Checkout</span>
+                    <span>{t.showPassAtCheckout}</span>
                   </button>
 
                   <div className="mt-4 pt-3.5 border-t border-white/20 flex items-center justify-between">
                     <span className="text-[11px] text-white/90 font-semibold">
-                      {stores.length} Connected Stores
+                      {t.connectedStores(stores.length)}
                     </span>
 
                     <button
@@ -816,7 +816,7 @@ export default function CustomerWalletPage() {
                     ref={searchInputRef}
                     type="search"
                     enterKeyHint="search"
-                    placeholder="Search stores, offers..."
+                    placeholder={t.searchPlaceholder}
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value)
@@ -865,7 +865,7 @@ export default function CustomerWalletPage() {
                           size={13}
                           style={{ color: active ? '#fff' : '#94a3b8' }}
                         />
-                        {cat === 'All' ? 'All Categories' : cat}
+                        {cat === 'All' ? t.allCategory : cat}
                       </button>
                     )
                   })}
@@ -874,7 +874,7 @@ export default function CustomerWalletPage() {
 
               <div className="flex items-center justify-between px-0.5 pt-1">
                 <h2 className="text-[13px] font-bold text-slate-700">
-                  {filteredStores.length} Stores Found
+                  {t.storesCount(filteredStores.length, selectedCategory)}
                 </h2>
               </div>
 
@@ -897,8 +897,8 @@ export default function CustomerWalletPage() {
                   <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center mb-4">
                     <ShoppingBag size={28} className="text-slate-300" />
                   </div>
-                  <p className="text-sm font-semibold text-slate-500">No stores found.</p>
-                  <p className="text-xs text-slate-400 mt-1">Share your ID to receive offers.</p>
+                  <p className="text-sm font-semibold text-slate-500">{t.noStoreCards}</p>
+                  <p className="text-xs text-slate-400 mt-1">{t.shareIdHint}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -939,7 +939,7 @@ export default function CustomerWalletPage() {
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
                                 <h3 className="text-sm font-bold text-slate-800 leading-snug truncate" title={store.store_name}>
-                                  {store.store_name} {isThisNavigating && ' (Opening...)'}
+                                  {store.store_name} {isThisNavigating && t.openingStore}
                                 </h3>
 
                                 {hasValidCategory && (
@@ -958,7 +958,7 @@ export default function CustomerWalletPage() {
                                 {store.isRedeemed ? (
                                   <div>
                                     <p className="text-[10px] text-black font-black uppercase tracking-wider flex items-center justify-end gap-1">
-                                      <span>✓</span> Claimed
+                                      <span>✓</span> {t.claimedLabel}
                                     </p>
                                     <p className="text-sm font-bold text-slate-400 leading-tight mt-0.5">
                                       Rs. {Number(store.cashbackAmount || 0).toFixed(2)}
@@ -967,7 +967,7 @@ export default function CustomerWalletPage() {
                                 ) : (
                                   <div>
                                     <p className="text-[10px] text-slate-700 font-black uppercase tracking-wider">
-                                      Cashback
+                                      {t.cashbackLabel}
                                     </p>
                                     <p className="text-sm font-extrabold text-[#00875A] leading-tight mt-0.5">
                                       Rs. {Number(store.balance).toFixed(2)}
@@ -979,7 +979,7 @@ export default function CustomerWalletPage() {
 
                             <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
                               <span className="text-[11px] font-bold text-slate-700 flex-shrink-0 whitespace-nowrap">
-                                {visits} / {targetVisits} visits
+                                {t.visitsProgress(visits, targetVisits)}
                               </span>
                               <VisitCapsules
                                 visits={visits}
@@ -1004,17 +1004,17 @@ export default function CustomerWalletPage() {
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
                   <Megaphone className="w-5 h-5 text-[#00875A]" />
-                  <h1 className="text-lg font-black text-[#0F172A]">Store Offers</h1>
+                  <h1 className="text-lg font-black text-[#0F172A]">{t.storeOffersTitle}</h1>
                 </div>
-                <p className="text-xs text-slate-500">Check out the latest offers from your favorite stores.</p>
+                <p className="text-xs text-slate-500">{t.storeOffersDesc}</p>
               </div>
 
               {offersLoading ? (
-                <div className="text-center py-12 text-slate-400 text-xs font-bold">Loading offers...</div>
+                <div className="text-center py-12 text-slate-400 text-xs font-bold">{t.loadingOffers}</div>
               ) : activeOffers.length === 0 ? (
                 <div className="bg-white rounded-3xl p-8 text-center space-y-2 shadow-xs border border-slate-100">
                   <Megaphone className="w-8 h-8 text-slate-300 mx-auto" />
-                  <p className="text-xs text-slate-500 font-bold">No active offers at the moment.</p>
+                  <p className="text-xs text-slate-500 font-bold">{t.noActiveOffers}</p>
                 </div>
               ) : (
                 activeOffers.map((offer) => (
@@ -1026,11 +1026,11 @@ export default function CustomerWalletPage() {
                         </div>
                         <div>
                           <h3 className="text-xs font-bold text-[#0F172A]">{offer.stores?.store_name || 'Store'}</h3>
-                          <p className="text-[10px] text-slate-400 font-medium">Active promotion</p>
+                          <p className="text-[10px] text-slate-400 font-medium">{t.activePromotion}</p>
                         </div>
                       </div>
                       <span className="text-[10px] bg-emerald-50 text-[#00875A] px-2.5 py-1 rounded-full font-bold border border-emerald-100 uppercase tracking-wider">
-                        Deal
+                        {t.dealBadge}
                       </span>
                     </div>
 
@@ -1059,14 +1059,14 @@ export default function CustomerWalletPage() {
 
                     <div className="pt-2 flex items-center justify-between border-t border-slate-100">
                       <span className="text-[10px] font-semibold text-slate-400">
-                        Ends {new Date(offer.expires_at).toLocaleDateString()}
+                        {t.endsLabel} {new Date(offer.expires_at).toLocaleDateString()}
                       </span>
                       {offer.stores?.id && (
                         <button
                           onClick={() => handleStoreClick(offer.stores.id)}
                           className="text-xs font-bold text-[#00875A] hover:underline flex items-center space-x-1 cursor-pointer"
                         >
-                          <span>View card</span>
+                          <span>{t.viewCard}</span>
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -1080,8 +1080,8 @@ export default function CustomerWalletPage() {
           {activeTab === 'profile' && (
             <div className="space-y-4 pt-1">
               <div className="space-y-1">
-                <h1 className="text-lg font-black text-[#0F172A]">My Profile</h1>
-                <p className="text-xs text-slate-500">Manage your profile information and settings.</p>
+                <h1 className="text-lg font-black text-[#0F172A]">{t.myProfileTitle}</h1>
+                <p className="text-xs text-slate-500">{t.myProfileDesc}</p>
               </div>
 
               {profileMessage && (
@@ -1130,28 +1130,28 @@ export default function CustomerWalletPage() {
                     />
                   </div>
                   <span className="text-[11px] font-semibold text-slate-400">
-                    Upload a photo for your profile
+                    {t.uploadPhotoHint}
                   </span>
                 </div>
 
                 <form onSubmit={handleUpdateProfile} className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Full Name
+                      {t.fullNameLabel}
                     </label>
                     <input
                       type="text"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       required
-                      placeholder="Enter your full name"
+                      placeholder={t.enterFullNamePlaceholder}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#00875A]/20 transition"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
-                      <span>Mobile Number</span>
+                      <span>{t.mobileLabel}</span>
                       <Lock className="w-3 h-3 text-slate-400" />
                     </label>
                     <input
@@ -1165,12 +1165,12 @@ export default function CustomerWalletPage() {
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
-                      <span>Email Address</span>
+                      <span>{t.emailAddressLabel}</span>
                       <Lock className="w-3 h-3 text-slate-400" />
                     </label>
                     <input
                       type="text"
-                      value={customerEmail || 'No email associated'}
+                      value={customerEmail || t.noEmailAssociated}
                       disabled
                       readOnly
                       className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-500 font-semibold cursor-not-allowed"
@@ -1185,10 +1185,10 @@ export default function CustomerWalletPage() {
                     {isSavingProfile ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Saving changes...</span>
+                        <span>{t.savingChangesBtn}</span>
                       </>
                     ) : (
-                      <span>Save Changes</span>
+                      <span>{t.saveChangesBtn}</span>
                     )}
                   </button>
                 </form>
@@ -1199,7 +1199,7 @@ export default function CustomerWalletPage() {
                     className="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span>Logout</span>
+                    <span>{t.logoutBtn}</span>
                   </button>
                 </div>
               </div>
@@ -1300,9 +1300,9 @@ export default function CustomerWalletPage() {
 
               <div className="space-y-1 pt-2">
                 <h3 className="text-sm font-black text-[#0F172A] uppercase tracking-wider">
-                  My Digital Pass
+                  {t.myDigitalPassModalTitle}
                 </h3>
-                <p className="text-[11px] text-slate-500 font-medium">Show this QR code at checkout.</p>
+                <p className="text-[11px] text-slate-500 font-medium">{t.showQrCheckoutDesc}</p>
               </div>
 
               <div className="bg-slate-50 p-4 rounded-2xl inline-block border border-slate-100 shadow-inner">
@@ -1315,7 +1315,7 @@ export default function CustomerWalletPage() {
                   onClick={handleCopyPhone}
                   className="text-[10px] bg-[#00875A] text-white px-2 py-1 rounded-md font-semibold cursor-pointer"
                 >
-                  {copied ? 'Copied!' : 'Copy ID'}
+                  {copied ? t.copiedBtn : t.copyBtn}
                 </button>
               </div>
             </div>

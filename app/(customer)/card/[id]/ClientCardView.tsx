@@ -3,11 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import CustomerLangSwitcher from '@/components/CustomerLangSwitcher'
 import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
-
-function CustomerLangSwitcher() {
-    return null
-}
 
 function IconCheck() {
     return (

@@ -18,6 +18,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
+import CustomerLangSwitcher from '@/components/CustomerLangSwitcher'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -418,6 +419,7 @@ function CustomerPinLoginContent() {
             </div>
           </div>
 
+          <CustomerLangSwitcher />
         </header>
 
         {/* SCANNED PARTNER STORE CO-BRANDING STRIP */}

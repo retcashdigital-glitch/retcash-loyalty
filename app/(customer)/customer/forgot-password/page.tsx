@@ -16,6 +16,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
+import CustomerLangSwitcher from '@/components/CustomerLangSwitcher'
 
 function ForgotPinContent() {
   const router = useRouter()
@@ -162,6 +163,7 @@ function ForgotPinContent() {
             </div>
           </div>
 
+          <CustomerLangSwitcher />
         </header>
 
         <main className="px-5 pt-6">
