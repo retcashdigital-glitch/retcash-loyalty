@@ -17,7 +17,6 @@ import {
   ShieldCheck,
   ChevronRight,
   Sparkles,
-  Wallet,
 } from 'lucide-react'
 import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
 import CustomerLangSwitcher from '@/components/CustomerLangSwitcher'
@@ -34,7 +33,7 @@ interface StoreBrandInfo {
   targetVisits?: number
 }
 
-// Format local Sri Lankan mobile input cleanly as "070 766 0142" or "70 766 0142"
+// Format local Sri Lankan mobile input cleanly as "71 234 5678"
 function formatSriLankaDisplay(raw: string): string {
   const digits = raw.replace(/\D/g, '')
   if (!digits) return ''
@@ -162,7 +161,7 @@ function CustomerPinLoginContent() {
     }
   }, [storeParam])
 
-  // 2. Check existing session (Server HttpOnly cookie + localStorage) for instant redirect
+  // 2. Check active session for instant redirect, OR pre-fill returning user's own saved number
   useEffect(() => {
     let isMounted = true
 
@@ -190,8 +189,11 @@ function CustomerPinLoginContent() {
           return
         }
 
+        // Returning user who logged out on this device: pre-fill their own saved number
         const localDisplay = savedPhone.startsWith('94') ? savedPhone.slice(2) : savedPhone
-        if (isMounted) setPhoneInput(formatSriLankaDisplay(localDisplay))
+        if (isMounted) {
+          setPhoneInput(formatSriLankaDisplay(localDisplay))
+        }
       }
 
       try {
@@ -455,7 +457,7 @@ function CustomerPinLoginContent() {
   const isPhoneValid = Boolean(normalizePhone(phoneInput))
 
   return (
-    <div className="min-h-dvh w-full bg-white sm:max-w-md sm:mx-auto sm:border-x sm:border-slate-200/80 flex flex-col justify-between">
+    <div className="min-h-screen min-h-dvh w-full bg-white sm:max-w-md sm:mx-auto sm:border-x sm:border-slate-200/80 flex flex-col justify-between">
       {/* TOP NATIVE APP BAR & HERO */}
       <div>
         <header className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 border-b border-slate-100">
@@ -476,19 +478,19 @@ function CustomerPinLoginContent() {
           <CustomerLangSwitcher />
         </header>
 
-        {/* SCANNED PARTNER STORE CO-BRANDING CARD OR DIGITAL LOYALTY PASS BANNER */}
+        {/* SCANNED PARTNER STORE CO-BRANDING CARD OR RICH DIGITAL LOYALTY PASS ILLUSTRATION */}
         {storeInfo ? (
-          <div className="mx-5 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/90 via-teal-50/50 to-white px-4 py-3.5 shadow-2xs">
+          <div className="mx-5 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-[#ECFDF5] via-[#D1FAE5]/60 to-white px-4 py-3.5 shadow-2xs">
             <div className="flex items-center gap-3 min-w-0">
               {storeInfo.logoUrl && !logoLoadError ? (
                 <img
                   src={storeInfo.logoUrl}
                   alt={storeInfo.name}
                   onError={() => setLogoLoadError(true)}
-                  className="h-11 w-11 rounded-xl border border-emerald-200/70 bg-white object-cover shrink-0 shadow-2xs"
+                  className="h-12 w-12 rounded-xl border border-emerald-200/70 bg-white object-cover shrink-0 shadow-2xs"
                 />
               ) : (
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#00875A] text-white font-black text-base shrink-0 shadow-xs">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#00875A] text-white font-black text-lg shrink-0 shadow-xs">
                   {storeInfo.name.charAt(0).toUpperCase() || <Store className="size-5" />}
                 </div>
               )}
@@ -496,11 +498,11 @@ function CustomerPinLoginContent() {
                 <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#00875A]">
                   {t.officialPartner}
                 </p>
-                <p className="text-sm font-black text-slate-900 truncate">
+                <p className="text-base font-black text-slate-900 truncate">
                   {storeInfo.name}
                 </p>
                 {storeInfo.cashbackPercent ? (
-                  <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
+                  <p className="text-[11px] font-bold text-[#00875A] mt-0.5">
                     {t.earnCashback(storeInfo.cashbackPercent)}
                     {storeInfo.targetVisits ? ` • ${t.visitReward(storeInfo.targetVisits)}` : ''}
                   </p>
@@ -510,20 +512,122 @@ function CustomerPinLoginContent() {
           </div>
         ) : (
           step === 'phone' && (
-            <div className="mx-5 mt-4 relative overflow-hidden rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-[#ECFDF5] via-[#D1FAE5]/70 to-[#A7F3D0]/50 px-4 py-4 shadow-2xs">
-              <div className="flex items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="inline-flex items-center gap-1 rounded-full bg-white/85 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-[#00875A] shadow-2xs">
-                    <Sparkles className="size-3" />
-                    <span>{t.digitalLoyaltyPass}</span>
-                  </div>
-                  <p className="text-xs font-bold text-slate-700 leading-snug pt-0.5">
+            <div
+              className="mx-5 mt-4 relative overflow-hidden rounded-2xl border border-emerald-300/70 px-4 py-4 shadow-sm"
+              style={{
+                background: 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 52%, #A7F3D0 100%)',
+              }}
+            >
+              <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/35" />
+              <div className="pointer-events-none absolute -bottom-8 left-16 h-20 w-20 rounded-full bg-[#00875A]/10" />
+
+              <div className="relative flex items-center justify-between gap-2">
+                <div className="space-y-1.5 max-w-[58%]">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-[#00875A] shadow-2xs">
+                    <Sparkles className="size-2.5" /> RETCASH PASS
+                  </span>
+                  <h2 className="text-base font-black tracking-tight text-slate-900 leading-tight uppercase">
+                    {t.digitalLoyaltyPass}
+                  </h2>
+                  <p className="text-[11px] font-bold text-[#065F46]">
                     {t.cashbackWallet}
                   </p>
                 </div>
 
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#00875A] text-white shadow-md shadow-emerald-700/20 shrink-0">
-                  <Wallet className="size-6" />
+                {/* Custom Fintech Voucher & Cashback Card SVG Illustration */}
+                <div className="shrink-0">
+                  <svg
+                    width="116"
+                    height="76"
+                    viewBox="0 0 116 76"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
+                  >
+                    <g transform="rotate(-8 48 40)">
+                      <rect
+                        x="6"
+                        y="16"
+                        width="72"
+                        height="44"
+                        rx="8"
+                        fill="#FFFBEB"
+                        stroke="#F59E0B"
+                        strokeWidth="1.5"
+                      />
+                      <line
+                        x1="24"
+                        y1="17"
+                        x2="24"
+                        y2="59"
+                        stroke="#FCD34D"
+                        strokeWidth="1.2"
+                        strokeDasharray="3 2"
+                      />
+                      <text
+                        x="32"
+                        y="35"
+                        fill="#B45309"
+                        fontSize="7.5"
+                        fontWeight="800"
+                        fontFamily="sans-serif"
+                      >
+                        CASHBACK
+                      </text>
+                      <text
+                        x="32"
+                        y="46"
+                        fill="#D97706"
+                        fontSize="7.5"
+                        fontWeight="800"
+                        fontFamily="sans-serif"
+                      >
+                        REWARD
+                      </text>
+                    </g>
+
+                    <g transform="rotate(6 78 38)">
+                      <rect
+                        x="46"
+                        y="12"
+                        width="62"
+                        height="48"
+                        rx="9"
+                        fill="#00875A"
+                      />
+                      <rect
+                        x="46"
+                        y="12"
+                        width="62"
+                        height="48"
+                        rx="9"
+                        stroke="#FFFFFF"
+                        strokeOpacity="0.45"
+                        strokeWidth="1.2"
+                      />
+                      <circle cx="77" cy="36" r="13" fill="#FFFFFF" fillOpacity="0.18" />
+                      <text
+                        x="77"
+                        y="41"
+                        textAnchor="middle"
+                        fill="#FFFFFF"
+                        fontSize="15"
+                        fontWeight="900"
+                        fontFamily="sans-serif"
+                      >
+                        %
+                      </text>
+                    </g>
+
+                    <path
+                      d="M36 6L37.5 9.5L41 11L37.5 12.5L36 16L34.5 12.5L31 11L34.5 9.5L36 6Z"
+                      fill="#059669"
+                    />
+                    <path
+                      d="M98 63L99 65.5L101.5 66.5L99 67.5L98 70L97 67.5L94.5 66.5L97 65.5L98 63Z"
+                      fill="#F59E0B"
+                    />
+                  </svg>
                 </div>
               </div>
             </div>
@@ -579,7 +683,7 @@ function CustomerPinLoginContent() {
             </div>
           )}
 
-          {/* STEP 1: MOBILE NUMBER WITH +94 PREFIX & AUTO-SPACING */}
+          {/* STEP 1: MOBILE NUMBER WITH +94 PREFIX & NEUTRAL GREY PLACEHOLDER */}
           {step === 'phone' && (
             <form id="phone-step-form" onSubmit={handleCheckPhone} className="space-y-4">
               <div>
@@ -598,11 +702,10 @@ function CustomerPinLoginContent() {
                     type="tel"
                     inputMode="tel"
                     required
-                    autoFocus
                     value={phoneInput}
                     onChange={(e) => setPhoneInput(formatSriLankaDisplay(e.target.value))}
-                    placeholder="70 766 0142"
-                    className="w-full bg-transparent text-lg font-extrabold tracking-wide text-slate-900 placeholder:text-slate-300 outline-none"
+                    placeholder="71 234 5678"
+                    className="w-full bg-transparent text-lg font-extrabold tracking-wide text-slate-900 placeholder:text-slate-300 placeholder:font-semibold outline-none"
                   />
                 </div>
               </div>
@@ -728,7 +831,7 @@ function CustomerPinLoginContent() {
       </div>
 
       {/* BOTTOM-ANCHORED THUMB ACTION FOOTER */}
-      <footer className="mt-auto px-5 pt-6 pb-8 bg-white border-t border-slate-100/80 space-y-3">
+      <footer className="mt-auto px-5 pt-5 pb-8 bg-white border-t border-slate-100 space-y-3">
         {step === 'phone' && (
           <button
             type="submit"
@@ -788,10 +891,10 @@ function CustomerPinLoginContent() {
 
 export default function CustomerLoginPage() {
   return (
-    <div className="min-h-dvh w-full bg-white sm:bg-slate-50 font-sans text-[#0F172A]">
+    <div className="min-h-screen min-h-dvh w-full bg-white sm:bg-slate-50 font-sans text-[#0F172A]">
       <Suspense
         fallback={
-          <div className="min-h-dvh w-full bg-white sm:max-w-md sm:mx-auto flex items-center justify-center text-xs font-bold text-slate-500">
+          <div className="min-h-screen min-h-dvh w-full bg-white sm:max-w-md sm:mx-auto flex items-center justify-center text-xs font-bold text-slate-500">
             Loading wallet...
           </div>
         }
