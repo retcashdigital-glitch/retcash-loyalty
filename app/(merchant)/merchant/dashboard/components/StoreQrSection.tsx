@@ -11,8 +11,8 @@ import {
   Share2,
   X,
   Smartphone,
-  HandCoins,
-  Gift,
+  Banknote,
+  Sparkles,
 } from 'lucide-react'
 
 interface StoreQrSectionProps {
@@ -49,7 +49,7 @@ function loadVectorBrandLogo(): Promise<HTMLImageElement | null> {
   })
 }
 
-// Draw center badge using real /logo.svg (with crisp vector fallback)
+// Draw center badge using real /logo.svg (with crisp emerald vector fallback)
 function drawCenterBrandEmblem(
   ctx: CanvasRenderingContext2D,
   centerX: number,
@@ -62,13 +62,11 @@ function drawCenterBrandEmblem(
   const y = centerY - half
 
   ctx.save()
-  // Crisp white rounded clearance shield
   ctx.fillStyle = '#FFFFFF'
   drawRoundRect(ctx, x - 6, y - 6, badgeSize + 12, badgeSize + 12, badgeSize * 0.28)
   ctx.fill()
 
-  // Subtle light border so the emblem blends smoothly with QR dots
-  ctx.strokeStyle = '#E2E8F0'
+  ctx.strokeStyle = '#D1FAE5'
   ctx.lineWidth = Math.max(1.5, badgeSize * 0.02)
   drawRoundRect(ctx, x - 2, y - 2, badgeSize + 4, badgeSize + 4, badgeSize * 0.25)
   ctx.stroke()
@@ -83,8 +81,7 @@ function drawCenterBrandEmblem(
       badgeSize - pad * 2
     )
   } else {
-    // Fallback crisp vector R badge
-    ctx.fillStyle = '#00875A'
+    ctx.fillStyle = '#006B3E'
     drawRoundRect(ctx, x, y, badgeSize, badgeSize, badgeSize * 0.24)
     ctx.fill()
 
@@ -97,7 +94,7 @@ function drawCenterBrandEmblem(
   ctx.restore()
 }
 
-// Render Instagram/WhatsApp style modern rounded QR with /logo.svg
+// Render modern rounded QR in Deep Emerald & Forest Green palette
 function renderStyledModernQr(
   canvas: HTMLCanvasElement,
   url: string,
@@ -136,8 +133,8 @@ function renderStyledModernQr(
     )
   }
 
-  // Smooth rounded data dots
-  ctx.fillStyle = '#065F46'
+  // Deep forest-emerald rounded data dots
+  ctx.fillStyle = '#043927'
   const dotRadius = cell * 0.42
   for (let r = 0; r < count; r++) {
     for (let c = 0; c < count; c++) {
@@ -152,13 +149,13 @@ function renderStyledModernQr(
     }
   }
 
-  // Modern rounded corner finder eyes
+  // Styled emerald corner finder eyes
   const drawFinderEye = (startRow: number, startCol: number) => {
     const x = (startCol + marginModules) * cell
     const y = (startRow + marginModules) * cell
     const outerSize = 7 * cell
 
-    ctx.fillStyle = '#065F46'
+    ctx.fillStyle = '#043927'
     drawRoundRect(ctx, x, y, outerSize, outerSize, cell * 1.8)
     ctx.fill()
 
@@ -173,7 +170,7 @@ function renderStyledModernQr(
     )
     ctx.fill()
 
-    ctx.fillStyle = '#00875A'
+    ctx.fillStyle = '#006B3E'
     drawRoundRect(
       ctx,
       x + cell * 2,
@@ -189,7 +186,6 @@ function renderStyledModernQr(
   drawFinderEye(0, count - 7)
   drawFinderEye(count - 7, 0)
 
-  // Center RETCASH Vector Logo
   const badgeSize = Math.round(pixelSize * 0.23)
   drawCenterBrandEmblem(ctx, pixelSize / 2, pixelSize / 2, badgeSize, logoImg)
 }
@@ -217,7 +213,6 @@ export default function StoreQrSection({
     return `${base}/customer/login?store=${encodeURIComponent(storeId)}`
   }, [origin, storeId])
 
-  // Render crisp 2x Retina preview QR with /logo.svg
   useEffect(() => {
     const canvas = previewCanvasRef.current
     if (!canvas || !storeQrUrl) return
@@ -244,11 +239,11 @@ export default function StoreQrSection({
     }
   }
 
-  // Build ultra-sharp high-res print standee canvas (1200 x 1620)
+  // Build high-contrast Emerald & Deep Forest Green print standee (1200 x 1640)
   const buildBrandedStandeeCanvas = async (): Promise<HTMLCanvasElement | null> => {
     const exportCanvas = document.createElement('canvas')
     const W = 1200
-    const H = 1620
+    const H = 1640
     exportCanvas.width = W
     exportCanvas.height = H
     const ctx = exportCanvas.getContext('2d')
@@ -256,73 +251,77 @@ export default function StoreQrSection({
 
     const logoImg = await loadVectorBrandLogo()
 
-    // 1. Clean Crisp White Standee Background
-    ctx.fillStyle = '#FFFFFF'
+    // 1. Soft Mint-White Base Card
+    ctx.fillStyle = '#F8FAFC'
     ctx.fillRect(0, 0, W, H)
 
-    ctx.strokeStyle = '#E2E8F0'
-    ctx.lineWidth = 4
-    ctx.strokeRect(2, 2, W - 4, H - 4)
+    // 2. Bold Deep Forest-to-Emerald Top Hero Header (matches logo gradient tone)
+    const heroGrad = ctx.createLinearGradient(0, 0, W, 470)
+    heroGrad.addColorStop(0, '#042F2E')
+    heroGrad.addColorStop(0.55, '#064E3B')
+    heroGrad.addColorStop(1, '#006B3E')
+    ctx.fillStyle = heroGrad
+    ctx.fillRect(0, 0, W, 460)
 
-    // 2. Top Mint Pill Badge
-    const pillW = 500
-    const pillH = 62
+    // Subtle Emerald Accent Line at bottom of header
+    ctx.fillStyle = '#10B981'
+    ctx.fillRect(0, 452, W, 10)
+
+    // Store Partner Pill inside Header
+    const pillW = 460
+    const pillH = 52
     const pillX = (W - pillW) / 2
-    const pillY = 85
+    const pillY = 56
 
-    ctx.fillStyle = '#E6F4EA'
-    drawRoundRect(ctx, pillX, pillY, pillW, pillH, 31)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)'
+    drawRoundRect(ctx, pillX, pillY, pillW, pillH, 26)
     ctx.fill()
+    ctx.strokeStyle = 'rgba(167, 243, 208, 0.35)'
+    ctx.lineWidth = 2
+    drawRoundRect(ctx, pillX, pillY, pillW, pillH, 26)
+    ctx.stroke()
 
-    ctx.fillStyle = '#00875A'
-    ctx.font = '800 26px system-ui, -apple-system, sans-serif'
+    ctx.fillStyle = '#A7F3D0'
+    ctx.font = '800 22px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText('OFFICIAL REWARD PARTNER', W / 2, pillY + pillH / 2 + 1)
 
-    // 3. Store Name + Small Gold Gift Box
-    const displayStore =
-      storeName.length > 22 ? `${storeName.slice(0, 21)}…` : storeName
-    ctx.fillStyle = '#0F172A'
-    ctx.font = '900 84px system-ui, -apple-system, sans-serif'
+    // Primary Customer Hook Headline (Highest visual hierarchy)
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = '900 76px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    const textMetrics = ctx.measureText(displayStore)
-    const storeTextY = 248
-    ctx.fillText(displayStore, W / 2 - 18, storeTextY)
+    ctx.fillText(`GET ${cashbackPercent}% CASHBACK`, W / 2, 198)
 
-    const giftX = W / 2 + textMetrics.width / 2 + 4
-    const giftY = storeTextY - 76
-    ctx.fillStyle = '#F59E0B'
-    drawRoundRect(ctx, giftX, giftY + 10, 36, 28, 6)
-    ctx.fill()
-    ctx.fillStyle = '#FBBF24'
-    drawRoundRect(ctx, giftX - 3, giftY + 4, 42, 9, 4)
-    ctx.fill()
-    ctx.fillStyle = '#FFFFFF'
-    ctx.fillRect(giftX + 16, giftY + 4, 5, 34)
+    // Store Name Subtitle
+    const displayStore =
+      storeName.length > 24 ? `${storeName.slice(0, 23)}…` : storeName
+    ctx.fillStyle = '#D1FAE5'
+    ctx.font = '700 42px system-ui, -apple-system, sans-serif'
+    ctx.fillText(`at ${displayStore}`, W / 2, 265)
 
-    // 4. Elevated Rounded White QR Card Container
-    const cardSize = 620
+    // 3. Elevated Rounded White QR Card overlapping the Header
+    const cardSize = 640
     const cardX = (W - cardSize) / 2
-    const cardY = 310
+    const cardY = 325
 
     ctx.save()
-    ctx.shadowColor = 'rgba(15, 23, 42, 0.08)'
-    ctx.shadowBlur = 40
-    ctx.shadowOffsetY = 16
+    ctx.shadowColor = 'rgba(4, 47, 46, 0.16)'
+    ctx.shadowBlur = 45
+    ctx.shadowOffsetY = 18
     ctx.fillStyle = '#FFFFFF'
-    drawRoundRect(ctx, cardX, cardY, cardSize, cardSize, 54)
+    drawRoundRect(ctx, cardX, cardY, cardSize, cardSize, 52)
     ctx.fill()
     ctx.restore()
 
-    ctx.strokeStyle = '#E2E8F0'
-    ctx.lineWidth = 3
-    drawRoundRect(ctx, cardX, cardY, cardSize, cardSize, 54)
+    ctx.strokeStyle = '#A7F3D0'
+    ctx.lineWidth = 4
+    drawRoundRect(ctx, cardX, cardY, cardSize, cardSize, 52)
     ctx.stroke()
 
-    // Render Ultra-Sharp 550x550 Modern Rounded QR with /logo.svg
-    const qrSize = 550
+    // Render Ultra-Sharp 560x560 Modern Rounded QR with /logo.svg
+    const qrSize = 560
     const offscreenQr = document.createElement('canvas')
     renderStyledModernQr(offscreenQr, storeQrUrl, qrSize, logoImg)
 
@@ -330,50 +329,50 @@ export default function StoreQrSection({
     const qrY = cardY + (cardSize - qrSize) / 2
     ctx.drawImage(offscreenQr, qrX, qrY, qrSize, qrSize)
 
-    // 5. Emerald Cashback Banner Pill below QR
-    const offerW = 900
-    const offerH = 88
+    // 4. Scan Callout Pill
+    const offerW = 860
+    const offerH = 82
     const offerX = (W - offerW) / 2
-    const offerY = 985
+    const offerY = 1015
 
-    ctx.fillStyle = '#00875A'
-    drawRoundRect(ctx, offerX, offerY, offerW, offerH, 44)
+    ctx.fillStyle = '#006B3E'
+    drawRoundRect(ctx, offerX, offerY, offerW, offerH, 41)
     ctx.fill()
 
     ctx.fillStyle = '#FFFFFF'
-    ctx.font = '800 36px system-ui, -apple-system, sans-serif'
+    ctx.font = '800 32px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     const offerHeadline =
       targetVisits && targetVisits > 1
-        ? `${cashbackPercent}% CASHBACK • REDEEM ON VISIT #${targetVisits}`
-        : `${cashbackPercent}% CASHBACK ON EVERY BILL`
+        ? `SCAN TO COLLECT • REDEEM ON VISIT #${targetVisits}`
+        : 'SCAN TO CLAIM INSTANT CASHBACK'
     ctx.fillText(offerHeadline, W / 2, offerY + offerH / 2 + 1)
 
-    // 6. "How It Works" Section
-    ctx.fillStyle = '#0F172A'
-    ctx.font = '700 42px system-ui, -apple-system, sans-serif'
+    // 5. "How It Works" 3-Step Strip (Localized with Rs)
+    ctx.fillStyle = '#042F2E'
+    ctx.font = '800 38px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    ctx.fillText('How It Works', W / 2, 1165)
+    ctx.fillText('How It Works', W / 2, 1185)
 
     const colCenters = [265, 600, 935]
-    const iconTopY = 1215
+    const iconTopY = 1230
 
-    // Step 1 Icon
-    ctx.strokeStyle = '#065F46'
+    // Step 1 Icon: QR Frame
+    ctx.strokeStyle = '#006B3E'
     ctx.lineWidth = 5
     const s1X = colCenters[0] - 36
     drawRoundRect(ctx, s1X, iconTopY, 72, 72, 14)
     ctx.stroke()
-    ctx.fillStyle = '#065F46'
+    ctx.fillStyle = '#006B3E'
     ctx.fillRect(s1X + 14, iconTopY + 14, 18, 18)
     ctx.fillRect(s1X + 40, iconTopY + 14, 18, 18)
     ctx.fillRect(s1X + 14, iconTopY + 40, 18, 18)
     ctx.fillRect(s1X + 40, iconTopY + 40, 8, 8)
     ctx.fillRect(s1X + 50, iconTopY + 50, 8, 8)
 
-    // Step 2 Icon
+    // Step 2 Icon: Smartphone
     const s2X = colCenters[1] - 26
     drawRoundRect(ctx, s2X, iconTopY - 2, 52, 76, 10)
     ctx.stroke()
@@ -385,63 +384,53 @@ export default function StoreQrSection({
     ctx.arc(colCenters[1], iconTopY + 62, 3.5, 0, Math.PI * 2)
     ctx.fill()
 
-    // Step 3 Icon
+    // Step 3 Icon: Localized Rs Cashback Coin Badge
     ctx.beginPath()
-    ctx.arc(colCenters[2] + 5, iconTopY + 20, 21, 0, Math.PI * 2)
+    ctx.arc(colCenters[2], iconTopY + 36, 36, 0, Math.PI * 2)
     ctx.stroke()
-    ctx.font = '800 24px system-ui, -apple-system, sans-serif'
+    ctx.fillStyle = '#006B3E'
+    ctx.font = '900 28px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText('$', colCenters[2] + 5, iconTopY + 21)
-
-    ctx.beginPath()
-    ctx.moveTo(colCenters[2] - 34, iconTopY + 54)
-    ctx.lineTo(colCenters[2] - 10, iconTopY + 54)
-    ctx.lineTo(colCenters[2] + 28, iconTopY + 54)
-    ctx.quadraticCurveTo(colCenters[2] + 38, iconTopY + 54, colCenters[2] + 30, iconTopY + 65)
-    ctx.lineTo(colCenters[2] - 5, iconTopY + 72)
-    ctx.lineTo(colCenters[2] - 34, iconTopY + 68)
-    ctx.closePath()
-    ctx.stroke()
+    ctx.fillText('Rs', colCenters[2], iconTopY + 38)
 
     // Step Labels
     ctx.fillStyle = '#0F172A'
-    ctx.font = '600 31px system-ui, -apple-system, sans-serif'
+    ctx.font = '700 30px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    ctx.fillText('1. Scan QR', colCenters[0], 1350)
-    ctx.fillText('2. Enter Mobile', colCenters[1], 1350)
-    ctx.fillText('3. Get Cashback', colCenters[2], 1350)
+    ctx.fillText('1. Scan QR', colCenters[0], 1365)
+    ctx.fillText('2. Enter Mobile', colCenters[1], 1365)
+    ctx.fillText('3. Get Cashback', colCenters[2], 1365)
 
-    // 7. Bottom Footer Divider & Vector RETCASH Branding Strip
-    ctx.strokeStyle = '#E2E8F0'
-    ctx.lineWidth = 3
+    // 6. Bottom Footer Strip
+    ctx.strokeStyle = '#CBD5E1'
+    ctx.lineWidth = 2.5
     ctx.beginPath()
-    ctx.moveTo(72, 1435)
-    ctx.lineTo(W - 72, 1435)
+    ctx.moveTo(72, 1450)
+    ctx.lineTo(W - 72, 1450)
     ctx.stroke()
 
     if (logoImg) {
-      ctx.drawImage(logoImg, 76, 1496, 56, 56)
+      ctx.drawImage(logoImg, 76, 1510, 58, 58)
     } else {
-      drawCenterBrandEmblem(ctx, 106, 1525, 52, null)
+      drawCenterBrandEmblem(ctx, 106, 1539, 52, null)
     }
 
-    ctx.fillStyle = '#0F172A'
+    ctx.fillStyle = '#042F2E'
     ctx.font = '900 42px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    ctx.fillText('RETCASH', 148, 1527)
+    ctx.fillText('RETCASH', 148, 1541)
 
     ctx.fillStyle = '#334155'
-    ctx.font = '600 31px system-ui, -apple-system, sans-serif'
+    ctx.font = '600 30px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'right'
-    ctx.fillText('No App Needed • 10 Secs', W - 74, 1527)
+    ctx.fillText('No App Needed • 10 Secs', W - 74, 1541)
 
     return exportCanvas
   }
 
-  // Universal Download / Save Handler (iOS Safari + Android + Desktop)
   const handleDownloadBrandedQr = async () => {
     if (isGeneratingCard) return
     setIsGeneratingCard(true)
@@ -505,90 +494,95 @@ export default function StoreQrSection({
   }
 
   return (
-    <div className="bg-gradient-to-br from-orange-50/80 via-white to-emerald-50/60 border border-orange-200/80 rounded-xl p-4 space-y-4 shadow-xs">
+    <div className="bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/60 border border-emerald-200/90 rounded-xl p-4 space-y-4 shadow-xs">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h4 className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 uppercase tracking-wider">
-            <QrCode className="size-4 text-[#F97316] shrink-0" /> Customer Counter QR Standee
+          <h4 className="text-xs font-extrabold text-[#042F2E] flex items-center gap-1.5 uppercase tracking-wider">
+            <QrCode className="size-4 text-[#006B3E] shrink-0" /> Customer Counter QR Standee
           </h4>
-          <p className="text-[11px] text-slate-500 mt-0.5">
-            Download & print this branded standee for your billing counter.
+          <p className="text-[11px] text-slate-600 mt-0.5">
+            Print and place at your billing counter so customers can scan & earn.
           </p>
         </div>
-        <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[10px] font-extrabold text-[#EA580C] whitespace-nowrap shrink-0">
+        <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-extrabold text-[#006B3E] whitespace-nowrap shrink-0">
           Print Ready
         </span>
       </div>
 
-      {/* Live Branded Counter Standee Preview */}
-      <div className="rounded-2xl border border-slate-200/90 bg-white px-4 pt-5 pb-3.5 text-center shadow-sm">
-        <span className="inline-block rounded-full bg-[#E6F4EA] px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#00875A]">
-          OFFICIAL REWARD PARTNER
-        </span>
+      {/* Live Branded Counter Standee Preview (100% Emerald & Forest Green) */}
+      <div className="overflow-hidden rounded-2xl border border-emerald-200/80 bg-slate-50/60 text-center shadow-sm">
+        {/* Deep Forest-to-Emerald Hero Header */}
+        <div className="bg-gradient-to-br from-[#042F2E] via-[#064E3B] to-[#006B3E] px-4 pt-4 pb-12 text-white border-b-2 border-emerald-400">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 border border-emerald-300/30 px-3 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-emerald-200">
+            <Sparkles className="size-2.5" /> OFFICIAL REWARD PARTNER
+          </span>
 
-        <div className="mt-2 mb-3.5 flex items-center justify-center gap-1.5">
-          <h3 className="text-xl font-black tracking-tight text-slate-900 truncate max-w-[230px]">
-            {storeName}
+          <h3 className="mt-2 text-xl font-black tracking-tight text-white">
+            GET {cashbackPercent}% CASHBACK
           </h3>
-          <Gift className="size-4 text-amber-500 shrink-0 -mt-2" />
+          <p className="text-xs font-bold text-emerald-200 truncate">
+            at {storeName}
+          </p>
         </div>
 
-        {/* Crisp Modern Rounded QR with Vector /logo.svg */}
-        <div className="mx-auto inline-flex items-center justify-center rounded-2xl border border-slate-100 bg-white p-2.5 shadow-md shadow-slate-200/60">
-          <canvas ref={previewCanvasRef} className="size-[196px] block" />
+        {/* Overlapping White QR Card */}
+        <div className="-mt-8 px-4">
+          <div className="mx-auto inline-flex items-center justify-center rounded-2xl border-2 border-emerald-200 bg-white p-2.5 shadow-md shadow-emerald-950/10">
+            <canvas ref={previewCanvasRef} className="size-[192px] block" />
+          </div>
         </div>
 
-        {/* Cashback Highlight Pill */}
-        <div className="mt-4">
-          <span className="inline-block rounded-full bg-[#00875A] px-4 py-1.5 text-[11px] font-extrabold tracking-wide text-white shadow-xs">
+        {/* Action Banner Pill */}
+        <div className="mt-3.5 px-4">
+          <span className="inline-block rounded-full bg-[#006B3E] px-4 py-1.5 text-[10px] font-extrabold tracking-wide text-white shadow-xs">
             {targetVisits && targetVisits > 1
-              ? `${cashbackPercent}% CASHBACK • VISIT #${targetVisits} REWARD`
-              : `${cashbackPercent}% CASHBACK ON EVERY BILL`}
+              ? `SCAN TO COLLECT • REDEEM ON VISIT #${targetVisits}`
+              : 'SCAN TO CLAIM INSTANT CASHBACK'}
           </span>
         </div>
 
         {/* How It Works 3-Step Visual Guide */}
-        <div className="mt-4 pt-3 border-t border-slate-100">
-          <p className="text-xs font-extrabold text-slate-800 mb-2.5">How It Works</p>
+        <div className="mt-4 px-4 pt-3 border-t border-slate-200/80">
+          <p className="text-xs font-extrabold text-[#042F2E] mb-2.5">How It Works</p>
           <div className="grid grid-cols-3 gap-1.5 text-center">
             <div className="flex flex-col items-center gap-1">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-[#065F46]">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100/80 text-[#006B3E]">
                 <QrCode className="size-4" />
               </div>
-              <span className="text-[10px] font-bold text-slate-700">1. Scan QR</span>
+              <span className="text-[10px] font-bold text-slate-800">1. Scan QR</span>
             </div>
 
             <div className="flex flex-col items-center gap-1">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-[#065F46]">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100/80 text-[#006B3E]">
                 <Smartphone className="size-4" />
               </div>
-              <span className="text-[10px] font-bold text-slate-700">2. Enter Mobile</span>
+              <span className="text-[10px] font-bold text-slate-800">2. Enter Mobile</span>
             </div>
 
             <div className="flex flex-col items-center gap-1">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-[#065F46]">
-                <HandCoins className="size-4" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100/80 text-[#006B3E]">
+                <Banknote className="size-4" />
               </div>
-              <span className="text-[10px] font-bold text-slate-700">3. Get Cashback</span>
+              <span className="text-[10px] font-bold text-slate-800">3. Get Cashback</span>
             </div>
           </div>
         </div>
 
         {/* Bottom Co-Branding Strip */}
-        <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
+        <div className="mt-3.5 px-4 py-2.5 bg-white border-t border-slate-200/80 flex items-center justify-between text-[10px]">
           <div className="flex items-center gap-1.5">
             <img src="/logo.svg" alt="RETCASH" className="h-4 w-4 object-contain" />
-            <span className="font-black tracking-wide text-slate-900">RETCASH</span>
+            <span className="font-black tracking-wide text-[#042F2E]">RETCASH</span>
           </div>
           <span className="font-semibold text-slate-500">No App Needed • 10 Secs</span>
         </div>
       </div>
 
-      {/* iOS Fallback Image Preview (Long-press to Save to Photos) */}
+      {/* iOS Fallback Image Preview */}
       {iosFallbackImageUrl && (
-        <div className="rounded-2xl border-2 border-[#00875A] bg-emerald-50/70 p-3 space-y-2.5 text-center">
+        <div className="rounded-2xl border-2 border-[#006B3E] bg-emerald-50/70 p-3 space-y-2.5 text-center">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-[#00875A] flex items-center gap-1">
+            <span className="text-[11px] font-extrabold text-[#006B3E] flex items-center gap-1">
               <Share2 className="size-3.5" /> Press & hold image → Save to Photos
             </span>
             <button
@@ -613,7 +607,7 @@ export default function StoreQrSection({
           type="button"
           onClick={handleDownloadBrandedQr}
           disabled={isGeneratingCard}
-          className="flex items-center justify-center gap-1.5 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white py-2.5 px-3 text-xs font-extrabold shadow-sm transition cursor-pointer disabled:opacity-60"
+          className="flex items-center justify-center gap-1.5 rounded-xl bg-[#006B3E] hover:bg-[#043927] text-white py-2.5 px-3 text-xs font-extrabold shadow-sm transition cursor-pointer disabled:opacity-60"
         >
           <Download className="size-3.5 shrink-0" />
           {isGeneratingCard ? 'Preparing...' : 'Download Standee'}
@@ -626,7 +620,7 @@ export default function StoreQrSection({
         >
           {copied ? (
             <>
-              <Check className="size-3.5 text-[#00875A] shrink-0" /> Copied!
+              <Check className="size-3.5 text-[#006B3E] shrink-0" /> Copied!
             </>
           ) : (
             <>
@@ -640,7 +634,7 @@ export default function StoreQrSection({
         href={storeQrUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center gap-1 text-[11px] font-semibold text-[#00875A] hover:underline"
+        className="flex items-center justify-center gap-1 text-[11px] font-semibold text-[#006B3E] hover:underline"
       >
         Preview customer scan screen <ExternalLink className="size-3" />
       </a>
