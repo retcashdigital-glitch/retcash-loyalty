@@ -16,6 +16,8 @@ import {
   Store,
   ShieldCheck,
   ChevronRight,
+  Sparkles,
+  Wallet,
 } from 'lucide-react'
 import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
 import CustomerLangSwitcher from '@/components/CustomerLangSwitcher'
@@ -30,6 +32,45 @@ interface StoreBrandInfo {
   logoUrl: string | null
   cashbackPercent?: number
   targetVisits?: number
+}
+
+// Format local Sri Lankan mobile input cleanly as "070 766 0142" or "70 766 0142"
+function formatSriLankaDisplay(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  if (!digits) return ''
+
+  if (digits.startsWith('94') && digits.length > 2) {
+    const local9 = digits.slice(2, 11)
+    if (local9.length <= 2) return local9
+    if (local9.length <= 5) return `${local9.slice(0, 2)} ${local9.slice(2)}`
+    return `${local9.slice(0, 2)} ${local9.slice(2, 5)} ${local9.slice(5)}`
+  }
+
+  if (digits.startsWith('0')) {
+    const local10 = digits.slice(0, 10)
+    if (local10.length <= 3) return local10
+    if (local10.length <= 6) return `${local10.slice(0, 3)} ${local10.slice(3)}`
+    return `${local10.slice(0, 3)} ${local10.slice(3, 6)} ${local10.slice(6)}`
+  }
+
+  const local9 = digits.slice(0, 9)
+  if (local9.length <= 2) return local9
+  if (local9.length <= 5) return `${local9.slice(0, 2)} ${local9.slice(2)}`
+  return `${local9.slice(0, 2)} ${local9.slice(2, 5)} ${local9.slice(5)}`
+}
+
+function formatInternationalSubtitle(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  let local9 = digits
+  if (digits.startsWith('94') && digits.length >= 11) {
+    local9 = digits.slice(2, 11)
+  } else if (digits.startsWith('0') && digits.length >= 10) {
+    local9 = digits.slice(1, 10)
+  }
+  if (local9.length === 9) {
+    return `+94 ${local9.slice(0, 2)} ${local9.slice(2, 5)} ${local9.slice(5)}`
+  }
+  return raw
 }
 
 function CustomerPinLoginContent() {
@@ -149,8 +190,8 @@ function CustomerPinLoginContent() {
           return
         }
 
-        const localDisplay = savedPhone.startsWith('94') ? `0${savedPhone.slice(2)}` : savedPhone
-        if (isMounted) setPhoneInput(localDisplay)
+        const localDisplay = savedPhone.startsWith('94') ? savedPhone.slice(2) : savedPhone
+        if (isMounted) setPhoneInput(formatSriLankaDisplay(localDisplay))
       }
 
       try {
@@ -175,8 +216,8 @@ function CustomerPinLoginContent() {
       }
 
       if (phoneParam && isMounted) {
-        const localFromUrl = phoneParam.startsWith('94') ? `0${phoneParam.slice(2)}` : phoneParam
-        setPhoneInput(localFromUrl)
+        const localFromUrl = phoneParam.startsWith('94') ? phoneParam.slice(2) : phoneParam
+        setPhoneInput(formatSriLankaDisplay(localFromUrl))
       }
     }
 
@@ -411,21 +452,23 @@ function CustomerPinLoginContent() {
     }
   }
 
+  const isPhoneValid = Boolean(normalizePhone(phoneInput))
+
   return (
     <div className="min-h-dvh w-full bg-white sm:max-w-md sm:mx-auto sm:border-x sm:border-slate-200/80 flex flex-col justify-between">
-      {/* TOP NATIVE APP BAR */}
+      {/* TOP NATIVE APP BAR & HERO */}
       <div>
         <header className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center p-1 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center p-1.5 shrink-0 shadow-2xs">
               <Image src="/logo.png" alt="RETCASH" width={24} height={24} className="object-contain" />
             </div>
             <div className="min-w-0">
               <span className="text-sm font-black tracking-wider text-[#00875A] uppercase block leading-none">
                 RETCASH
               </span>
-              <span className="text-[10px] font-semibold text-slate-400 truncate block mt-0.5">
-                {t.cashbackWallet}
+              <span className="text-[11px] font-semibold text-slate-400 truncate block mt-0.5">
+                {t.loyaltyWallet}
               </span>
             </div>
           </div>
@@ -433,31 +476,31 @@ function CustomerPinLoginContent() {
           <CustomerLangSwitcher />
         </header>
 
-        {/* SCANNED PARTNER STORE CO-BRANDING STRIP */}
-        {storeInfo && (
-          <div className="mx-5 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-orange-200/80 bg-gradient-to-r from-orange-50/90 to-amber-50/50 px-4 py-3">
+        {/* SCANNED PARTNER STORE CO-BRANDING CARD OR DIGITAL LOYALTY PASS BANNER */}
+        {storeInfo ? (
+          <div className="mx-5 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/90 via-teal-50/50 to-white px-4 py-3.5 shadow-2xs">
             <div className="flex items-center gap-3 min-w-0">
               {storeInfo.logoUrl && !logoLoadError ? (
                 <img
                   src={storeInfo.logoUrl}
                   alt={storeInfo.name}
                   onError={() => setLogoLoadError(true)}
-                  className="h-11 w-11 rounded-xl border border-orange-200/70 bg-white object-cover shrink-0 shadow-2xs"
+                  className="h-11 w-11 rounded-xl border border-emerald-200/70 bg-white object-cover shrink-0 shadow-2xs"
                 />
               ) : (
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#F97316] text-white font-black text-base shrink-0">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#00875A] text-white font-black text-base shrink-0 shadow-xs">
                   {storeInfo.name.charAt(0).toUpperCase() || <Store className="size-5" />}
                 </div>
               )}
               <div className="min-w-0">
-                <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#F97316]">
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#00875A]">
                   {t.officialPartner}
                 </p>
                 <p className="text-sm font-black text-slate-900 truncate">
                   {storeInfo.name}
                 </p>
                 {storeInfo.cashbackPercent ? (
-                  <p className="text-[11px] font-semibold text-[#00875A] mt-0.5">
+                  <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
                     {t.earnCashback(storeInfo.cashbackPercent)}
                     {storeInfo.targetVisits ? ` • ${t.visitReward(storeInfo.targetVisits)}` : ''}
                   </p>
@@ -465,10 +508,30 @@ function CustomerPinLoginContent() {
               </div>
             </div>
           </div>
+        ) : (
+          step === 'phone' && (
+            <div className="mx-5 mt-4 relative overflow-hidden rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-[#ECFDF5] via-[#D1FAE5]/70 to-[#A7F3D0]/50 px-4 py-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1 rounded-full bg-white/85 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-[#00875A] shadow-2xs">
+                    <Sparkles className="size-3" />
+                    <span>{t.digitalLoyaltyPass}</span>
+                  </div>
+                  <p className="text-xs font-bold text-slate-700 leading-snug pt-0.5">
+                    {t.cashbackWallet}
+                  </p>
+                </div>
+
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#00875A] text-white shadow-md shadow-emerald-700/20 shrink-0">
+                  <Wallet className="size-6" />
+                </div>
+              </div>
+            </div>
+          )
         )}
 
         {/* MAIN LEFT-ALIGNED CONTENT AREA */}
-        <main className="px-5 pt-6">
+        <main className="px-5 pt-5">
           {step !== 'phone' && (
             <button
               type="button"
@@ -483,7 +546,7 @@ function CustomerPinLoginContent() {
             </button>
           )}
 
-          <div className="space-y-1.5 mb-6">
+          <div className="space-y-1.5 mb-5">
             <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-snug">
               {step === 'phone'
                 ? t.enterMobileTitle
@@ -497,42 +560,48 @@ function CustomerPinLoginContent() {
               {step === 'phone'
                 ? t.enterMobileDesc
                 : step === 'login'
-                ? t.enterPinDesc(phoneInput)
+                ? t.enterPinDesc(formatInternationalSubtitle(phoneInput))
                 : t.createPinDesc}
             </p>
           </div>
 
           {error && (
-            <div className="mb-5 flex items-center gap-2.5 rounded-2xl bg-red-50 border border-red-200/80 p-3.5 text-xs font-bold text-red-600">
+            <div className="mb-4 flex items-center gap-2.5 rounded-2xl bg-red-50 border border-red-200/80 p-3.5 text-xs font-bold text-red-600">
               <AlertCircle className="size-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {message && (
-            <div className="mb-5 flex items-center gap-2.5 rounded-2xl bg-emerald-50 border border-emerald-200/80 p-3.5 text-xs font-bold text-[#00875A]">
+            <div className="mb-4 flex items-center gap-2.5 rounded-2xl bg-emerald-50 border border-emerald-200/80 p-3.5 text-xs font-bold text-[#00875A]">
               <CheckCircle2 className="size-4 shrink-0" />
               <span>{message}</span>
             </div>
           )}
 
-          {/* STEP 1: MOBILE NUMBER */}
+          {/* STEP 1: MOBILE NUMBER WITH +94 PREFIX & AUTO-SPACING */}
           {step === 'phone' && (
             <form id="phone-step-form" onSubmit={handleCheckPhone} className="space-y-4">
               <div>
                 <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-2">
                   {t.mobileLabel}
                 </label>
-                <div className="flex items-center w-full rounded-2xl border-2 border-slate-200 bg-slate-50/70 px-4 py-3.5 focus-within:border-[#00875A] focus-within:bg-white transition">
-                  <Phone className="size-5 text-slate-400 mr-3 shrink-0" />
+                <div className="flex items-center w-full rounded-2xl border-2 border-slate-200 bg-slate-50/70 px-3.5 py-3.5 focus-within:border-[#00875A] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#00875A]/10 transition">
+                  <div className="flex items-center gap-1.5 pr-3 mr-3 border-r border-slate-200 shrink-0 select-none">
+                    <span className="text-base leading-none" role="img" aria-label="Sri Lanka">
+                      🇱🇰
+                    </span>
+                    <span className="text-sm font-extrabold text-slate-700">+94</span>
+                  </div>
+                  <Phone className="size-4 text-slate-400 mr-2.5 shrink-0" />
                   <input
                     type="tel"
                     inputMode="tel"
                     required
                     autoFocus
                     value={phoneInput}
-                    onChange={(e) => setPhoneInput(e.target.value)}
-                    placeholder="077 123 4567"
+                    onChange={(e) => setPhoneInput(formatSriLankaDisplay(e.target.value))}
+                    placeholder="70 766 0142"
                     className="w-full bg-transparent text-lg font-extrabold tracking-wide text-slate-900 placeholder:text-slate-300 outline-none"
                   />
                 </div>
@@ -659,13 +728,17 @@ function CustomerPinLoginContent() {
       </div>
 
       {/* BOTTOM-ANCHORED THUMB ACTION FOOTER */}
-      <footer className="px-5 pt-6 pb-7 bg-white space-y-3">
+      <footer className="mt-auto px-5 pt-6 pb-8 bg-white border-t border-slate-100/80 space-y-3">
         {step === 'phone' && (
           <button
             type="submit"
             form="phone-step-form"
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#00875A] py-4 text-sm font-extrabold tracking-wide text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] active:scale-[0.99] transition disabled:opacity-50 cursor-pointer"
+            disabled={loading || !isPhoneValid}
+            className={`w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-extrabold tracking-wide transition active:scale-[0.99] ${
+              loading || !isPhoneValid
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                : 'bg-[#00875A] text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] cursor-pointer'
+            }`}
           >
             <span>{loading ? t.checkingBtn : t.continueBtn}</span>
             {!loading && <ChevronRight className="size-4" />}
@@ -677,7 +750,11 @@ function CustomerPinLoginContent() {
             type="submit"
             form="login-step-form"
             disabled={loading || pin.length !== 4}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#00875A] py-4 text-sm font-extrabold tracking-wide text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] active:scale-[0.99] transition disabled:opacity-40 cursor-pointer"
+            className={`w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-extrabold tracking-wide transition active:scale-[0.99] ${
+              loading || pin.length !== 4
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                : 'bg-[#00875A] text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] cursor-pointer'
+            }`}
           >
             <span>{loading ? t.unlockingBtn : t.openWalletBtn}</span>
             {!loading && <ChevronRight className="size-4" />}
@@ -689,7 +766,11 @@ function CustomerPinLoginContent() {
             type="submit"
             form="setup-step-form"
             disabled={loading || pin.length !== 4}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#00875A] py-4 text-sm font-extrabold tracking-wide text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] active:scale-[0.99] transition disabled:opacity-40 cursor-pointer"
+            className={`w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-extrabold tracking-wide transition active:scale-[0.99] ${
+              loading || pin.length !== 4
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                : 'bg-[#00875A] text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] cursor-pointer'
+            }`}
           >
             <span>{loading ? t.creatingBtn : t.savePinBtn}</span>
             {!loading && <ChevronRight className="size-4" />}
