@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { createClient } from '@supabase/supabase-js'
 import {
   Smartphone,
@@ -461,17 +460,13 @@ function CustomerPinLoginContent() {
       <div>
         <header className="flex items-center justify-between gap-2 px-5 pt-4 pb-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-[#00875A] flex items-center justify-center p-1.5 shrink-0 shadow-xs">
-              <Image
-                src="/logo.png"
-                alt="RETCASH"
-                width={22}
-                height={22}
-                className="object-contain brightness-0 invert"
-              />
-            </div>
+            <img
+              src="/logo.png"
+              alt="RETCASH"
+              className="w-8 h-8 object-contain shrink-0"
+            />
             <div className="min-w-0">
-              <span className="text-base font-black tracking-wide text-[#00875A] uppercase block leading-none">
+              <span className="text-base font-black tracking-wide text-slate-900 uppercase block leading-none">
                 RETCASH
               </span>
               <span className="text-[11px] font-medium text-slate-500 truncate block mt-0.5">
