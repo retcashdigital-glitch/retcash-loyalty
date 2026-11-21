@@ -34,70 +34,75 @@ function drawRoundRect(
   ctx.roundRect(x, y, w, h, r)
 }
 
-// Draw razor-sharp Vector RETCASH Emblem (never pixelates at any print size)
-function drawVectorRetcashBadge(
+// Load crisp Vector /logo.svg for zero-pixelation rendering at any print size
+function loadVectorBrandLogo(): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') {
+      resolve(null)
+      return
+    }
+    const img = new window.Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => resolve(img)
+    img.onerror = () => resolve(null)
+    img.src = '/logo.svg'
+  })
+}
+
+// Draw center badge using real /logo.svg (with crisp vector fallback)
+function drawCenterBrandEmblem(
   ctx: CanvasRenderingContext2D,
   centerX: number,
   centerY: number,
-  badgeSize: number
+  badgeSize: number,
+  logoImg: HTMLImageElement | null
 ) {
   const half = badgeSize / 2
   const x = centerX - half
   const y = centerY - half
 
-  // Outer crisp white clearance shield
   ctx.save()
+  // Crisp white rounded clearance shield
   ctx.fillStyle = '#FFFFFF'
-  drawRoundRect(ctx, x - 6, y - 6, badgeSize + 12, badgeSize + 12, badgeSize * 0.3)
+  drawRoundRect(ctx, x - 6, y - 6, badgeSize + 12, badgeSize + 12, badgeSize * 0.28)
   ctx.fill()
 
-  // Emerald gradient squircle badge
-  const grad = ctx.createLinearGradient(x, y, x + badgeSize, y + badgeSize)
-  grad.addColorStop(0, '#00875A')
-  grad.addColorStop(1, '#065F46')
-  ctx.fillStyle = grad
-  drawRoundRect(ctx, x, y, badgeSize, badgeSize, badgeSize * 0.26)
-  ctx.fill()
-
-  // Subtle inner highlight border
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)'
-  ctx.lineWidth = Math.max(1.5, badgeSize * 0.025)
-  drawRoundRect(
-    ctx,
-    x + badgeSize * 0.05,
-    y + badgeSize * 0.05,
-    badgeSize * 0.9,
-    badgeSize * 0.9,
-    badgeSize * 0.22
-  )
+  // Subtle light border so the emblem blends smoothly with QR dots
+  ctx.strokeStyle = '#E2E8F0'
+  ctx.lineWidth = Math.max(1.5, badgeSize * 0.02)
+  drawRoundRect(ctx, x - 2, y - 2, badgeSize + 4, badgeSize + 4, badgeSize * 0.25)
   ctx.stroke()
 
-  // Crisp Vector Stylized "R" Monogram
-  ctx.fillStyle = '#FFFFFF'
-  ctx.font = `900 ${Math.round(badgeSize * 0.6)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText('R', centerX, centerY + badgeSize * 0.03)
+  if (logoImg) {
+    const pad = Math.round(badgeSize * 0.14)
+    ctx.drawImage(
+      logoImg,
+      x + pad,
+      y + pad,
+      badgeSize - pad * 2,
+      badgeSize - pad * 2
+    )
+  } else {
+    // Fallback crisp vector R badge
+    ctx.fillStyle = '#00875A'
+    drawRoundRect(ctx, x, y, badgeSize, badgeSize, badgeSize * 0.24)
+    ctx.fill()
 
-  // Small signature orange spark dot on top-right of R
-  ctx.fillStyle = '#F97316'
-  ctx.beginPath()
-  ctx.arc(
-    centerX + badgeSize * 0.25,
-    centerY - badgeSize * 0.22,
-    badgeSize * 0.075,
-    0,
-    Math.PI * 2
-  )
-  ctx.fill()
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = `900 ${Math.round(badgeSize * 0.6)}px system-ui, -apple-system, sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('R', centerX, centerY + badgeSize * 0.03)
+  }
   ctx.restore()
 }
 
-// Render Instagram/WhatsApp style modern rounded QR onto any canvas
+// Render Instagram/WhatsApp style modern rounded QR with /logo.svg
 function renderStyledModernQr(
   canvas: HTMLCanvasElement,
   url: string,
-  pixelSize: number
+  pixelSize: number,
+  logoImg: HTMLImageElement | null
 ) {
   const qrData = QRCode.create(url, { errorCorrectionLevel: 'H' })
   const count = qrData.modules.size
@@ -108,7 +113,6 @@ function renderStyledModernQr(
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  // Pure white background
   ctx.fillStyle = '#FFFFFF'
   ctx.fillRect(0, 0, pixelSize, pixelSize)
 
@@ -116,7 +120,6 @@ function renderStyledModernQr(
   const totalModules = count + marginModules * 2
   const cell = pixelSize / totalModules
 
-  // Check if module is part of the three 7x7 corner finder patterns
   const isFinderZone = (r: number, c: number) => {
     if (r < 7 && c < 7) return true
     if (r < 7 && c >= count - 7) return true
@@ -124,7 +127,6 @@ function renderStyledModernQr(
     return false
   }
 
-  // Center clearance zone for the Vector Emblem (keeps 100% scan accuracy)
   const centerIdx = count / 2
   const clearRadius = count * 0.165
   const isCenterLogoZone = (r: number, c: number) => {
@@ -134,7 +136,7 @@ function renderStyledModernQr(
     )
   }
 
-  // Draw smooth rounded data dots
+  // Smooth rounded data dots
   ctx.fillStyle = '#065F46'
   const dotRadius = cell * 0.42
   for (let r = 0; r < count; r++) {
@@ -150,18 +152,16 @@ function renderStyledModernQr(
     }
   }
 
-  // Helper to draw modern rounded corner finder eye
+  // Modern rounded corner finder eyes
   const drawFinderEye = (startRow: number, startCol: number) => {
     const x = (startCol + marginModules) * cell
     const y = (startRow + marginModules) * cell
     const outerSize = 7 * cell
 
-    // Outer emerald ring
     ctx.fillStyle = '#065F46'
     drawRoundRect(ctx, x, y, outerSize, outerSize, cell * 1.8)
     ctx.fill()
 
-    // Inner white cutout
     ctx.fillStyle = '#FFFFFF'
     drawRoundRect(
       ctx,
@@ -173,7 +173,6 @@ function renderStyledModernQr(
     )
     ctx.fill()
 
-    // Core dark emerald pupil
     ctx.fillStyle = '#00875A'
     drawRoundRect(
       ctx,
@@ -190,9 +189,9 @@ function renderStyledModernQr(
   drawFinderEye(0, count - 7)
   drawFinderEye(count - 7, 0)
 
-  // Draw razor-sharp center RETCASH badge
-  const badgeSize = Math.round(pixelSize * 0.22)
-  drawVectorRetcashBadge(ctx, pixelSize / 2, pixelSize / 2, badgeSize)
+  // Center RETCASH Vector Logo
+  const badgeSize = Math.round(pixelSize * 0.23)
+  drawCenterBrandEmblem(ctx, pixelSize / 2, pixelSize / 2, badgeSize, logoImg)
 }
 
 export default function StoreQrSection({
@@ -218,11 +217,21 @@ export default function StoreQrSection({
     return `${base}/customer/login?store=${encodeURIComponent(storeId)}`
   }, [origin, storeId])
 
-  // Render crisp 2x Retina preview QR
+  // Render crisp 2x Retina preview QR with /logo.svg
   useEffect(() => {
     const canvas = previewCanvasRef.current
     if (!canvas || !storeQrUrl) return
-    renderStyledModernQr(canvas, storeQrUrl, 440)
+
+    let isCancelled = false
+    loadVectorBrandLogo().then((logoImg) => {
+      if (!isCancelled) {
+        renderStyledModernQr(canvas, storeQrUrl, 440, logoImg)
+      }
+    })
+
+    return () => {
+      isCancelled = true
+    }
   }, [storeQrUrl])
 
   const handleCopyUrl = async () => {
@@ -245,6 +254,8 @@ export default function StoreQrSection({
     const ctx = exportCanvas.getContext('2d')
     if (!ctx) return null
 
+    const logoImg = await loadVectorBrandLogo()
+
     // 1. Clean Crisp White Standee Background
     ctx.fillStyle = '#FFFFFF'
     ctx.fillRect(0, 0, W, H)
@@ -253,7 +264,7 @@ export default function StoreQrSection({
     ctx.lineWidth = 4
     ctx.strokeRect(2, 2, W - 4, H - 4)
 
-    // 2. Top Mint Pill Badge: OFFICIAL REWARD PARTNER
+    // 2. Top Mint Pill Badge
     const pillW = 500
     const pillH = 62
     const pillX = (W - pillW) / 2
@@ -310,10 +321,10 @@ export default function StoreQrSection({
     drawRoundRect(ctx, cardX, cardY, cardSize, cardSize, 54)
     ctx.stroke()
 
-    // Render Ultra-Sharp 560x560 Modern Rounded QR onto offscreen canvas
+    // Render Ultra-Sharp 550x550 Modern Rounded QR with /logo.svg
     const qrSize = 550
     const offscreenQr = document.createElement('canvas')
-    renderStyledModernQr(offscreenQr, storeQrUrl, qrSize)
+    renderStyledModernQr(offscreenQr, storeQrUrl, qrSize, logoImg)
 
     const qrX = cardX + (cardSize - qrSize) / 2
     const qrY = cardY + (cardSize - qrSize) / 2
@@ -349,7 +360,7 @@ export default function StoreQrSection({
     const colCenters = [265, 600, 935]
     const iconTopY = 1215
 
-    // Step 1 Icon: Mini QR Scanner Frame
+    // Step 1 Icon
     ctx.strokeStyle = '#065F46'
     ctx.lineWidth = 5
     const s1X = colCenters[0] - 36
@@ -362,7 +373,7 @@ export default function StoreQrSection({
     ctx.fillRect(s1X + 40, iconTopY + 40, 8, 8)
     ctx.fillRect(s1X + 50, iconTopY + 50, 8, 8)
 
-    // Step 2 Icon: Smartphone Outline
+    // Step 2 Icon
     const s2X = colCenters[1] - 26
     drawRoundRect(ctx, s2X, iconTopY - 2, 52, 76, 10)
     ctx.stroke()
@@ -374,7 +385,7 @@ export default function StoreQrSection({
     ctx.arc(colCenters[1], iconTopY + 62, 3.5, 0, Math.PI * 2)
     ctx.fill()
 
-    // Step 3 Icon: Coin + Hand
+    // Step 3 Icon
     ctx.beginPath()
     ctx.arc(colCenters[2] + 5, iconTopY + 20, 21, 0, Math.PI * 2)
     ctx.stroke()
@@ -410,14 +421,17 @@ export default function StoreQrSection({
     ctx.lineTo(W - 72, 1435)
     ctx.stroke()
 
-    // Vector mini emblem in footer
-    drawVectorRetcashBadge(ctx, 106, 1525, 58)
+    if (logoImg) {
+      ctx.drawImage(logoImg, 76, 1496, 56, 56)
+    } else {
+      drawCenterBrandEmblem(ctx, 106, 1525, 52, null)
+    }
 
     ctx.fillStyle = '#0F172A'
     ctx.font = '900 42px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    ctx.fillText('RETCASH', 152, 1527)
+    ctx.fillText('RETCASH', 148, 1527)
 
     ctx.fillStyle = '#334155'
     ctx.font = '600 31px system-ui, -apple-system, sans-serif'
@@ -519,7 +533,7 @@ export default function StoreQrSection({
           <Gift className="size-4 text-amber-500 shrink-0 -mt-2" />
         </div>
 
-        {/* Crisp Modern Rounded QR with Vector RETCASH Emblem */}
+        {/* Crisp Modern Rounded QR with Vector /logo.svg */}
         <div className="mx-auto inline-flex items-center justify-center rounded-2xl border border-slate-100 bg-white p-2.5 shadow-md shadow-slate-200/60">
           <canvas ref={previewCanvasRef} className="size-[196px] block" />
         </div>
@@ -563,9 +577,7 @@ export default function StoreQrSection({
         {/* Bottom Co-Branding Strip */}
         <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
           <div className="flex items-center gap-1.5">
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-[#00875A] text-[10px] font-black text-white">
-              R
-            </span>
+            <img src="/logo.svg" alt="RETCASH" className="h-4 w-4 object-contain" />
             <span className="font-black tracking-wide text-slate-900">RETCASH</span>
           </div>
           <span className="font-semibold text-slate-500">No App Needed • 10 Secs</span>
