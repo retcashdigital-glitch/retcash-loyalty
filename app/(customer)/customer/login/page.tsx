@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@supabase/supabase-js'
 import {
-  Phone,
+  Smartphone,
   CheckCircle2,
   AlertCircle,
   Eye,
@@ -16,7 +16,6 @@ import {
   Store,
   ShieldCheck,
   ChevronRight,
-  Sparkles,
 } from 'lucide-react'
 import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
 import CustomerLangSwitcher from '@/components/CustomerLangSwitcher'
@@ -458,18 +457,24 @@ function CustomerPinLoginContent() {
 
   return (
     <div className="min-h-screen min-h-dvh w-full bg-white sm:max-w-md sm:mx-auto sm:border-x sm:border-slate-200/80 flex flex-col justify-between">
-      {/* TOP NATIVE APP BAR & HERO */}
+      {/* TOP APP BAR, BANNER & INLINE FORM */}
       <div>
-        <header className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 border-b border-slate-100">
+        <header className="flex items-center justify-between gap-2 px-5 pt-4 pb-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center p-1.5 shrink-0 shadow-2xs">
-              <Image src="/logo.png" alt="RETCASH" width={24} height={24} className="object-contain" />
+            <div className="w-9 h-9 rounded-xl bg-[#00875A] flex items-center justify-center p-1.5 shrink-0 shadow-xs">
+              <Image
+                src="/logo.png"
+                alt="RETCASH"
+                width={22}
+                height={22}
+                className="object-contain brightness-0 invert"
+              />
             </div>
             <div className="min-w-0">
-              <span className="text-sm font-black tracking-wider text-[#00875A] uppercase block leading-none">
+              <span className="text-base font-black tracking-wide text-[#00875A] uppercase block leading-none">
                 RETCASH
               </span>
-              <span className="text-[11px] font-semibold text-slate-400 truncate block mt-0.5">
+              <span className="text-[11px] font-medium text-slate-500 truncate block mt-0.5">
                 {t.loyaltyWallet}
               </span>
             </div>
@@ -478,9 +483,9 @@ function CustomerPinLoginContent() {
           <CustomerLangSwitcher />
         </header>
 
-        {/* SCANNED PARTNER STORE CO-BRANDING CARD OR RICH DIGITAL LOYALTY PASS ILLUSTRATION */}
+        {/* SCANNED PARTNER STORE CO-BRANDING CARD OR DIGITAL LOYALTY PASS BANNER */}
         {storeInfo ? (
-          <div className="mx-5 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-[#ECFDF5] via-[#D1FAE5]/60 to-white px-4 py-3.5 shadow-2xs">
+          <div className="mx-5 mt-3 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-[#ECFDF5] via-[#D1FAE5]/60 to-white px-4 py-3.5 shadow-2xs">
             <div className="flex items-center gap-3 min-w-0">
               {storeInfo.logoUrl && !logoLoadError ? (
                 <img
@@ -513,105 +518,79 @@ function CustomerPinLoginContent() {
         ) : (
           step === 'phone' && (
             <div
-              className="mx-5 mt-4 relative overflow-hidden rounded-2xl border border-emerald-300/70 px-4 py-4 shadow-sm"
+              className="mx-5 mt-3 relative overflow-hidden rounded-2xl px-5 py-4.5 shadow-xs"
               style={{
-                background: 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 52%, #A7F3D0 100%)',
+                background: 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 55%, #86EFAC 100%)',
               }}
             >
-              <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/35" />
-              <div className="pointer-events-none absolute -bottom-8 left-16 h-20 w-20 rounded-full bg-[#00875A]/10" />
-
               <div className="relative flex items-center justify-between gap-2">
                 <div className="space-y-1.5 max-w-[58%]">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-[#00875A] shadow-2xs">
-                    <Sparkles className="size-2.5" /> RETCASH PASS
+                  <span className="inline-block rounded-full bg-white/95 px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-slate-800 shadow-2xs">
+                    RETCASH PASS
                   </span>
-                  <h2 className="text-base font-black tracking-tight text-slate-900 leading-tight uppercase">
+                  <h2 className="text-lg font-black tracking-tight text-slate-900 leading-tight uppercase">
                     {t.digitalLoyaltyPass}
                   </h2>
-                  <p className="text-[11px] font-bold text-[#065F46]">
+                  <p className="text-xs font-semibold text-slate-700">
                     {t.cashbackWallet}
                   </p>
                 </div>
 
-                {/* Custom Fintech Voucher & Cashback Card SVG Illustration */}
+                {/* Emerald Cashback Card + Gold Voucher Ticket Illustration */}
                 <div className="shrink-0">
                   <svg
-                    width="116"
-                    height="76"
-                    viewBox="0 0 116 76"
+                    width="112"
+                    height="74"
+                    viewBox="0 0 112 74"
                     fill="none"
                     xmlns="http://www.w3.org/2000/svg"
                     aria-hidden="true"
                   >
-                    <g transform="rotate(-8 48 40)">
+                    {/* Back Emerald Cashback Card */}
+                    <g transform="rotate(-11 45 34)">
                       <rect
                         x="6"
-                        y="16"
-                        width="72"
-                        height="44"
+                        y="12"
+                        width="74"
+                        height="46"
                         rx="8"
-                        fill="#FFFBEB"
-                        stroke="#F59E0B"
-                        strokeWidth="1.5"
-                      />
-                      <line
-                        x1="24"
-                        y1="17"
-                        x2="24"
-                        y2="59"
-                        stroke="#FCD34D"
-                        strokeWidth="1.2"
-                        strokeDasharray="3 2"
+                        fill="#00875A"
                       />
                       <text
-                        x="32"
-                        y="35"
-                        fill="#B45309"
-                        fontSize="7.5"
+                        x="13"
+                        y="24"
+                        fill="#FFFFFF"
+                        fontSize="6.5"
                         fontWeight="800"
                         fontFamily="sans-serif"
+                        letterSpacing="0.4"
                       >
                         CASHBACK
                       </text>
-                      <text
-                        x="32"
-                        y="46"
-                        fill="#D97706"
-                        fontSize="7.5"
-                        fontWeight="800"
-                        fontFamily="sans-serif"
-                      >
-                        REWARD
-                      </text>
-                    </g>
-
-                    <g transform="rotate(6 78 38)">
-                      <rect
-                        x="46"
-                        y="12"
-                        width="62"
-                        height="48"
-                        rx="9"
-                        fill="#00875A"
+                      <rect x="13" y="30" width="11" height="8" rx="2" fill="#FBBF24" />
+                      <line
+                        x1="13"
+                        y1="44"
+                        x2="34"
+                        y2="44"
+                        stroke="#A7F3D0"
+                        strokeWidth="2"
+                        strokeLinecap="round"
                       />
-                      <rect
-                        x="46"
-                        y="12"
-                        width="62"
-                        height="48"
-                        rx="9"
-                        stroke="#FFFFFF"
-                        strokeOpacity="0.45"
-                        strokeWidth="1.2"
+                      <line
+                        x1="13"
+                        y1="49"
+                        x2="28"
+                        y2="49"
+                        stroke="#A7F3D0"
+                        strokeWidth="2"
+                        strokeLinecap="round"
                       />
-                      <circle cx="77" cy="36" r="13" fill="#FFFFFF" fillOpacity="0.18" />
                       <text
-                        x="77"
-                        y="41"
-                        textAnchor="middle"
+                        x="58"
+                        y="32"
                         fill="#FFFFFF"
-                        fontSize="15"
+                        fontSize="16"
                         fontWeight="900"
                         fontFamily="sans-serif"
                       >
@@ -619,14 +598,30 @@ function CustomerPinLoginContent() {
                       </text>
                     </g>
 
-                    <path
-                      d="M36 6L37.5 9.5L41 11L37.5 12.5L36 16L34.5 12.5L31 11L34.5 9.5L36 6Z"
-                      fill="#059669"
-                    />
-                    <path
-                      d="M98 63L99 65.5L101.5 66.5L99 67.5L98 70L97 67.5L94.5 66.5L97 65.5L98 63Z"
-                      fill="#F59E0B"
-                    />
+                    {/* Front Gold Voucher Ticket */}
+                    <g transform="translate(38, 36)">
+                      <path
+                        d="M4 0H62C64.2091 0 66 1.79086 66 4V9C63.7909 9 62 10.7909 62 13C62 15.2091 63.7909 17 66 17V22C66 24.2091 64.2091 26 62 26H4C1.79086 26 0 24.2091 0 22V4C0 1.79086 1.79086 0 4 0Z"
+                        fill="url(#goldTicket)"
+                      />
+                      <line
+                        x1="50"
+                        y1="3"
+                        x2="50"
+                        y2="23"
+                        stroke="#FFFFFF"
+                        strokeOpacity="0.7"
+                        strokeWidth="1.4"
+                        strokeDasharray="2.5 2.5"
+                      />
+                    </g>
+
+                    <defs>
+                      <linearGradient id="goldTicket" x1="0" y1="0" x2="66" y2="26" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#FDE68A" />
+                        <stop offset="1" stopColor="#F59E0B" />
+                      </linearGradient>
+                    </defs>
                   </svg>
                 </div>
               </div>
@@ -634,8 +629,8 @@ function CustomerPinLoginContent() {
           )
         )}
 
-        {/* MAIN LEFT-ALIGNED CONTENT AREA */}
-        <main className="px-5 pt-5">
+        {/* MAIN LEFT-ALIGNED CONTENT WITH INLINE ACTION BUTTON */}
+        <main className="px-5 pt-6 pb-4">
           {step !== 'phone' && (
             <button
               type="button"
@@ -651,7 +646,7 @@ function CustomerPinLoginContent() {
           )}
 
           <div className="space-y-1.5 mb-5">
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-snug">
+            <h1 className="text-[22px] sm:text-2xl font-black tracking-tight text-[#0F172A] leading-snug">
               {step === 'phone'
                 ? t.enterMobileTitle
                 : step === 'login'
@@ -660,7 +655,7 @@ function CustomerPinLoginContent() {
                   : t.enterPinTitle
                 : t.createPinTitle}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+            <p className="text-[13px] sm:text-sm text-slate-500 leading-relaxed">
               {step === 'phone'
                 ? t.enterMobileDesc
                 : step === 'login'
@@ -683,21 +678,21 @@ function CustomerPinLoginContent() {
             </div>
           )}
 
-          {/* STEP 1: MOBILE NUMBER WITH +94 PREFIX & NEUTRAL GREY PLACEHOLDER */}
+          {/* STEP 1: MOBILE NUMBER + INLINE CONTINUE BUTTON */}
           {step === 'phone' && (
-            <form id="phone-step-form" onSubmit={handleCheckPhone} className="space-y-4">
+            <form onSubmit={handleCheckPhone} className="space-y-4">
               <div>
-                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-2">
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 mb-2">
                   {t.mobileLabel}
                 </label>
-                <div className="flex items-center w-full rounded-2xl border-2 border-slate-200 bg-slate-50/70 px-3.5 py-3.5 focus-within:border-[#00875A] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#00875A]/10 transition">
+                <div className="flex items-center w-full rounded-2xl border-2 border-[#00875A]/45 bg-white px-3.5 py-3.5 shadow-2xs focus-within:border-[#00875A] focus-within:ring-4 focus-within:ring-[#00875A]/10 transition">
                   <div className="flex items-center gap-1.5 pr-3 mr-3 border-r border-slate-200 shrink-0 select-none">
                     <span className="text-base leading-none" role="img" aria-label="Sri Lanka">
                       🇱🇰
                     </span>
-                    <span className="text-sm font-extrabold text-slate-700">+94</span>
+                    <span className="text-sm font-extrabold text-slate-800">+94</span>
                   </div>
-                  <Phone className="size-4 text-slate-400 mr-2.5 shrink-0" />
+                  <Smartphone className="size-4 text-slate-400 mr-2.5 shrink-0" />
                   <input
                     type="tel"
                     inputMode="tel"
@@ -705,19 +700,32 @@ function CustomerPinLoginContent() {
                     value={phoneInput}
                     onChange={(e) => setPhoneInput(formatSriLankaDisplay(e.target.value))}
                     placeholder="71 234 5678"
-                    className="w-full bg-transparent text-lg font-extrabold tracking-wide text-slate-900 placeholder:text-slate-300 placeholder:font-semibold outline-none"
+                    className="w-full bg-transparent text-base sm:text-lg font-bold tracking-wide text-slate-900 placeholder:text-slate-400 placeholder:font-medium outline-none"
                   />
                 </div>
               </div>
+
+              <button
+                type="submit"
+                disabled={loading || !isPhoneValid}
+                className={`w-full flex items-center justify-center gap-1.5 rounded-2xl py-4 text-sm font-extrabold tracking-wide transition active:scale-[0.99] ${
+                  loading || !isPhoneValid
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    : 'bg-[#00875A] text-white shadow-md shadow-emerald-700/15 hover:bg-[#059669] cursor-pointer'
+                }`}
+              >
+                <span>{loading ? t.checkingBtn : t.continueBtn}</span>
+                {!loading && <ChevronRight className="size-4" />}
+              </button>
             </form>
           )}
 
-          {/* STEP 2A: ENTER 4-DIGIT PIN (4 INDIVIDUAL BOXES) */}
+          {/* STEP 2A: ENTER 4-DIGIT PIN + INLINE OPEN WALLET BUTTON */}
           {step === 'login' && (
-            <form id="login-step-form" onSubmit={handlePinLogin} className="space-y-5">
+            <form onSubmit={handlePinLogin} className="space-y-5">
               <div>
                 <div className="flex justify-between items-center mb-3">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
                     {t.securityPinLabel}
                   </label>
                   <button
@@ -750,7 +758,7 @@ function CustomerPinLoginContent() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => {
@@ -769,14 +777,27 @@ function CustomerPinLoginContent() {
                   {t.forgotPin}
                 </Link>
               </div>
+
+              <button
+                type="submit"
+                disabled={loading || pin.length !== 4}
+                className={`w-full flex items-center justify-center gap-1.5 rounded-2xl py-4 text-sm font-extrabold tracking-wide transition active:scale-[0.99] ${
+                  loading || pin.length !== 4
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    : 'bg-[#00875A] text-white shadow-md shadow-emerald-700/15 hover:bg-[#059669] cursor-pointer'
+                }`}
+              >
+                <span>{loading ? t.unlockingBtn : t.openWalletBtn}</span>
+                {!loading && <ChevronRight className="size-4" />}
+              </button>
             </form>
           )}
 
-          {/* STEP 2B: FIRST-TIME PIN SETUP */}
+          {/* STEP 2B: FIRST-TIME PIN SETUP + INLINE SAVE BUTTON */}
           {step === 'setup' && (
-            <form id="setup-step-form" onSubmit={handlePinSetup} className="space-y-5">
+            <form onSubmit={handlePinSetup} className="space-y-5">
               <div>
-                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-2">
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 mb-2">
                   {t.yourNameLabel}
                 </label>
                 <div className="relative">
@@ -793,7 +814,7 @@ function CustomerPinLoginContent() {
 
               <div>
                 <div className="flex justify-between items-center mb-3">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
                     {t.createPinLabel}
                   </label>
                   <button
@@ -825,63 +846,28 @@ function CustomerPinLoginContent() {
                   ))}
                 </div>
               </div>
+
+              <button
+                type="submit"
+                disabled={loading || pin.length !== 4}
+                className={`w-full flex items-center justify-center gap-1.5 rounded-2xl py-4 text-sm font-extrabold tracking-wide transition active:scale-[0.99] ${
+                  loading || pin.length !== 4
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    : 'bg-[#00875A] text-white shadow-md shadow-emerald-700/15 hover:bg-[#059669] cursor-pointer'
+                }`}
+              >
+                <span>{loading ? t.creatingBtn : t.savePinBtn}</span>
+                {!loading && <ChevronRight className="size-4" />}
+              </button>
             </form>
           )}
         </main>
       </div>
 
-      {/* BOTTOM-ANCHORED THUMB ACTION FOOTER */}
-      <footer className="mt-auto px-5 pt-5 pb-8 bg-white border-t border-slate-100 space-y-3">
-        {step === 'phone' && (
-          <button
-            type="submit"
-            form="phone-step-form"
-            disabled={loading || !isPhoneValid}
-            className={`w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-extrabold tracking-wide transition active:scale-[0.99] ${
-              loading || !isPhoneValid
-                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                : 'bg-[#00875A] text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] cursor-pointer'
-            }`}
-          >
-            <span>{loading ? t.checkingBtn : t.continueBtn}</span>
-            {!loading && <ChevronRight className="size-4" />}
-          </button>
-        )}
-
-        {step === 'login' && (
-          <button
-            type="submit"
-            form="login-step-form"
-            disabled={loading || pin.length !== 4}
-            className={`w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-extrabold tracking-wide transition active:scale-[0.99] ${
-              loading || pin.length !== 4
-                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                : 'bg-[#00875A] text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] cursor-pointer'
-            }`}
-          >
-            <span>{loading ? t.unlockingBtn : t.openWalletBtn}</span>
-            {!loading && <ChevronRight className="size-4" />}
-          </button>
-        )}
-
-        {step === 'setup' && (
-          <button
-            type="submit"
-            form="setup-step-form"
-            disabled={loading || pin.length !== 4}
-            className={`w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-extrabold tracking-wide transition active:scale-[0.99] ${
-              loading || pin.length !== 4
-                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                : 'bg-[#00875A] text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] cursor-pointer'
-            }`}
-          >
-            <span>{loading ? t.creatingBtn : t.savePinBtn}</span>
-            {!loading && <ChevronRight className="size-4" />}
-          </button>
-        )}
-
-        <p className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-400 text-center">
-          <ShieldCheck className="size-3.5 text-[#00875A] shrink-0" />
+      {/* BOTTOM PINNED TRUST FOOTER */}
+      <footer className="mt-auto px-5 py-4 bg-slate-50/60 border-t border-slate-100">
+        <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-slate-500 text-center">
+          <ShieldCheck className="size-4 text-[#00875A] shrink-0" />
           <span>{t.trustFooter}</span>
         </p>
       </footer>
