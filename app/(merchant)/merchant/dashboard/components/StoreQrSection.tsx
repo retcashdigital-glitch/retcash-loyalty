@@ -22,7 +22,6 @@ interface StoreQrSectionProps {
   targetVisits?: number
 }
 
-// Helper to draw rounded rectangle path safely on any browser canvas
 function drawRoundRect(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -35,19 +34,165 @@ function drawRoundRect(
   ctx.roundRect(x, y, w, h, r)
 }
 
-// Helper to load /logo.png safely with fallback so export never fails
-function loadBrandLogoImage(): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    if (typeof window === 'undefined') {
-      resolve(null)
-      return
+// Draw razor-sharp Vector RETCASH Emblem (never pixelates at any print size)
+function drawVectorRetcashBadge(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  badgeSize: number
+) {
+  const half = badgeSize / 2
+  const x = centerX - half
+  const y = centerY - half
+
+  // Outer crisp white clearance shield
+  ctx.save()
+  ctx.fillStyle = '#FFFFFF'
+  drawRoundRect(ctx, x - 6, y - 6, badgeSize + 12, badgeSize + 12, badgeSize * 0.3)
+  ctx.fill()
+
+  // Emerald gradient squircle badge
+  const grad = ctx.createLinearGradient(x, y, x + badgeSize, y + badgeSize)
+  grad.addColorStop(0, '#00875A')
+  grad.addColorStop(1, '#065F46')
+  ctx.fillStyle = grad
+  drawRoundRect(ctx, x, y, badgeSize, badgeSize, badgeSize * 0.26)
+  ctx.fill()
+
+  // Subtle inner highlight border
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)'
+  ctx.lineWidth = Math.max(1.5, badgeSize * 0.025)
+  drawRoundRect(
+    ctx,
+    x + badgeSize * 0.05,
+    y + badgeSize * 0.05,
+    badgeSize * 0.9,
+    badgeSize * 0.9,
+    badgeSize * 0.22
+  )
+  ctx.stroke()
+
+  // Crisp Vector Stylized "R" Monogram
+  ctx.fillStyle = '#FFFFFF'
+  ctx.font = `900 ${Math.round(badgeSize * 0.6)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('R', centerX, centerY + badgeSize * 0.03)
+
+  // Small signature orange spark dot on top-right of R
+  ctx.fillStyle = '#F97316'
+  ctx.beginPath()
+  ctx.arc(
+    centerX + badgeSize * 0.25,
+    centerY - badgeSize * 0.22,
+    badgeSize * 0.075,
+    0,
+    Math.PI * 2
+  )
+  ctx.fill()
+  ctx.restore()
+}
+
+// Render Instagram/WhatsApp style modern rounded QR onto any canvas
+function renderStyledModernQr(
+  canvas: HTMLCanvasElement,
+  url: string,
+  pixelSize: number
+) {
+  const qrData = QRCode.create(url, { errorCorrectionLevel: 'H' })
+  const count = qrData.modules.size
+  const data = qrData.modules.data
+
+  canvas.width = pixelSize
+  canvas.height = pixelSize
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  // Pure white background
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fillRect(0, 0, pixelSize, pixelSize)
+
+  const marginModules = 2
+  const totalModules = count + marginModules * 2
+  const cell = pixelSize / totalModules
+
+  // Check if module is part of the three 7x7 corner finder patterns
+  const isFinderZone = (r: number, c: number) => {
+    if (r < 7 && c < 7) return true
+    if (r < 7 && c >= count - 7) return true
+    if (r >= count - 7 && c < 7) return true
+    return false
+  }
+
+  // Center clearance zone for the Vector Emblem (keeps 100% scan accuracy)
+  const centerIdx = count / 2
+  const clearRadius = count * 0.165
+  const isCenterLogoZone = (r: number, c: number) => {
+    return (
+      Math.abs(r + 0.5 - centerIdx) < clearRadius &&
+      Math.abs(c + 0.5 - centerIdx) < clearRadius
+    )
+  }
+
+  // Draw smooth rounded data dots
+  ctx.fillStyle = '#065F46'
+  const dotRadius = cell * 0.42
+  for (let r = 0; r < count; r++) {
+    for (let c = 0; c < count; c++) {
+      if (isFinderZone(r, c) || isCenterLogoZone(r, c)) continue
+      if (data[r * count + c]) {
+        const cx = (c + marginModules + 0.5) * cell
+        const cy = (r + marginModules + 0.5) * cell
+        ctx.beginPath()
+        ctx.arc(cx, cy, dotRadius, 0, Math.PI * 2)
+        ctx.fill()
+      }
     }
-    const img = new window.Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => resolve(img)
-    img.onerror = () => resolve(null)
-    img.src = '/logo.png'
-  })
+  }
+
+  // Helper to draw modern rounded corner finder eye
+  const drawFinderEye = (startRow: number, startCol: number) => {
+    const x = (startCol + marginModules) * cell
+    const y = (startRow + marginModules) * cell
+    const outerSize = 7 * cell
+
+    // Outer emerald ring
+    ctx.fillStyle = '#065F46'
+    drawRoundRect(ctx, x, y, outerSize, outerSize, cell * 1.8)
+    ctx.fill()
+
+    // Inner white cutout
+    ctx.fillStyle = '#FFFFFF'
+    drawRoundRect(
+      ctx,
+      x + cell,
+      y + cell,
+      outerSize - cell * 2,
+      outerSize - cell * 2,
+      cell * 1.15
+    )
+    ctx.fill()
+
+    // Core dark emerald pupil
+    ctx.fillStyle = '#00875A'
+    drawRoundRect(
+      ctx,
+      x + cell * 2,
+      y + cell * 2,
+      outerSize - cell * 4,
+      outerSize - cell * 4,
+      cell * 0.85
+    )
+    ctx.fill()
+  }
+
+  drawFinderEye(0, 0)
+  drawFinderEye(0, count - 7)
+  drawFinderEye(count - 7, 0)
+
+  // Draw razor-sharp center RETCASH badge
+  const badgeSize = Math.round(pixelSize * 0.22)
+  drawVectorRetcashBadge(ctx, pixelSize / 2, pixelSize / 2, badgeSize)
 }
 
 export default function StoreQrSection({
@@ -73,61 +218,11 @@ export default function StoreQrSection({
     return `${base}/customer/login?store=${encodeURIComponent(storeId)}`
   }, [origin, storeId])
 
-  // Render 100% scannable High-ECC QR with centered RETCASH logo in live preview
+  // Render crisp 2x Retina preview QR
   useEffect(() => {
     const canvas = previewCanvasRef.current
     if (!canvas || !storeQrUrl) return
-
-    let isCancelled = false
-
-    const renderPreviewQr = async () => {
-      try {
-        await QRCode.toCanvas(canvas, storeQrUrl, {
-          width: 220,
-          margin: 2,
-          errorCorrectionLevel: 'H',
-          color: {
-            dark: '#065F46',
-            light: '#FFFFFF',
-          },
-        })
-
-        if (isCancelled) return
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-
-        const logoImg = await loadBrandLogoImage()
-        if (isCancelled) return
-
-        // Draw crisp white rounded center badge for RETCASH logo
-        const size = canvas.width
-        const badgeSize = Math.round(size * 0.24)
-        const bx = (size - badgeSize) / 2
-        const by = (size - badgeSize) / 2
-
-        ctx.fillStyle = '#FFFFFF'
-        drawRoundRect(ctx, bx, by, badgeSize, badgeSize, 10)
-        ctx.fill()
-
-        const pad = 6
-        if (logoImg) {
-          ctx.drawImage(logoImg, bx + pad, by + pad, badgeSize - pad * 2, badgeSize - pad * 2)
-        } else {
-          ctx.fillStyle = '#00875A'
-          ctx.font = '900 24px sans-serif'
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText('R', size / 2, size / 2 + 1)
-        }
-      } catch (err) {
-        console.error('QR render error:', err)
-      }
-    }
-
-    renderPreviewQr()
-    return () => {
-      isCancelled = true
-    }
+    renderStyledModernQr(canvas, storeQrUrl, 440)
   }, [storeQrUrl])
 
   const handleCopyUrl = async () => {
@@ -140,140 +235,102 @@ export default function StoreQrSection({
     }
   }
 
-  // Build high-res branded counter standee canvas (900 x 1220) matching the approved design
+  // Build ultra-sharp high-res print standee canvas (1200 x 1620)
   const buildBrandedStandeeCanvas = async (): Promise<HTMLCanvasElement | null> => {
     const exportCanvas = document.createElement('canvas')
-    const W = 900
-    const H = 1220
+    const W = 1200
+    const H = 1620
     exportCanvas.width = W
     exportCanvas.height = H
     const ctx = exportCanvas.getContext('2d')
     if (!ctx) return null
 
-    const logoImg = await loadBrandLogoImage()
-
     // 1. Clean Crisp White Standee Background
     ctx.fillStyle = '#FFFFFF'
     ctx.fillRect(0, 0, W, H)
 
-    // Subtle top & bottom border frame for clean print cutting
     ctx.strokeStyle = '#E2E8F0'
     ctx.lineWidth = 4
     ctx.strokeRect(2, 2, W - 4, H - 4)
 
     // 2. Top Mint Pill Badge: OFFICIAL REWARD PARTNER
-    const pillW = 390
-    const pillH = 48
+    const pillW = 500
+    const pillH = 62
     const pillX = (W - pillW) / 2
-    const pillY = 64
+    const pillY = 85
 
     ctx.fillStyle = '#E6F4EA'
-    drawRoundRect(ctx, pillX, pillY, pillW, pillH, 24)
+    drawRoundRect(ctx, pillX, pillY, pillW, pillH, 31)
     ctx.fill()
 
     ctx.fillStyle = '#00875A'
-    ctx.font = '800 20px sans-serif'
+    ctx.font = '800 26px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText('OFFICIAL REWARD PARTNER', W / 2, pillY + pillH / 2 + 1)
 
-    // 3. Store Name + Small Gift Accent
+    // 3. Store Name + Small Gold Gift Box
     const displayStore =
       storeName.length > 22 ? `${storeName.slice(0, 21)}…` : storeName
     ctx.fillStyle = '#0F172A'
-    ctx.font = '900 64px sans-serif'
+    ctx.font = '900 84px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
     const textMetrics = ctx.measureText(displayStore)
-    const storeTextY = 188
-    ctx.fillText(displayStore, W / 2 - 14, storeTextY)
+    const storeTextY = 248
+    ctx.fillText(displayStore, W / 2 - 18, storeTextY)
 
-    // Small Gold Gift Box Icon next to Store Name
-    const giftX = W / 2 + textMetrics.width / 2 + 2
-    const giftY = storeTextY - 58
+    const giftX = W / 2 + textMetrics.width / 2 + 4
+    const giftY = storeTextY - 76
     ctx.fillStyle = '#F59E0B'
-    drawRoundRect(ctx, giftX, giftY + 8, 28, 22, 4)
+    drawRoundRect(ctx, giftX, giftY + 10, 36, 28, 6)
     ctx.fill()
     ctx.fillStyle = '#FBBF24'
-    drawRoundRect(ctx, giftX - 2, giftY + 3, 32, 7, 3)
+    drawRoundRect(ctx, giftX - 3, giftY + 4, 42, 9, 4)
     ctx.fill()
     ctx.fillStyle = '#FFFFFF'
-    ctx.fillRect(giftX + 12, giftY + 3, 4, 27)
+    ctx.fillRect(giftX + 16, giftY + 4, 5, 34)
 
     // 4. Elevated Rounded White QR Card Container
-    const cardSize = 460
+    const cardSize = 620
     const cardX = (W - cardSize) / 2
-    const cardY = 235
+    const cardY = 310
 
     ctx.save()
     ctx.shadowColor = 'rgba(15, 23, 42, 0.08)'
-    ctx.shadowBlur = 32
-    ctx.shadowOffsetY = 12
+    ctx.shadowBlur = 40
+    ctx.shadowOffsetY = 16
     ctx.fillStyle = '#FFFFFF'
-    drawRoundRect(ctx, cardX, cardY, cardSize, cardSize, 42)
+    drawRoundRect(ctx, cardX, cardY, cardSize, cardSize, 54)
     ctx.fill()
     ctx.restore()
 
     ctx.strokeStyle = '#E2E8F0'
-    ctx.lineWidth = 2.5
-    drawRoundRect(ctx, cardX, cardY, cardSize, cardSize, 42)
+    ctx.lineWidth = 3
+    drawRoundRect(ctx, cardX, cardY, cardSize, cardSize, 54)
     ctx.stroke()
 
-    // Render High-ECC Emerald QR onto offscreen canvas
-    const qrSize = 390
+    // Render Ultra-Sharp 560x560 Modern Rounded QR onto offscreen canvas
+    const qrSize = 550
+    const offscreenQr = document.createElement('canvas')
+    renderStyledModernQr(offscreenQr, storeQrUrl, qrSize)
+
     const qrX = cardX + (cardSize - qrSize) / 2
     const qrY = cardY + (cardSize - qrSize) / 2
-
-    const offscreenQr = document.createElement('canvas')
-    await QRCode.toCanvas(offscreenQr, storeQrUrl, {
-      width: qrSize,
-      margin: 1,
-      errorCorrectionLevel: 'H',
-      color: {
-        dark: '#065F46',
-        light: '#FFFFFF',
-      },
-    })
     ctx.drawImage(offscreenQr, qrX, qrY, qrSize, qrSize)
 
-    // Center White Badge + RETCASH Logo inside QR
-    const centerBox = 94
-    const cbx = (W - centerBox) / 2
-    const cby = cardY + (cardSize - centerBox) / 2
-
-    ctx.fillStyle = '#FFFFFF'
-    drawRoundRect(ctx, cbx, cby, centerBox, centerBox, 18)
-    ctx.fill()
-
-    if (logoImg) {
-      const logoPad = 14
-      ctx.drawImage(
-        logoImg,
-        cbx + logoPad,
-        cby + logoPad,
-        centerBox - logoPad * 2,
-        centerBox - logoPad * 2
-      )
-    } else {
-      ctx.fillStyle = '#00875A'
-      ctx.font = '900 48px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText('R', W / 2, cby + centerBox / 2 + 2)
-    }
-
     // 5. Emerald Cashback Banner Pill below QR
-    const offerW = 680
-    const offerH = 68
+    const offerW = 900
+    const offerH = 88
     const offerX = (W - offerW) / 2
-    const offerY = 740
+    const offerY = 985
 
     ctx.fillStyle = '#00875A'
-    drawRoundRect(ctx, offerX, offerY, offerW, offerH, 34)
+    drawRoundRect(ctx, offerX, offerY, offerW, offerH, 44)
     ctx.fill()
 
     ctx.fillStyle = '#FFFFFF'
-    ctx.font = '800 28px sans-serif'
+    ctx.font = '800 36px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     const offerHeadline =
@@ -284,94 +341,88 @@ export default function StoreQrSection({
 
     // 6. "How It Works" Section
     ctx.fillStyle = '#0F172A'
-    ctx.font = '700 32px sans-serif'
+    ctx.font = '700 42px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    ctx.fillText('How It Works', W / 2, 875)
+    ctx.fillText('How It Works', W / 2, 1165)
 
-    const colCenters = [200, 450, 700]
-    const iconTopY = 915
+    const colCenters = [265, 600, 935]
+    const iconTopY = 1215
 
     // Step 1 Icon: Mini QR Scanner Frame
     ctx.strokeStyle = '#065F46'
-    ctx.lineWidth = 4
-    const s1X = colCenters[0] - 28
-    drawRoundRect(ctx, s1X, iconTopY, 56, 56, 10)
+    ctx.lineWidth = 5
+    const s1X = colCenters[0] - 36
+    drawRoundRect(ctx, s1X, iconTopY, 72, 72, 14)
     ctx.stroke()
     ctx.fillStyle = '#065F46'
-    ctx.fillRect(s1X + 10, iconTopY + 10, 14, 14)
-    ctx.fillRect(s1X + 32, iconTopY + 10, 14, 14)
-    ctx.fillRect(s1X + 10, iconTopY + 32, 14, 14)
-    ctx.fillRect(s1X + 32, iconTopY + 32, 6, 6)
-    ctx.fillRect(s1X + 40, iconTopY + 40, 6, 6)
+    ctx.fillRect(s1X + 14, iconTopY + 14, 18, 18)
+    ctx.fillRect(s1X + 40, iconTopY + 14, 18, 18)
+    ctx.fillRect(s1X + 14, iconTopY + 40, 18, 18)
+    ctx.fillRect(s1X + 40, iconTopY + 40, 8, 8)
+    ctx.fillRect(s1X + 50, iconTopY + 50, 8, 8)
 
     // Step 2 Icon: Smartphone Outline
-    const s2X = colCenters[1] - 20
-    drawRoundRect(ctx, s2X, iconTopY - 2, 40, 60, 8)
+    const s2X = colCenters[1] - 26
+    drawRoundRect(ctx, s2X, iconTopY - 2, 52, 76, 10)
     ctx.stroke()
     ctx.beginPath()
-    ctx.moveTo(s2X + 14, iconTopY + 6)
-    ctx.lineTo(s2X + 26, iconTopY + 6)
+    ctx.moveTo(s2X + 18, iconTopY + 9)
+    ctx.lineTo(s2X + 34, iconTopY + 9)
     ctx.stroke()
     ctx.beginPath()
-    ctx.arc(colCenters[1], iconTopY + 49, 2.5, 0, Math.PI * 2)
+    ctx.arc(colCenters[1], iconTopY + 62, 3.5, 0, Math.PI * 2)
     ctx.fill()
 
     // Step 3 Icon: Coin + Hand
     ctx.beginPath()
-    ctx.arc(colCenters[2] + 4, iconTopY + 16, 16, 0, Math.PI * 2)
+    ctx.arc(colCenters[2] + 5, iconTopY + 20, 21, 0, Math.PI * 2)
     ctx.stroke()
-    ctx.font = '800 18px sans-serif'
+    ctx.font = '800 24px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText('$', colCenters[2] + 4, iconTopY + 17)
+    ctx.fillText('$', colCenters[2] + 5, iconTopY + 21)
 
-    // Hand gesture beneath coin
     ctx.beginPath()
-    ctx.moveTo(colCenters[2] - 26, iconTopY + 42)
-    ctx.lineTo(colCenters[2] - 8, iconTopY + 42)
-    ctx.lineTo(colCenters[2] + 22, iconTopY + 42)
-    ctx.quadraticCurveTo(colCenters[2] + 30, iconTopY + 42, colCenters[2] + 24, iconTopY + 50)
-    ctx.lineTo(colCenters[2] - 4, iconTopY + 55)
-    ctx.lineTo(colCenters[2] - 26, iconTopY + 52)
+    ctx.moveTo(colCenters[2] - 34, iconTopY + 54)
+    ctx.lineTo(colCenters[2] - 10, iconTopY + 54)
+    ctx.lineTo(colCenters[2] + 28, iconTopY + 54)
+    ctx.quadraticCurveTo(colCenters[2] + 38, iconTopY + 54, colCenters[2] + 30, iconTopY + 65)
+    ctx.lineTo(colCenters[2] - 5, iconTopY + 72)
+    ctx.lineTo(colCenters[2] - 34, iconTopY + 68)
     ctx.closePath()
     ctx.stroke()
 
     // Step Labels
     ctx.fillStyle = '#0F172A'
-    ctx.font = '600 24px sans-serif'
+    ctx.font = '600 31px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    ctx.fillText('1. Scan QR', colCenters[0], 1020)
-    ctx.fillText('2. Enter Mobile', colCenters[1], 1020)
-    ctx.fillText('3. Get Cashback', colCenters[2], 1020)
+    ctx.fillText('1. Scan QR', colCenters[0], 1350)
+    ctx.fillText('2. Enter Mobile', colCenters[1], 1350)
+    ctx.fillText('3. Get Cashback', colCenters[2], 1350)
 
-    // 7. Bottom Footer Divider & RETCASH Branding Strip
+    // 7. Bottom Footer Divider & Vector RETCASH Branding Strip
     ctx.strokeStyle = '#E2E8F0'
-    ctx.lineWidth = 2
+    ctx.lineWidth = 3
     ctx.beginPath()
-    ctx.moveTo(54, 1085)
-    ctx.lineTo(W - 54, 1085)
+    ctx.moveTo(72, 1435)
+    ctx.lineTo(W - 72, 1435)
     ctx.stroke()
 
-    if (logoImg) {
-      ctx.drawImage(logoImg, 56, 1122, 46, 46)
-    } else {
-      ctx.fillStyle = '#00875A'
-      ctx.font = '900 40px sans-serif'
-      ctx.textAlign = 'left'
-      ctx.fillText('R', 58, 1158)
-    }
+    // Vector mini emblem in footer
+    drawVectorRetcashBadge(ctx, 106, 1525, 58)
 
     ctx.fillStyle = '#0F172A'
-    ctx.font = '900 32px sans-serif'
+    ctx.font = '900 42px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'left'
-    ctx.fillText('RETCASH', 114, 1156)
+    ctx.textBaseline = 'middle'
+    ctx.fillText('RETCASH', 152, 1527)
 
     ctx.fillStyle = '#334155'
-    ctx.font = '600 24px sans-serif'
+    ctx.font = '600 31px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'right'
-    ctx.fillText('No App Needed • 10 Secs', W - 56, 1154)
+    ctx.fillText('No App Needed • 10 Secs', W - 74, 1527)
 
     return exportCanvas
   }
@@ -405,7 +456,6 @@ export default function StoreQrSection({
         (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 
-      // 1. On iOS, prefer native Share Sheet (allows "Save Image" directly to Photos)
       if (isIOS && typeof navigator !== 'undefined' && navigator.share) {
         const file = new File([blob], fileName, { type: 'image/png' })
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -421,13 +471,11 @@ export default function StoreQrSection({
         }
       }
 
-      // 2. If iOS without Web Share file support, open Save-to-Photos preview card
       if (isIOS) {
         setIosFallbackImageUrl(exportCanvas.toDataURL('image/png'))
         return
       }
 
-      // 3. Standard Blob download for Android & Desktop browsers
       const blobUrl = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = blobUrl
@@ -471,9 +519,9 @@ export default function StoreQrSection({
           <Gift className="size-4 text-amber-500 shrink-0 -mt-2" />
         </div>
 
-        {/* Crisp Emerald QR with Center RETCASH Logo */}
+        {/* Crisp Modern Rounded QR with Vector RETCASH Emblem */}
         <div className="mx-auto inline-flex items-center justify-center rounded-2xl border border-slate-100 bg-white p-2.5 shadow-md shadow-slate-200/60">
-          <canvas ref={previewCanvasRef} className="size-[190px] block" />
+          <canvas ref={previewCanvasRef} className="size-[196px] block" />
         </div>
 
         {/* Cashback Highlight Pill */}
@@ -515,7 +563,9 @@ export default function StoreQrSection({
         {/* Bottom Co-Branding Strip */}
         <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
           <div className="flex items-center gap-1.5">
-            <img src="/logo.png" alt="RETCASH" className="h-4 w-4 object-contain" />
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-[#00875A] text-[10px] font-black text-white">
+              R
+            </span>
             <span className="font-black tracking-wide text-slate-900">RETCASH</span>
           </div>
           <span className="font-semibold text-slate-500">No App Needed • 10 Secs</span>
