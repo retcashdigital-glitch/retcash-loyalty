@@ -1,17 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode'
 import { Zap, Upload, Users, CheckCircle2, X, Trash2 } from 'lucide-react'
 
-// Custom Hooks & Modals Import
 import { useSubscriptionWatcher } from './hooks/useSubscriptionWatcher'
 import SubscriptionWarningBanner from './components/SubscriptionWarningBanner'
 import SubscriptionLockModal from './components/modals/SubscriptionLockModal'
 import RedeemConfirmModal from './components/modals/RedeemConfirmModal'
 
-// Sub-components Import
 import DashboardHeader from './components/DashboardHeader'
 import NavigationTabs, { Tab } from './components/NavigationTabs'
 import QuickBillingSection from './components/QuickBillingSection'
@@ -26,6 +23,9 @@ interface MerchantSession {
   default_cashback_percent?: number
   target_visits?: number
   logo_url?: string
+  location_url?: string
+  review_url?: string
+  category?: string
   trial_ends_at?: string
   subscription_status?: string
   plan_type?: string
@@ -62,7 +62,6 @@ export default function MerchantDashboardPage() {
   const [billAmount, setBillAmount] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  // 🌟 SUBSCRIPTION WATCHER HOOK
   const { isTrialExpired, daysRemainingInTrial } = useSubscriptionWatcher(merchantSession)
 
   const [selectedPlan, setSelectedPlan] = useState<'MONTHLY' | 'YEARLY'>('YEARLY')
@@ -126,13 +125,21 @@ export default function MerchantDashboardPage() {
           const parsed: MerchantSession = JSON.parse(savedMerchant)
           if (!parsed?.id) throw new Error('Invalid session payload')
 
-          const { data: realStore, error: storeErr } = await supabase
-            .from('stores')
-            .select('id, store_name, phone_number, default_cashback_percent, target_visits, logo_url, trial_ends_at, subscription_status, plan_type')
-            .eq('id', parsed.id)
-            .maybeSingle()
+          const res = await fetch('/api/merchant/portal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'verify_session', storeId: parsed.id }),
+          })
 
-          if (storeErr || !realStore) {
+          if (!res.ok) {
+            localStorage.removeItem('retcash_merchant')
+            window.location.href = '/merchant/login'
+            return
+          }
+
+          const { store: realStore, pendingPayment, offers: initialOffers, customers: initialCustomers } = await res.json()
+
+          if (!realStore) {
             localStorage.removeItem('retcash_merchant')
             window.location.href = '/merchant/login'
           } else {
@@ -143,6 +150,9 @@ export default function MerchantDashboardPage() {
               default_cashback_percent: realStore.default_cashback_percent ?? 5,
               target_visits: realStore.target_visits ?? 6,
               logo_url: realStore.logo_url ?? '',
+              location_url: realStore.location_url ?? '',
+              review_url: realStore.review_url ?? '',
+              category: realStore.category ?? 'others',
               trial_ends_at: realStore.trial_ends_at,
               subscription_status: realStore.subscription_status ?? 'trialing',
               plan_type: realStore.plan_type ?? 'monthly',
@@ -150,14 +160,20 @@ export default function MerchantDashboardPage() {
 
             setMerchantSession(verifiedSession)
             localStorage.setItem('retcash_merchant', JSON.stringify(verifiedSession))
-            checkPendingPaymentStatus(realStore.id)
+
+            if (pendingPayment) {
+              setIsPendingVerification(true)
+              if (pendingPayment.receipt_url) setUploadedReceiptUrl(pendingPayment.receipt_url)
+            } else {
+              setIsPendingVerification(false)
+            }
 
             setTargetVisitsInput(String(Math.min(verifiedSession.target_visits || 6, 10)))
             setCashbackPercentInput(String(verifiedSession.default_cashback_percent ?? 5))
-            fetchStoreOffers(verifiedSession.id)
-            fetchStoreCustomers(verifiedSession.id)
+            setOffers(initialOffers || [])
+            setCustomersList(initialCustomers || [])
           }
-        } catch (e) {
+        } catch {
           localStorage.removeItem('retcash_merchant')
           window.location.href = '/merchant/login'
         }
@@ -171,63 +187,92 @@ export default function MerchantDashboardPage() {
     return () => { stopScannerInstance() }
   }, [])
 
-  // 🟢 REALTIME SESSION UPDATE
+  // Secure background sync (replaces direct client-side Supabase realtime channel)
   useEffect(() => {
     if (!merchantSession?.id) return
+    const currentStoreId = merchantSession.id
 
-    const pageRealtimeChannel = supabase
-      .channel(`page-store-realtime-${merchantSession.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'stores',
-          filter: `id=eq.${merchantSession.id}`,
-        },
-        (payload) => {
-          const updated = payload.new as Partial<MerchantSession>
-          setMerchantSession((prev) => (prev ? { ...prev, ...updated } : null))
+    const syncDashboardState = async () => {
+      if (document.visibilityState === 'hidden') return
+      try {
+        const res = await fetch('/api/merchant/portal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'verify_session', storeId: currentStoreId }),
+        })
+
+        if (res.status === 401) {
+          localStorage.removeItem('retcash_merchant')
+          window.location.href = '/merchant/login'
+          return
         }
-      )
-      .subscribe()
 
-    return () => {
-      supabase.removeChannel(pageRealtimeChannel)
-    }
-  }, [merchantSession?.id])
+        if (!res.ok) return
+        const { store: realStore, pendingPayment, offers: latestOffers, customers: latestCustomers } = await res.json()
 
-  const checkPendingPaymentStatus = async (storeId: string) => {
-    try {
-      const { data } = await supabase
-        .from('payment_requests')
-        .select('*')
-        .eq('store_id', storeId)
-        .eq('status', 'PENDING')
-        .maybeSingle()
+        if (realStore) {
+          const syncedSession: MerchantSession = {
+            id: realStore.id,
+            store_name: realStore.store_name,
+            phone_number: realStore.phone_number,
+            default_cashback_percent: realStore.default_cashback_percent ?? 5,
+            target_visits: realStore.target_visits ?? 6,
+            logo_url: realStore.logo_url ?? '',
+            location_url: realStore.location_url ?? '',
+            review_url: realStore.review_url ?? '',
+            category: realStore.category ?? 'others',
+            trial_ends_at: realStore.trial_ends_at,
+            subscription_status: realStore.subscription_status ?? 'trialing',
+            plan_type: realStore.plan_type ?? 'monthly',
+          }
+          setMerchantSession(syncedSession)
+          localStorage.setItem('retcash_merchant', JSON.stringify(syncedSession))
 
-      if (data) {
-        setIsPendingVerification(true)
-        if (data.receipt_url) setUploadedReceiptUrl(data.receipt_url)
-      } else {
-        setIsPendingVerification(false)
+          if (!isProfileOpen) {
+            setTargetVisitsInput(String(Math.min(syncedSession.target_visits || 6, 10)))
+            setCashbackPercentInput(String(syncedSession.default_cashback_percent ?? 5))
+          }
+        }
+
+        if (pendingPayment) {
+          setIsPendingVerification(true)
+          if (pendingPayment.receipt_url) setUploadedReceiptUrl(pendingPayment.receipt_url)
+        } else {
+          setIsPendingVerification(false)
+        }
+
+        if (Array.isArray(latestOffers)) setOffers(latestOffers)
+        if (Array.isArray(latestCustomers)) setCustomersList(latestCustomers)
+      } catch {
+        // Ignore transient background network errors
       }
-    } catch (err) {
-      console.error('Error checking payment status:', err)
     }
-  }
+
+    const intervalId = setInterval(syncDashboardState, 15000)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncDashboardState()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [merchantSession?.id, isProfileOpen])
 
   const handleCancelPaymentRequest = async () => {
     if (!merchantSession?.id) return
     setIsCancellingPayment(true)
     try {
-      const { error } = await supabase
-        .from('payment_requests')
-        .update({ status: 'CANCELLED' })
-        .eq('store_id', merchantSession.id)
-        .eq('status', 'PENDING')
-
-      if (error) throw error
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel_payment', storeId: merchantSession.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to cancel request')
 
       setIsPendingVerification(false)
       setUploadedReceiptUrl(null)
@@ -253,33 +298,24 @@ export default function MerchantDashboardPage() {
       const amount = selectedPlan === 'YEARLY' ? 7900 : 990
       const planTitle = selectedPlan === 'YEARLY' ? 'Annual Pass (Rs. 7,900/yr)' : 'Monthly Pass (Rs. 990/mo)'
       const planType = selectedPlan.toLowerCase()
-      const fileExt = receiptFile.name.split('.').pop() || 'png'
-      const filePath = `receipts/${merchantSession.id}_${Date.now()}.${fileExt}`
 
-      const { error: uploadErr } = await supabase.storage
-        .from('payment-receipts')
-        .upload(filePath, receiptFile)
+      const formData = new FormData()
+      formData.append('action', 'submit_payment')
+      formData.append('storeId', merchantSession.id)
+      formData.append('planType', planType)
+      formData.append('amount', String(amount))
+      formData.append('transactionRef', transactionRef || '')
+      formData.append('file', receiptFile)
 
-      if (uploadErr) throw new Error('Failed to upload receipt file: ' + uploadErr.message)
-
-      const { data: urlData } = supabase.storage
-        .from('payment-receipts')
-        .getPublicUrl(filePath)
-
-      const receiptPublicUrl = urlData.publicUrl
-      setUploadedReceiptUrl(receiptPublicUrl)
-
-      const { error: dbErr } = await supabase.from('payment_requests').insert({
-        store_id: merchantSession.id,
-        plan_type: planType,
-        amount: amount,
-        receipt_url: receiptPublicUrl,
-        transaction_ref: transactionRef || null,
-        status: 'PENDING',
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        body: formData,
       })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error submitting receipt')
 
-      if (dbErr) throw new Error('Failed to log payment request: ' + dbErr.message)
-
+      const receiptPublicUrl = data.receiptUrl
+      setUploadedReceiptUrl(receiptPublicUrl)
       setIsPendingVerification(true)
       showToast('success', 'Receipt uploaded! Opening WhatsApp...')
 
@@ -305,7 +341,6 @@ export default function MerchantDashboardPage() {
           window.location.href = whatsappUrl
         }
       }, 800)
-
     } catch (err: any) {
       showToast('error', err.message || 'Error submitting receipt')
     } finally {
@@ -327,14 +362,19 @@ export default function MerchantDashboardPage() {
     if (!merchantSession?.id) return
     setIsCheckingCustomer(true)
     try {
-      const { data } = await supabase
-        .from('cashback_claims')
-        .select('*')
-        .eq('store_id', merchantSession.id)
-        .eq('customer_phone', phoneNum)
-        .maybeSingle()
-
-      setExistingCustomerClaim(data || null)
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'check_customer',
+          storeId: merchantSession.id,
+          phoneNum,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setExistingCustomerClaim(data.claim || null)
+      }
     } catch (err) {
       console.error('Error fetching customer balance:', err)
     } finally {
@@ -344,15 +384,15 @@ export default function MerchantDashboardPage() {
 
   const fetchStoreOffers = async (storeId: string) => {
     try {
-      const now = new Date().toISOString()
-      const { data, error } = await supabase
-        .from('store_offers')
-        .select('*')
-        .eq('store_id', storeId)
-        .gte('expires_at', now)
-        .order('created_at', { ascending: false })
-
-      if (!error && data) setOffers(data)
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fetch_offers', storeId }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setOffers(data.offers || [])
+      }
     } catch (err) {
       console.error('Error fetching offers:', err)
     }
@@ -360,13 +400,15 @@ export default function MerchantDashboardPage() {
 
   const fetchStoreCustomers = async (storeId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('cashback_claims')
-        .select('*')
-        .eq('store_id', storeId)
-        .order('updated_at', { ascending: false })
-
-      if (!error && data) setCustomersList(data)
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fetch_customers', storeId }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setCustomersList(data.customers || [])
+      }
     } catch (err) {
       console.error('Error fetching customers:', err)
     }
@@ -420,12 +462,17 @@ export default function MerchantDashboardPage() {
 
     setSettingLoading(true)
     try {
-      const { error } = await supabase
-        .from('stores')
-        .update({ target_visits: newTarget })
-        .eq('id', merchantSession.id)
-
-      if (error) throw error
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_target_visits',
+          storeId: merchantSession.id,
+          targetVisits: newTarget,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update')
 
       const updatedSession = { ...merchantSession, target_visits: newTarget }
       setMerchantSession(updatedSession)
@@ -454,12 +501,17 @@ export default function MerchantDashboardPage() {
 
     setCashbackSettingLoading(true)
     try {
-      const { error } = await supabase
-        .from('stores')
-        .update({ default_cashback_percent: newPercent })
-        .eq('id', merchantSession.id)
-
-      if (error) throw error
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_cashback_percent',
+          storeId: merchantSession.id,
+          cashbackPercent: newPercent,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update')
 
       const updatedSession = { ...merchantSession, default_cashback_percent: newPercent }
       setMerchantSession(updatedSession)
@@ -480,29 +532,19 @@ export default function MerchantDashboardPage() {
 
     setLogoUploading(true)
     try {
-      const fileExt = file.name.split('.').pop() || 'png'
-      const filePath = `store_${merchantSession.id}.${fileExt}`
+      const formData = new FormData()
+      formData.append('action', 'update_logo')
+      formData.append('storeId', merchantSession.id)
+      formData.append('file', file)
 
-      const { error: uploadError } = await supabase.storage
-        .from('store-logos')
-        .upload(filePath, file, { upsert: true })
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update logo')
 
-      if (uploadError) throw uploadError
-
-      const { data: urlData } = supabase.storage
-        .from('store-logos')
-        .getPublicUrl(filePath)
-
-      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
-
-      const { error: dbError } = await supabase
-        .from('stores')
-        .update({ logo_url: publicUrl })
-        .eq('id', merchantSession.id)
-
-      if (dbError) throw dbError
-
-      const updatedSession = { ...merchantSession, logo_url: publicUrl }
+      const updatedSession = { ...merchantSession, logo_url: data.logoUrl }
       setMerchantSession(updatedSession)
       localStorage.setItem('retcash_merchant', JSON.stringify(updatedSession))
 
@@ -525,36 +567,21 @@ export default function MerchantDashboardPage() {
 
     setOfferUploading(true)
     try {
-      const fileExt = offerImage.name.split('.').pop()
-      const fileName = `${merchantSession.id}_${Date.now()}.${fileExt}`
-      const filePath = `${fileName}`
+      const formData = new FormData()
+      formData.append('action', 'add_offer')
+      formData.append('storeId', merchantSession.id)
+      formData.append('title', offerTitle)
+      formData.append('description', offerDesc)
+      formData.append('expiresAt', offerExpiry)
+      formData.append('file', offerImage)
 
-      const { error: uploadError } = await supabase.storage
-        .from('offer-posters')
-        .upload(filePath, offerImage)
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to add offer')
 
-      if (uploadError) throw uploadError
-
-      const { data: urlData } = supabase.storage
-        .from('offer-posters')
-        .getPublicUrl(filePath)
-
-      const publicUrl = urlData.publicUrl
-
-      const { error: dbError } = await supabase
-        .from('store_offers')
-        .insert({
-          store_id: merchantSession.id,
-          title: offerTitle,
-          description: offerDesc,
-          image_url: publicUrl,
-          expires_at: new Date(offerExpiry).toISOString(),
-          is_active: true
-        })
-
-      if (dbError) throw dbError
-
-      // 🔔 Send push notification to subscribed customers of this store
       fetch('/api/push/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -581,15 +608,24 @@ export default function MerchantDashboardPage() {
   }
 
   const confirmDeleteOffer = async () => {
-    if (!offerToDelete) return
+    if (!offerToDelete || !merchantSession?.id) return
 
     try {
-      const { error } = await supabase.from('store_offers').delete().eq('id', offerToDelete)
-      if (error) throw error
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete_offer',
+          storeId: merchantSession.id,
+          offerId: offerToDelete,
+        }),
+      })
+      if (!res.ok) throw new Error('Delete failed')
+
       setOffers(offers.filter(o => o.id !== offerToDelete))
       setOfferToDelete(null)
       showToast('success', 'Offer deleted successfully.')
-    } catch (err) {
+    } catch {
       showToast('error', 'Failed to delete offer.')
       setOfferToDelete(null)
     }
@@ -614,7 +650,7 @@ export default function MerchantDashboardPage() {
           },
           () => {}
         )
-      } catch (err) {
+      } catch {
         showToast('error', 'Failed to start camera or permission denied.')
         setIsScanning(false)
       }
@@ -650,7 +686,7 @@ export default function MerchantDashboardPage() {
           },
           () => {}
         )
-      } catch (err) {
+      } catch {
         showToast('error', 'Failed to start camera or permission denied.')
         setIsScanning(false)
       }
@@ -668,21 +704,25 @@ export default function MerchantDashboardPage() {
         claimId = parts[parts.length - 1].split('?')[0]
       }
 
-      const { data, error } = await supabase
-        .from('cashback_claims')
-        .select('*')
-        .eq('id', claimId)
-        .eq('store_id', merchantSession.id)
-        .maybeSingle()
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'scan_claim',
+          storeId: merchantSession.id,
+          claimId,
+        }),
+      })
+      const data = await res.json()
 
-      if (error || !data) {
+      if (!res.ok || !data.claim) {
         showToast('error', 'Invalid QR Code or does not belong to this store.')
         setScannedClaimData(null)
         return
       }
 
-      setScannedClaimData(data)
-    } catch (err) {
+      setScannedClaimData(data.claim)
+    } catch {
       showToast('error', 'Error verifying QR code.')
     } finally {
       setActionLoading(false)
@@ -690,39 +730,21 @@ export default function MerchantDashboardPage() {
   }
 
   const executeRedeemReward = async () => {
-    if (!scannedClaimData || actionLoading) return
+    if (!scannedClaimData || !merchantSession?.id || actionLoading) return
 
     setActionLoading(true)
     try {
-      const redeemedAmt = Number(scannedClaimData.claimable_amount || 0)
-      const lastBillAmt = Number(scannedClaimData.bill_amount || 0)
-      const calculatedNetPaid = Math.max(0, Math.round((lastBillAmt - redeemedAmt) * 100) / 100)
-
-      const { error: updateErr } = await supabase
-        .from('cashback_claims')
-        .update({
-          claimable_amount: 0,
-          cashback_amount: 0,
-          visit_count: scannedClaimData.visit_count,
-          status: 'REDEEMED',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', scannedClaimData.id)
-
-      if (updateErr) throw new Error('Redemption DB Update Failed: ' + updateErr.message)
-
-      await supabase.from('cashback_history').insert({
-        claim_id: scannedClaimData.id,
-        store_id: scannedClaimData.store_id || merchantSession?.id,
-        customer_phone: scannedClaimData.customer_phone,
-        visit_count: scannedClaimData.visit_count,
-        bill_amount: lastBillAmt,
-        cashback_percentage: 0,
-        cashback_amount: redeemedAmt,
-        net_paid_amount: calculatedNetPaid,
-        transaction_type: 'REDEEMED',
-        status: 'REDEEMED'
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'redeem_reward',
+          storeId: merchantSession.id,
+          claimId: scannedClaimData.id,
+        }),
       })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to process redemption.')
 
       setShowRedeemConfirmModal(false)
       setScannedClaimData(null)
@@ -730,7 +752,7 @@ export default function MerchantDashboardPage() {
       setLastAddedClaim(null)
       showToast('success', '🎉 Reward successfully redeemed! New cycle ready.')
 
-      if (merchantSession?.id) fetchStoreCustomers(merchantSession.id)
+      fetchStoreCustomers(merchantSession.id)
     } catch (err: any) {
       showToast('error', err.message || 'Failed to process redemption.')
     } finally {
@@ -738,7 +760,6 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // ✅ 1. GLOBAL-STANDARD CASHBACK & VISIT CYCLE BILLING (SUPPORTS 1-VISIT INSTANT & MULTI-VISIT LOYALTY)
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -754,152 +775,64 @@ export default function MerchantDashboardPage() {
       return
     }
 
+    if (!merchantSession?.id) {
+      showToast('error', 'Merchant session not found. Please log in again.')
+      return
+    }
+
     setActionLoading(true)
     try {
-      const cashbackPercentage = merchantSession?.default_cashback_percent || 5
-      const targetVisits = Math.min(Math.max(merchantSession?.target_visits || 6, 1), 10)
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate_cashback',
+          storeId: merchantSession.id,
+          customerPhone,
+          billAmount: initialBillNum,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error processing cashback')
 
-      const cleanCustPhone = formatPhoneNumber(customerPhone)
-      const storeId = merchantSession?.id
-
-      if (!storeId) {
-        showToast('error', 'Merchant session not found. Please log in again.')
-        setActionLoading(false)
-        return
-      }
-
-      let customerUuid: string | null = existingCustomerClaim?.customer_id || null
-
-      const { data: existingCust } = await supabase
-        .from('customers')
-        .select('id, store_id')
-        .eq('phone_number', cleanCustPhone)
-        .maybeSingle()
-
-      if (existingCust) {
-        customerUuid = existingCust.id
-        if (!existingCust.store_id) {
-          await supabase.from('customers').update({ store_id: storeId }).eq('id', existingCust.id)
-        }
-      } else {
-        const { data: newCust, error: custErr } = await supabase
-          .from('customers')
-          .insert({ phone_number: cleanCustPhone, store_id: storeId })
-          .select('id')
-          .single()
-
-        if (!custErr && newCust) customerUuid = newCust.id
-      }
-
-      const isActiveCycle =
-        existingCustomerClaim &&
-        existingCustomerClaim.status !== 'REDEEMED' &&
-        existingCustomerClaim.status !== 'VOIDED' &&
-        Number(existingCustomerClaim.claimable_amount || 0) > 0
-
-      const existingAmount = isActiveCycle ? Number(existingCustomerClaim.claimable_amount || 0) : 0
-      const currentVisits = isActiveCycle ? Number(existingCustomerClaim.visit_count || 0) : 0
-
-      let newVisitCount = 1
-      let cashbackAmount = 0
-      let totalClaimable = 0
-
-      if (targetVisits === 1) {
-        // 1-Visit Instant Cashback Mode:
-        // If customer already has an unredeemed reward waiting, keep it ready for this bill; otherwise earn on this bill immediately.
-        if (isActiveCycle && existingCustomerClaim?.status === 'READY') {
-          newVisitCount = 1
-          cashbackAmount = 0
-          totalClaimable = existingAmount
-        } else {
-          newVisitCount = 1
-          cashbackAmount = Math.round(((initialBillNum * cashbackPercentage) / 100) * 100) / 100
-          totalClaimable = Math.round((existingAmount + cashbackAmount) * 100) / 100
-        }
-      } else {
-        // Multi-Visit Loyalty Mode (e.g., Target = 3):
-        // Visits 1 to (targetVisits - 1) earn cashback; Visit #targetVisits unlocks the collected balance WITHOUT earning new cashback on the redemption bill.
-        newVisitCount = currentVisits >= targetVisits ? targetVisits : currentVisits + 1
-
-        if (newVisitCount >= targetVisits && existingAmount > 0) {
-          cashbackAmount = 0
-          totalClaimable = existingAmount
-        } else {
-          cashbackAmount = Math.round(((initialBillNum * cashbackPercentage) / 100) * 100) / 100
-          totalClaimable = Math.round((existingAmount + cashbackAmount) * 100) / 100
-        }
-      }
-
-      const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
-      const nowIso = new Date().toISOString()
-
-      const { data: upsertedData, error: upsertError } = await supabase
-        .from('cashback_claims')
-        .upsert({
-          store_id: storeId,
-          customer_id: customerUuid,
-          customer_phone: cleanCustPhone,
-          claimable_amount: totalClaimable,
-          visit_count: newVisitCount,
-          status: claimStatus,
-          bill_amount: initialBillNum,
-          cashback_amount: cashbackAmount,
-          updated_at: nowIso
-        }, { onConflict: 'customer_phone, store_id' })
-        .select('*')
-        .single()
-
-      if (upsertError) throw new Error('Cashback claim update failed: ' + upsertError.message)
-
-      const claimId = upsertedData?.id
-
-      try {
-        await supabase.from('cashback_history').insert({
-          claim_id: claimId,
-          store_id: storeId,
-          customer_phone: cleanCustPhone,
-          visit_count: newVisitCount,
-          bill_amount: initialBillNum,
-          cashback_percentage: cashbackAmount > 0 ? cashbackPercentage : 0,
-          cashback_amount: cashbackAmount,
-          net_paid_amount: initialBillNum,
-          transaction_type: 'BILL_ADDED',
-          status: claimStatus
-        })
-      } catch (hErr) {
-        console.error('History exception:', hErr)
-      }
+      const {
+        upsertedData,
+        cashbackAmount,
+        totalClaimable,
+        newVisitCount,
+        targetVisits: resolvedTarget,
+        cleanCustPhone,
+      } = data
 
       setLastAddedClaim(upsertedData)
       setCustomerPhone('')
       setBillAmount('')
       setExistingCustomerClaim(null)
-      fetchStoreCustomers(storeId)
+      fetchStoreCustomers(merchantSession.id)
 
-      // 🔔 Send push notification to customer if subscribed
       fetch('/api/push/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'CASHBACK',
           phone: cleanCustPhone,
-          storeId: storeId,
+          storeId: merchantSession.id,
           storeName: merchantSession?.store_name || 'RETCASH',
           amount: cashbackAmount > 0 ? cashbackAmount : totalClaimable,
           visits: newVisitCount,
-          targetVisits: targetVisits,
+          targetVisits: resolvedTarget,
         }),
       }).catch((pushErr) => console.error('Cashback push notification error:', pushErr))
 
       if (cashbackAmount > 0) {
         showToast(
           'success',
-          `✅ Added Rs. ${cashbackAmount.toFixed(2)} cashback (${newVisitCount}/${targetVisits} visits) for ${cleanCustPhone}`
+          `✅ Added Rs. ${cashbackAmount.toFixed(2)} cashback (${newVisitCount}/${resolvedTarget} visits) for ${cleanCustPhone}`
         )
       } else {
         showToast(
           'success',
-          `🎉 Visit #${newVisitCount}/${targetVisits} reached! Rs. ${totalClaimable.toFixed(2)} unlocked for ${cleanCustPhone}`
+          `🎉 Visit #${newVisitCount}/${resolvedTarget} reached! Rs. ${totalClaimable.toFixed(2)} unlocked for ${cleanCustPhone}`
         )
       }
     } catch (err: any) {
@@ -909,102 +842,29 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // ✅ 2. SAFE 15-MINUTE UNDO / VOID LAST CASHBACK
   const handleVoidCashback = async (claim: CashbackClaim) => {
     if (!merchantSession?.id || !claim?.id || actionLoading) return
 
     setActionLoading(true)
     try {
-      const storeId = merchantSession.id
-      const targetVisits = Math.min(Math.max(merchantSession?.target_visits || 6, 1), 10)
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'void_cashback',
+          storeId: merchantSession.id,
+          claimId: claim.id,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not undo transaction.')
 
-      const { data: freshClaim, error: fetchErr } = await supabase
-        .from('cashback_claims')
-        .select('*')
-        .eq('id', claim.id)
-        .eq('store_id', storeId)
-        .single()
-
-      if (fetchErr || !freshClaim) {
-        throw new Error('Transaction record not found.')
-      }
-
-      if (freshClaim.status === 'REDEEMED' || freshClaim.status === 'VOIDED') {
-        throw new Error('This transaction has already been redeemed or voided.')
-      }
-
-      const voidCashbackAmt = Number(freshClaim.cashback_amount || 0)
-      const voidBillAmt = Number(freshClaim.bill_amount || 0)
-
-      if (voidCashbackAmt <= 0) {
-        throw new Error('No recent cashback available to undo on this record.')
-      }
-
-      const elapsedMs = Date.now() - new Date(freshClaim.updated_at).getTime()
-      if (elapsedMs > 15 * 60 * 1000) {
-        throw new Error('The 15-minute undo window has expired for this transaction.')
-      }
-
-      const revertedClaimable = Math.max(
-        0,
-        Math.round((Number(freshClaim.claimable_amount || 0) - voidCashbackAmt) * 100) / 100
-      )
-
-      const currentVisits = Number(freshClaim.visit_count || 0)
-      let revertedVisitCount = 0
-      if (currentVisits > 1) {
-        revertedVisitCount = currentVisits - 1
-      } else if (currentVisits === 1 && revertedClaimable > 0) {
-        revertedVisitCount = targetVisits
-      } else {
-        revertedVisitCount = 0
-      }
-
-      const revertedStatus =
-        revertedVisitCount === 0 && revertedClaimable === 0
-          ? 'VOIDED'
-          : revertedVisitCount >= targetVisits
-          ? 'READY'
-          : 'PENDING'
-
-      const { error: updateErr } = await supabase
-        .from('cashback_claims')
-        .update({
-          claimable_amount: revertedClaimable,
-          visit_count: revertedVisitCount,
-          status: revertedStatus,
-          bill_amount: 0,
-          cashback_amount: 0,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', freshClaim.id)
-        .eq('store_id', storeId)
-
-      if (updateErr) throw new Error('Failed to void transaction: ' + updateErr.message)
-
-      try {
-        await supabase.from('cashback_history').insert({
-          claim_id: freshClaim.id,
-          store_id: storeId,
-          customer_phone: freshClaim.customer_phone,
-          visit_count: revertedVisitCount,
-          bill_amount: voidBillAmt,
-          cashback_percentage: 0,
-          cashback_amount: -voidCashbackAmt,
-          net_paid_amount: 0,
-          transaction_type: 'VOIDED',
-          status: 'VOIDED'
-        })
-      } catch (hErr) {
-        console.error('Void history exception:', hErr)
-      }
-
-      if (lastAddedClaim?.id === freshClaim.id) {
+      if (lastAddedClaim?.id === claim.id) {
         setLastAddedClaim(null)
       }
 
-      await fetchStoreCustomers(storeId)
-      showToast('success', `↩️ Voided Rs. ${voidCashbackAmt.toFixed(2)} cashback for ${freshClaim.customer_phone}`)
+      await fetchStoreCustomers(merchantSession.id)
+      showToast('success', `↩️ Voided Rs. ${Number(data.voidCashbackAmt).toFixed(2)} cashback for ${data.customerPhone}`)
     } catch (err: any) {
       showToast('error', err.message || 'Could not undo transaction.')
     } finally {
@@ -1012,7 +872,6 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // ✅ 3. COUNTER 1-CLICK CUSTOMER PIN RESET
   const handleMerchantResetPin = async (phone: string) => {
     if (!phone || actionLoading) return
 
@@ -1040,7 +899,16 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/merchant/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'logout' }),
+      })
+    } catch {
+      // Proceed even if offline
+    }
     localStorage.removeItem('retcash_merchant')
     setMerchantSession(null)
     window.location.href = '/merchant/login'

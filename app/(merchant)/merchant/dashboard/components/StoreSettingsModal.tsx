@@ -2,7 +2,6 @@
 
 import { FormEvent, ChangeEvent, useState, useEffect, useRef } from 'react'
 import { Store, X, Percent, Upload, MapPin, Star, Tag, Loader2, Check } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 import ProfileInstallSection from '@/components/ProfileInstallSection'
 import StoreQrSection from './StoreQrSection'
 
@@ -111,30 +110,28 @@ export default function StoreSettingsModal({
       setInternalLogoUploading(true)
       setLogoSuccess(false)
 
-      const fileExt = file.name.split('.').pop() || 'png'
-      const filePath = `store_${merchantSession.id}.${fileExt}`
+      const formData = new FormData()
+      formData.append('action', 'update_logo')
+      formData.append('storeId', merchantSession.id)
+      formData.append('file', file)
 
-      const { error: uploadError } = await supabase.storage
-        .from('store-logos')
-        .upload(filePath, file, { upsert: true })
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Logo upload failed')
 
-      if (uploadError) throw uploadError
-
-      const { data: publicUrlData } = supabase.storage
-        .from('store-logos')
-        .getPublicUrl(filePath)
-
-      const newPublicUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`
-
-      const { error: dbError } = await supabase
-        .from('stores')
-        .update({ logo_url: newPublicUrl })
-        .eq('id', merchantSession.id)
-
-      if (dbError) throw dbError
-
+      const newPublicUrl = data.logoUrl
       setLogoUrl(newPublicUrl)
       merchantSession.logo_url = newPublicUrl
+
+      const savedMerchant = localStorage.getItem('retcash_merchant')
+      if (savedMerchant) {
+        const parsed = JSON.parse(savedMerchant)
+        localStorage.setItem('retcash_merchant', JSON.stringify({ ...parsed, logo_url: newPublicUrl }))
+      }
+
       setLogoSuccess(true)
       setTimeout(() => setLogoSuccess(false), 3000)
     } catch (err: any) {
@@ -150,20 +147,37 @@ export default function StoreSettingsModal({
       setDetailsLoading(true)
       setDetailsSuccess(false)
 
-      const { error } = await supabase
-        .from('stores')
-        .update({
-          category: category,
-          location_url: locationUrl || null,
-          review_url: reviewUrl || null
-        })
-        .eq('id', merchantSession.id)
-
-      if (error) throw error
+      const res = await fetch('/api/merchant/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_store_details',
+          storeId: merchantSession.id,
+          category,
+          locationUrl: locationUrl || null,
+          reviewUrl: reviewUrl || null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Update failed')
 
       merchantSession.category = category
       merchantSession.location_url = locationUrl
       merchantSession.review_url = reviewUrl
+
+      const savedMerchant = localStorage.getItem('retcash_merchant')
+      if (savedMerchant) {
+        const parsed = JSON.parse(savedMerchant)
+        localStorage.setItem(
+          'retcash_merchant',
+          JSON.stringify({
+            ...parsed,
+            category,
+            location_url: locationUrl,
+            review_url: reviewUrl,
+          })
+        )
+      }
 
       setDetailsSuccess(true)
       setTimeout(() => setDetailsSuccess(false), 3000)
@@ -185,7 +199,6 @@ export default function StoreSettingsModal({
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
       <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
         
-        {/* Header */}
         <div className="bg-[#00875A] text-white p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-xs overflow-hidden shrink-0">
@@ -212,10 +225,8 @@ export default function StoreSettingsModal({
           </button>
         </div>
 
-        {/* Modal Scrollable Body */}
         <div className="p-5 space-y-6 max-h-[80vh] overflow-y-auto">
           
-          {/* SECTION 0: Store Counter QR Code & Branded Card Download */}
           <div ref={qrBlockRef}>
             <StoreQrSection
               storeId={merchantSession.id}
@@ -225,7 +236,6 @@ export default function StoreSettingsModal({
             />
           </div>
 
-          {/* Account Details Box */}
           <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-4 space-y-3">
             <h4 className="text-xs font-bold text-[#00875A] uppercase tracking-wider">Account Details</h4>
             <div className="space-y-2 text-xs">
@@ -242,7 +252,6 @@ export default function StoreSettingsModal({
             </div>
           </div>
 
-          {/* SECTION 1: Change Logo */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
             <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
               <Upload className="size-3.5 text-[#00875A]" /> Store Logo
@@ -282,11 +291,9 @@ export default function StoreSettingsModal({
             )}
           </div>
 
-          {/* SECTION 2: Existing Cashback Rules & Configuration */}
           <div className="space-y-4">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Store Rules & Configuration</h4>
             
-            {/* Form A: Cashback Percent */}
             <form onSubmit={handleUpdateCashbackPercent} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-xs">
               <div className="flex items-center justify-between">
                 <label htmlFor="cashbackPercentModal" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
@@ -320,14 +327,12 @@ export default function StoreSettingsModal({
               )}
             </form>
 
-            {/* Form B: Target Visits (1 to 10) */}
             <form onSubmit={handleUpdateTargetVisits} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2.5 shadow-xs">
               <div className="flex items-center justify-between">
                 <label htmlFor="targetModal" className="text-xs font-semibold text-slate-700">Target Visits (1 – 10)</label>
                 <span className="font-mono text-[10px] text-slate-400">redeem milestone</span>
               </div>
 
-              {/* Quick Preset Chips */}
               <div className="flex flex-wrap gap-1.5">
                 {VISIT_PRESETS.map((preset) => {
                   const isActive = parsedTarget === preset.visits
@@ -380,7 +385,6 @@ export default function StoreSettingsModal({
             </form>
           </div>
 
-          {/* SECTION 3: Store Category, Google Review & Location Links */}
           <form onSubmit={handleUpdateStoreDetails} className="bg-white border border-slate-200 rounded-xl p-4 space-y-4 shadow-xs">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Store Information & Links</h4>
 
@@ -446,12 +450,10 @@ export default function StoreSettingsModal({
             )}
           </form>
 
-          {/* SECTION 4: iOS App Install Guide */}
           <ProfileInstallSection />
 
         </div>
 
-        {/* Modal Footer */}
         <div className="bg-slate-50 p-4 border-t border-slate-200 text-right">
           <button
             onClick={onClose}

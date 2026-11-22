@@ -101,14 +101,14 @@ function IconCheckCircle() {
     );
 }
 
-export default function ClientCardView({ 
-    initialClaim, 
-    id, 
-    latestTransaction 
-}: { 
-    initialClaim: any, 
-    id: string, 
-    latestTransaction?: any 
+export default function ClientCardView({
+    initialClaim,
+    id,
+    latestTransaction
+}: {
+    initialClaim: any,
+    id: string,
+    latestTransaction?: any
 }) {
     const router = useRouter()
     const { t } = useCustomerLang()
@@ -118,7 +118,6 @@ export default function ClientCardView({
     const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false)
     const [loadingHistory, setLoadingHistory] = useState<boolean>(false)
 
-    // Sync latest card state into localStorage wallet cache so Wallet page never flashes stale 0/3 state
     const syncWalletCacheFromCard = (data: any) => {
         if (typeof window === 'undefined' || !data) return;
         const rawPhone = String(data.customer_phone || '');
@@ -171,7 +170,6 @@ export default function ClientCardView({
         }
     };
 
-    // initialClaim மாறும்போது claimData-வை அப்டேட் செய்தல்
     useEffect(() => {
         if (initialClaim) {
             setClaimData(initialClaim)
@@ -179,31 +177,35 @@ export default function ClientCardView({
         }
     }, [initialClaim])
 
-    // Store Offers Fetching Logic
+    // Store Offers Fetching via Secure API
     useEffect(() => {
         const storeId = claimData?.stores?.id || claimData?.store_id;
         if (!storeId) return;
 
         const fetchOffers = async () => {
-            const { data, error } = await supabase
-                .from('store_offers')
-                .select('*')
-                .eq('store_id', storeId)
-                .gte('expires_at', new Date().toISOString())
-                .order('created_at', { ascending: false })
-
-            if (!error && data) {
-                setOffers(data)
+            try {
+                const res = await fetch('/api/customer/card-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get_offers', storeId }),
+                })
+                if (res.ok) {
+                    const data = await res.json()
+                    setOffers(data.offers || [])
+                }
+            } catch {
+                // Silent fail
             }
         }
 
         fetchOffers()
     }, [claimData?.stores?.id, claimData?.store_id])
 
-    // Realtime Claim Status Logic
+    // Realtime Claim Status Listener + Secure API Refresh
     useEffect(() => {
         const activeId = id || claimData?.id;
-        if (!activeId) return;
+        const phone = claimData?.customer_phone;
+        if (!activeId || !phone) return;
 
         const channel = supabase
             .channel(`card_status_${activeId}`)
@@ -217,44 +219,43 @@ export default function ClientCardView({
                 },
                 async (payload) => {
                     if (payload.new) {
-                        const { data: updatedClaim } = await supabase
-                            .from('cashback_claims')
-                            .select(`
-                                *,
-                                stores:store_id (
-                                    id,
-                                    store_name,
-                                    store_slug,
-                                    logo_url,
-                                    location_url,
-                                    review_url,
-                                    target_visits,
-                                    default_cashback_percent
-                                )
-                            `)
-                            .eq('id', activeId)
-                            .maybeSingle()
-
-                        if (updatedClaim) {
-                            setClaimData((prev: any) => {
-                                const merged = {
-                                    ...prev,
-                                    ...updatedClaim,
-                                    stores: updatedClaim.stores || prev?.stores
-                                };
-                                syncWalletCacheFromCard(merged);
-                                return merged;
+                        try {
+                            const res = await fetch('/api/customer/card-data', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    action: 'get_card',
+                                    paramId: activeId,
+                                    phone,
+                                }),
                             })
-                        } else {
-                            setClaimData((prev: any) => {
-                                const merged = {
-                                    ...prev,
-                                    ...payload.new
-                                };
-                                syncWalletCacheFromCard(merged);
-                                return merged;
-                            })
+                            if (res.ok) {
+                                const { claim: updatedClaim } = await res.json()
+                                if (updatedClaim) {
+                                    setClaimData((prev: any) => {
+                                        const merged = {
+                                            ...prev,
+                                            ...updatedClaim,
+                                            stores: updatedClaim.stores || prev?.stores
+                                        };
+                                        syncWalletCacheFromCard(merged);
+                                        return merged;
+                                    })
+                                    return
+                                }
+                            }
+                        } catch {
+                            // Fallback to payload merge
                         }
+
+                        setClaimData((prev: any) => {
+                            const merged = {
+                                ...prev,
+                                ...payload.new
+                            };
+                            syncWalletCacheFromCard(merged);
+                            return merged;
+                        })
                     }
                 }
             )
@@ -263,9 +264,9 @@ export default function ClientCardView({
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [id, claimData?.id])
+    }, [id, claimData?.id, claimData?.customer_phone])
 
-    // Fetch Full Customer Cashback History
+    // Fetch Full Customer Cashback History via Secure API
     const fetchHistory = async () => {
         const storeId = claimData?.stores?.id || claimData?.store_id;
         const phone = claimData?.customer_phone;
@@ -274,17 +275,25 @@ export default function ClientCardView({
         setLoadingHistory(true)
         setShowHistoryModal(true)
 
-        const { data, error } = await supabase
-            .from('cashback_history')
-            .select('*')
-            .eq('store_id', storeId)
-            .eq('customer_phone', phone)
-            .order('created_at', { ascending: false })
-
-        if (!error && data) {
-            setHistory(data)
+        try {
+            const res = await fetch('/api/customer/card-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'get_history',
+                    storeId,
+                    phone,
+                }),
+            })
+            if (res.ok) {
+                const data = await res.json()
+                setHistory(data.history || [])
+            }
+        } catch {
+            // Silent fail
+        } finally {
+            setLoadingHistory(false)
         }
-        setLoadingHistory(false)
     }
 
     const store = claimData?.stores
@@ -307,15 +316,14 @@ export default function ClientCardView({
     const visitsLeft = Math.max(0, totalVisits - currentVisits);
 
     const billAmount = latestTransaction?.bill_amount || 0;
-    const netPaidAmount = latestTransaction?.net_paid_amount !== undefined 
-        ? latestTransaction.net_paid_amount 
+    const netPaidAmount = latestTransaction?.net_paid_amount !== undefined
+        ? latestTransaction.net_paid_amount
         : billAmount;
     const cashbackPercentage = latestTransaction?.cashback_percentage || store?.default_cashback_percent || 0;
     const earnedCashback = latestTransaction?.cashback_amount ?? claimData?.cashback_amount ?? 0;
 
-    // ACCURATE DISCOUNT & TO_PAY MATH LOGIC
-    const activeDiscount = (isRewardReady || isRedeemed) 
-        ? (latestTransaction?.redeemed_amount || claimableBalance || earnedCashback) 
+    const activeDiscount = (isRewardReady || isRedeemed)
+        ? (latestTransaction?.redeemed_amount || claimableBalance || earnedCashback)
         : 0;
 
     const calculatedToPay = isRewardReady && !isRedeemed
@@ -351,7 +359,6 @@ export default function ClientCardView({
         <div className="flex justify-center min-h-screen bg-slate-200/60 font-sans selection:bg-[#00875A] selection:text-white antialiased">
             <div className="relative bg-slate-50 w-full max-w-[430px] flex flex-col min-h-screen border-x border-slate-200/50 shadow-2xl p-4 pb-20">
                 
-                {/* Header Section with Language Switcher */}
                 <div className="w-full flex items-center justify-between gap-2 pt-1 pb-3 border-b border-slate-200/80 mb-4">
                     {customerPhone ? (
                         <button
@@ -473,11 +480,7 @@ export default function ClientCardView({
 
                     {/* 3. Standalone Details & Actions Card */}
                     <div className="bg-white border border-slate-100 rounded-3xl p-5 relative overflow-hidden shadow-xs space-y-5">
-                        
-                        {/* 🎯 LATEST TRANSACTION & LIVE RECEIPT BREAKDOWN */}
                         <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl space-y-3 shadow-xs">
-                            
-                            {/* CLEAN & OVERFLOW-FREE HEADER */}
                             <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
                                 <div className="flex items-center gap-1.5 shrink-0">
                                     <span className="text-slate-800 font-extrabold text-[11px] uppercase tracking-wider">
@@ -489,7 +492,7 @@ export default function ClientCardView({
                                         </span>
                                     )}
                                 </div>
-                                <button 
+                                <button
                                     onClick={fetchHistory}
                                     className="text-[10px] font-extrabold text-[#00875A] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer shrink-0"
                                 >
@@ -498,7 +501,6 @@ export default function ClientCardView({
                                 </button>
                             </div>
 
-                            {/* செங்குத்தான கணக்கீடு (Vertical Invoice Breakdown) */}
                             <div className="space-y-2 text-xs font-semibold">
                                 <div className="flex justify-between text-slate-600">
                                     <span>{t.billAmountLabel}</span>
@@ -518,10 +520,8 @@ export default function ClientCardView({
                                 </div>
                             </div>
 
-                            {/* ⚡ PROFESSIONAL DYNAMIC STATUS & QR CODE SECTION */}
                             <div className="pt-2 border-t border-dashed border-slate-200 text-center space-y-3">
                                 {!isRedeemed && isRewardReady ? (
-                                    /* 1. REDEEM செய்வதற்கு முன்: CLEAN PROFESSIONAL QR CARD */
                                     <div className="space-y-3 animate-fade-in pt-1">
                                         <div className="bg-amber-50 border border-amber-200/80 text-amber-900 font-bold text-xs py-2.5 px-3 rounded-xl shadow-xs flex items-center justify-center gap-2">
                                             <span className="text-amber-600 shrink-0"><IconQrScan /></span>
@@ -536,7 +536,6 @@ export default function ClientCardView({
                                         </div>
                                     </div>
                                 ) : isRedeemed ? (
-                                    /* 2. REDEEM செய்த பின்: PROFESSIONAL SUCCESS BANNER */
                                     <div className="bg-emerald-50 text-emerald-900 font-bold text-xs p-3 rounded-xl border border-emerald-200 shadow-xs animate-fade-in flex flex-col items-center gap-1">
                                         <div className="flex items-center gap-1.5 text-[#00875A] font-black tracking-wide">
                                             <IconCheckCircle />
@@ -547,7 +546,6 @@ export default function ClientCardView({
                                         </p>
                                     </div>
                                 ) : (
-                                    /* 3. சாதாரண விசிட்களில்: Cashback Earned Badge */
                                     <div className="flex justify-between items-center text-[11px] text-emerald-800 font-bold pt-1">
                                         <span>{t.cashbackEarnedLabel}</span>
                                         <span className="bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md text-[#00875A] font-black">
@@ -558,7 +556,6 @@ export default function ClientCardView({
                             </div>
                         </div>
 
-                        {/* STORE OFFERS SECTION */}
                         {offers.length > 0 && (
                             <div className="pt-2 border-t border-slate-100 text-left">
                                 <div className="flex items-center gap-1.5 text-[#00875A] font-extrabold text-xs uppercase tracking-wider mb-3">
@@ -570,9 +567,9 @@ export default function ClientCardView({
                                         <div key={offer.id} className="bg-slate-50 border border-slate-100 rounded-2xl p-3 shadow-xs overflow-hidden">
                                             {offer.image_url && (
                                                 <div className="w-full h-40 bg-slate-200 rounded-xl overflow-hidden mb-3">
-                                                    <img 
-                                                        src={offer.image_url} 
-                                                        alt={offer.title} 
+                                                    <img
+                                                        src={offer.image_url}
+                                                        alt={offer.title}
                                                         className="w-full h-full object-cover"
                                                     />
                                                 </div>
@@ -592,7 +589,6 @@ export default function ClientCardView({
                             </div>
                         )}
 
-                        {/* Location & Review Action Buttons */}
                         <div className="grid grid-cols-2 gap-3 pt-2">
                             {store?.location_url ? (
                                 <a
@@ -636,7 +632,6 @@ export default function ClientCardView({
                 </div>
             </div>
 
-            {/* CASHBACK & VISIT HISTORY MODAL */}
             {showHistoryModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
                     <div className="bg-white w-full max-w-[430px] rounded-t-3xl sm:rounded-3xl max-h-[80vh] flex flex-col p-5 shadow-2xl">

@@ -12,10 +12,9 @@ export default function SingleCardPage() {
 
     const paramId = params.id as string
     const rawPhone = searchParams.get('phone') || ''
-    
-    // 1. Phone Format Standardization (94XXXXXXXXX)
-    const phone = rawPhone 
-        ? (rawPhone.startsWith('94') ? rawPhone : `94${rawPhone.replace(/^0/, '')}`) 
+
+    const phone = rawPhone
+        ? (rawPhone.startsWith('94') ? rawPhone : `94${rawPhone.replace(/^0/, '')}`)
         : ''
 
     const [claim, setClaim] = useState<any>(null)
@@ -24,9 +23,6 @@ export default function SingleCardPage() {
     const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
     const [accessDenied, setAccessDenied] = useState(false)
 
-    // ==========================================
-    // ⚡ HELPER: WALLET CACHE-ஐ உடனடியாக Sync செய்யும் Function
-    // ==========================================
     const updateWalletCacheAndNotify = (
         formattedAuthPhone: string,
         updatedClaimData: any,
@@ -39,7 +35,7 @@ export default function SingleCardPage() {
         try {
             const cacheKey = `wallet_cache_${formattedAuthPhone}`
             const cachedWalletRaw = localStorage.getItem(cacheKey)
-            
+
             if (cachedWalletRaw) {
                 let parsedStores = JSON.parse(cachedWalletRaw)
                 const storeIdToFind = updatedClaimData.store_id || updatedClaimData.stores?.id
@@ -51,7 +47,6 @@ export default function SingleCardPage() {
                     updatedClaimData.status === 'READY' &&
                     Number(updatedClaimData.claimable_amount || 0) > 0
 
-                // 1. Cache-இல் இருக்கும் குறித்த கடைக் கார்டைப் புதுப்பித்தல்
                 let updated = false
                 parsedStores = parsedStores.map((s: any) => {
                     if (String(s.id) === String(storeIdToFind) || String(s.claimId) === String(updatedClaimData.id)) {
@@ -76,13 +71,11 @@ export default function SingleCardPage() {
                     return s
                 })
 
-                // 2. புதுப்பித்த Cache-ஐ LocalStorage-இல் சேமித்தல்
                 if (updated) {
                     localStorage.setItem(cacheKey, JSON.stringify(parsedStores))
                 }
             }
 
-            // 3. ⚡ BROADCAST CHANNEL: வாலட் பக்கத்திற்கு உடனடி சிக்னல் அனுப்புதல்
             const walletChannel = new BroadcastChannel('retcash_wallet_sync')
             walletChannel.postMessage({
                 type: 'WALLET_DATA_UPDATED',
@@ -100,11 +93,30 @@ export default function SingleCardPage() {
 
         let channel: any = null
 
+        async function loadFromSecureApi(formattedAuthPhone: string) {
+            const res = await fetch('/api/customer/card-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'get_card',
+                    paramId,
+                    phone: formattedAuthPhone,
+                }),
+            })
+
+            if (res.status === 403) {
+                setAccessDenied(true)
+                setIsAuthorized(true)
+                setLoading(false)
+                return null
+            }
+
+            if (!res.ok) return null
+            return res.json()
+        }
+
         async function verifyAuthAndFetchCardData() {
             try {
-                // ==========================================
-                // STRICT AUTH GUARD: லாக்-இன் செய்த பயனரின் போன் நம்பரைக் கண்டறிதல்
-                // ==========================================
                 let authenticatedPhone = ''
 
                 if (typeof window !== 'undefined') {
@@ -125,23 +137,17 @@ export default function SingleCardPage() {
                     }
                 }
 
-                // லாக்-இன் செய்யவில்லை என்றால் லாக்-இன் பக்கத்திற்கு அனுப்புதல்
                 if (!authenticatedPhone) {
                     setIsAuthorized(false)
                     router.replace('/customer/login')
                     return
                 }
 
-                // போன் நம்பரை 94... வடிவில் சீரமைத்தல்
-                const formattedAuthPhone = authenticatedPhone.startsWith('94') 
-                    ? authenticatedPhone 
+                const formattedAuthPhone = authenticatedPhone.startsWith('94')
+                    ? authenticatedPhone
                     : `94${authenticatedPhone.replace(/^0/, '')}`
 
-                const localPhoneFormat = formattedAuthPhone.replace(/^94/, '0')
-
-                // ==========================================
-                // ⚡ OPTIMISTIC CACHE READ (Transaction உடன் இருந்தால் மட்டும் உடனடி லோடிங்)
-                // ==========================================
+                // Optimistic Cache Read
                 let hasLoadedFromCache = false
                 if (typeof window !== 'undefined') {
                     const cachedWallet = localStorage.getItem(`wallet_cache_${formattedAuthPhone}`)
@@ -149,7 +155,7 @@ export default function SingleCardPage() {
                         try {
                             const parsedStores = JSON.parse(cachedWallet)
                             const cachedStore = parsedStores.find((s: any) => String(s.id) === String(paramId) || String(s.claimId) === String(paramId))
-                            
+
                             if (cachedStore && cachedStore.latestTransaction) {
                                 setClaim({
                                     id: cachedStore.claimId || cachedStore.id,
@@ -180,176 +186,34 @@ export default function SingleCardPage() {
                     setLoading(true)
                 }
 
-                // ==========================================
-                // BACKGROUND DATA FETCH (Supabase துல்லியமான தேடல்)
-                // ==========================================
-                let currentClaim = null;
-
-                // A. முதலில் கிடைத்த ID நேரடியாக ஒரு Claim ID-ஆ என சோதித்தல்
-                const { data: claimById } = await supabase
-                    .from('cashback_claims')
-                    .select(`
-                        *,
-                        stores:store_id (
-                            id, store_name, store_slug, logo_url, location_url, review_url, target_visits, default_cashback_percent
-                        )
-                    `)
-                    .eq('id', paramId)
-                    .maybeSingle()
-
-                if (claimById) {
-                    currentClaim = claimById;
-                } else {
-                    // B. ID என்பது Store ID ஆக இருந்தால், இந்த லாக்-இன் செய்த நபருக்குரிய Unique Active Claim-ஐ எடுத்தல்
-                    const { data: claimByStore } = await supabase
-                        .from('cashback_claims')
-                        .select(`
-                            *,
-                            stores:store_id (
-                                id, store_name, store_slug, logo_url, location_url, review_url, target_visits, default_cashback_percent
-                            )
-                        `)
-                        .eq('store_id', paramId)
-                        .or(`customer_phone.eq.${formattedAuthPhone},customer_phone.eq.${localPhoneFormat}`)
-                        .maybeSingle()
-
-                    currentClaim = claimByStore;
+                const apiResult = await loadFromSecureApi(formattedAuthPhone)
+                if (!apiResult) {
+                    setIsAuthorized(true)
+                    setLoading(false)
+                    return
                 }
 
-                // C. Claim இல்லை என்றால் Supabase-இல் Unique Upsert செய்து பெறுதல் (0 visits, Rs. 0 initial state)
-                if (!currentClaim) {
-                    const { data: storeData } = await supabase
-                        .from('stores')
-                        .select('*')
-                        .eq('id', paramId)
-                        .maybeSingle()
-
-                    if (storeData) {
-                        let customerUuid: string | null = null
-                        const { data: existingCust } = await supabase
-                            .from('customers')
-                            .select('id')
-                            .eq('phone_number', formattedAuthPhone)
-                            .maybeSingle()
-
-                        if (existingCust) {
-                            customerUuid = existingCust.id
-                        } else {
-                            const { data: newCust } = await supabase
-                                .from('customers')
-                                .insert({ phone_number: formattedAuthPhone, store_id: storeData.id })
-                                .select('id')
-                                .maybeSingle()
-                            if (newCust) customerUuid = newCust.id
-                        }
-
-                        // UPSERT using Unique Constraint (customer_phone, store_id)
-                        const { data: newClaimData } = await supabase
-                            .from('cashback_claims')
-                            .upsert({
-                                store_id: storeData.id,
-                                customer_id: customerUuid,
-                                customer_phone: formattedAuthPhone,
-                                claimable_amount: 0,
-                                visit_count: 0,
-                                status: 'PENDING',
-                                updated_at: new Date().toISOString()
-                            }, {
-                                onConflict: 'customer_phone,store_id'
-                            })
-                            .select(`
-                                *,
-                                stores:store_id (
-                                    id, store_name, store_slug, logo_url, location_url, review_url, target_visits, default_cashback_percent
-                                )
-                            `)
-                            .maybeSingle()
-
-                        if (newClaimData) {
-                            currentClaim = newClaimData
-                        }
-                    }
-                }
-
-                // ==========================================
-                // STRICT OWNERSHIP CHECK
-                // ==========================================
-                if (currentClaim && currentClaim.customer_phone) {
-                    const claimPhoneFormatted = currentClaim.customer_phone.startsWith('94')
-                        ? currentClaim.customer_phone
-                        : `94${currentClaim.customer_phone.replace(/^0/, '')}`
-
-                    if (claimPhoneFormatted !== formattedAuthPhone) {
-                        console.warn('Unauthorized Access: User trying to view someone else card.')
-                        setAccessDenied(true)
-                        setIsAuthorized(true)
-                        setLoading(false)
-                        return
-                    }
-                }
-
-                // ==========================================
-                // 🎯 LATEST TRANSACTION FETCH (net_paid_amount சேர்க்கப்பட்டது)
-                // ==========================================
-                if (currentClaim && currentClaim.store_id) {
-                    const { data: lastTx } = await supabase
-                        .from('cashback_history')
-                        .select('bill_amount, cashback_percentage, cashback_amount, net_paid_amount, transaction_type, created_at')
-                        .eq('claim_id', currentClaim.id)
-                        .order('created_at', { ascending: false })
-                        .limit(1)
-                        .maybeSingle()
-
-                    const { data: walletSummary } = await supabase
-                        .from('customer_wallet_summary')
-                        .select('last_bill_amount, total_redeemed_amount, current_balance, status')
-                        .eq('store_id', currentClaim.store_id)
-                        .or(`customer_phone.eq.${formattedAuthPhone},customer_phone.eq.${localPhoneFormat}`)
-                        .maybeSingle()
-
-                    let resolvedTxObj: any = null
-                    let trueDisplayCashback = Number(currentClaim.cashback_amount || 0)
-
-                    if (lastTx) {
-                        const calculatedBill = (walletSummary?.last_bill_amount && walletSummary.last_bill_amount > 0) 
-                            ? walletSummary.last_bill_amount 
-                            : lastTx.bill_amount
-
-                        const isTxRedeemed = String(lastTx.transaction_type || '').toUpperCase().includes('REDEEMED')
-                        const redeemedAmt = isTxRedeemed
-                            ? Number(lastTx.cashback_amount || walletSummary?.total_redeemed_amount || 0)
-                            : Number(walletSummary?.total_redeemed_amount || 0)
-
-                        const netPaid = lastTx.net_paid_amount !== undefined && lastTx.net_paid_amount !== null
-                            ? lastTx.net_paid_amount
-                            : Math.max(0, calculatedBill - (isTxRedeemed ? redeemedAmt : 0))
-
-                        resolvedTxObj = {
-                            ...lastTx,
-                            bill_amount: calculatedBill,
-                            net_paid_amount: netPaid,
-                            redeemed_amount: redeemedAmt,
-                            total_redeemed: walletSummary?.total_redeemed_amount || 0,
-                            summary_status: currentClaim.status || walletSummary?.status
-                        }
-
-                        if (currentClaim.status === 'REDEEMED' && redeemedAmt > 0) {
-                            trueDisplayCashback = redeemedAmt
-                        }
-
-                        setLatestTransaction(resolvedTxObj)
-                    }
-
-                    // ⚡ வாலட் கேஷை துல்லியமான தொகையுடன் அப்டேட் செய்தல்
-                    updateWalletCacheAndNotify(formattedAuthPhone, currentClaim, walletSummary, resolvedTxObj, trueDisplayCashback)
-                }
+                const { claim: currentClaim, latestTransaction: resolvedTxObj, walletSummary } = apiResult
 
                 if (currentClaim) {
+                    let trueDisplayCashback = Number(currentClaim.cashback_amount || 0)
+                    if (resolvedTxObj) {
+                        setLatestTransaction(resolvedTxObj)
+                        if (currentClaim.status === 'REDEEMED' && Number(resolvedTxObj.redeemed_amount || 0) > 0) {
+                            trueDisplayCashback = Number(resolvedTxObj.redeemed_amount)
+                        }
+                    }
+
+                    updateWalletCacheAndNotify(
+                        formattedAuthPhone,
+                        currentClaim,
+                        walletSummary,
+                        resolvedTxObj,
+                        trueDisplayCashback
+                    )
+
                     setClaim(currentClaim)
 
-                    // ==========================================
-                    // ⚡ SUPABASE REALTIME SUBSCRIPTION
-                    // ==========================================
                     if (currentClaim.id) {
                         channel = supabase
                             .channel(`realtime-card-${currentClaim.id}`)
@@ -361,75 +225,35 @@ export default function SingleCardPage() {
                                     table: 'cashback_claims',
                                     filter: `id=eq.${currentClaim.id}`
                                 },
-                                async (payload) => {
-                                    if (payload.new) {
-                                        const updatedClaimObj = {
-                                            ...currentClaim,
-                                            ...payload.new
+                                async () => {
+                                    const freshResult = await loadFromSecureApi(formattedAuthPhone)
+                                    if (freshResult?.claim) {
+                                        const freshClaim = freshResult.claim
+                                        const freshTx = freshResult.latestTransaction
+                                        let updatedDisplayCashback = Number(freshClaim.cashback_amount || 0)
+
+                                        setClaim(freshClaim)
+                                        if (freshTx) {
+                                            setLatestTransaction(freshTx)
+                                            if (freshClaim.status === 'REDEEMED' && Number(freshTx.redeemed_amount || 0) > 0) {
+                                                updatedDisplayCashback = Number(freshTx.redeemed_amount)
+                                            }
                                         }
 
-                                        setClaim((prevClaim: any) => ({
-                                            ...prevClaim,
-                                            ...payload.new,
-                                            stores: prevClaim?.stores || (payload.new as any).stores
-                                        }))
-
-                                        const { data: updatedTx } = await supabase
-                                            .from('cashback_history')
-                                            .select('bill_amount, cashback_percentage, cashback_amount, net_paid_amount, transaction_type, created_at')
-                                            .eq('claim_id', currentClaim.id)
-                                            .order('created_at', { ascending: false })
-                                            .limit(1)
-                                            .maybeSingle()
-
-                                        const { data: updatedSummary } = await supabase
-                                            .from('customer_wallet_summary')
-                                            .select('last_bill_amount, total_redeemed_amount, current_balance, status')
-                                            .eq('store_id', currentClaim.store_id)
-                                            .or(`customer_phone.eq.${formattedAuthPhone},customer_phone.eq.${localPhoneFormat}`)
-                                            .maybeSingle()
-
-                                        let resolvedUpdatedTx: any = null
-                                        let updatedDisplayCashback = Number(updatedClaimObj.cashback_amount || 0)
-
-                                        if (updatedTx) {
-                                            const calculatedBill = (updatedSummary?.last_bill_amount && updatedSummary.last_bill_amount > 0) 
-                                                ? updatedSummary.last_bill_amount 
-                                                : updatedTx.bill_amount
-
-                                            const isTxRedeemed = String(updatedTx.transaction_type || '').toUpperCase().includes('REDEEMED')
-                                            const redeemedAmt = isTxRedeemed
-                                                ? Number(updatedTx.cashback_amount || updatedSummary?.total_redeemed_amount || 0)
-                                                : Number(updatedSummary?.total_redeemed_amount || 0)
-
-                                            const netPaid = updatedTx.net_paid_amount !== undefined && updatedTx.net_paid_amount !== null
-                                                ? updatedTx.net_paid_amount
-                                                : Math.max(0, calculatedBill - (isTxRedeemed ? redeemedAmt : 0))
-
-                                            resolvedUpdatedTx = {
-                                                ...updatedTx,
-                                                bill_amount: calculatedBill,
-                                                net_paid_amount: netPaid,
-                                                redeemed_amount: redeemedAmt,
-                                                total_redeemed: updatedSummary?.total_redeemed_amount || 0,
-                                                summary_status: (payload.new as { status?: string }).status || (updatedSummary as { status?: string } | null)?.status
-                                            }
-
-                                            if (updatedClaimObj.status === 'REDEEMED' && redeemedAmt > 0) {
-                                                updatedDisplayCashback = redeemedAmt
-                                            }
-
-                                            setLatestTransaction(resolvedUpdatedTx)
-                                        }
-
-                                        // ⚡ REALTIME UPDATE வந்தவுடன் Cache + Broadcast Sync
-                                        updateWalletCacheAndNotify(formattedAuthPhone, updatedClaimObj, updatedSummary, resolvedUpdatedTx, updatedDisplayCashback)
+                                        updateWalletCacheAndNotify(
+                                            formattedAuthPhone,
+                                            freshClaim,
+                                            freshResult.walletSummary,
+                                            freshTx,
+                                            updatedDisplayCashback
+                                        )
                                     }
                                 }
                             )
                             .subscribe()
                     }
                 }
+
                 setIsAuthorized(true)
             } catch (err) {
                 console.error('Error fetching card details:', err)
@@ -472,7 +296,7 @@ export default function SingleCardPage() {
                         This digital card belongs to another customer. Please return to your wallet to view your personal loyalty cards.
                     </p>
                 </div>
-                <button 
+                <button
                     onClick={() => {
                         const storedPhone = localStorage.getItem('retcash_phone') || ''
                         router.push(storedPhone ? `/wallet/${storedPhone}` : '/customer/login')
@@ -489,7 +313,7 @@ export default function SingleCardPage() {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center items-center p-4 space-y-3">
                 <p className="text-xs font-bold text-slate-500">Card details not found.</p>
-                <button 
+                <button
                     onClick={() => {
                         const storedPhone = localStorage.getItem('retcash_phone') || ''
                         router.push(storedPhone ? `/wallet/${storedPhone}` : '/customer/login')
@@ -503,13 +327,13 @@ export default function SingleCardPage() {
     }
 
     return (
-        <ClientCardView 
+        <ClientCardView
             initialClaim={{
                 ...claim,
                 customer_phone: claim.customer_phone || ''
-            }} 
+            }}
             latestTransaction={latestTransaction}
-            id={claim.id} 
+            id={claim.id}
         />
     )
 }

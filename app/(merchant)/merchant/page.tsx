@@ -11,12 +11,52 @@ export default function MerchantMainPage() {
   const [checkingSession, setCheckingSession] = useState(true)
 
   useEffect(() => {
-    const savedMerchant = localStorage.getItem('retcash_merchant')
-    if (savedMerchant) {
-      router.replace('/merchant/dashboard')
-      return
+    let isMounted = true
+
+    async function validateExistingSession() {
+      const savedMerchant = localStorage.getItem('retcash_merchant')
+      if (!savedMerchant) {
+        if (isMounted) setCheckingSession(false)
+        return
+      }
+
+      try {
+        const parsed = JSON.parse(savedMerchant)
+        if (!parsed?.id) {
+          throw new Error('Invalid local merchant payload')
+        }
+
+        const res = await fetch('/api/merchant/portal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'verify_session', storeId: parsed.id }),
+        })
+
+        if (!res.ok) {
+          localStorage.removeItem('retcash_merchant')
+          if (isMounted) setCheckingSession(false)
+          return
+        }
+
+        const data = await res.json()
+        if (data?.store) {
+          localStorage.setItem('retcash_merchant', JSON.stringify(data.store))
+          router.replace('/merchant/dashboard')
+          return
+        }
+
+        localStorage.removeItem('retcash_merchant')
+      } catch {
+        localStorage.removeItem('retcash_merchant')
+      }
+
+      if (isMounted) setCheckingSession(false)
     }
-    setCheckingSession(false)
+
+    validateExistingSession()
+    return () => {
+      isMounted = false
+    }
   }, [router])
 
   if (checkingSession) {

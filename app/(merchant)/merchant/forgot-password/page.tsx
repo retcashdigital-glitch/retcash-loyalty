@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { supabase } from '@/lib/supabase'
-import bcrypt from 'bcryptjs'
 
 export default function ForgotPasswordPage() {
     const router = useRouter()
@@ -13,7 +11,8 @@ export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('')
     const [fetchedEmail, setFetchedEmail] = useState('')
 
-    const [generatedOtp, setGeneratedOtp] = useState('')
+    const [otpToken, setOtpToken] = useState('')
+    const [resetToken, setResetToken] = useState('')
     const [otpExpiry, setOtpExpiry] = useState<number>(0)
     const [otpInput, setOtpInput] = useState('')
     const [timerText, setTimerText] = useState('')
@@ -45,7 +44,6 @@ export default function ForgotPasswordPage() {
         }
     }, [step, otpExpiry])
 
-    // Step 1: Check if store email exists and send OTP via API
     const handleSendOtpRequest = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
@@ -53,46 +51,29 @@ export default function ForgotPasswordPage() {
         setIsError(false)
 
         try {
-            const cleanEmail = email.trim().toLowerCase()
-
-            const { data: store, error } = await supabase
-                .from('stores')
-                .select('email')
-                .eq('email', cleanEmail)
-                .single()
-
-            if (error || !store) {
-                setIsError(true)
-                setMsg('No store found with this email address.')
-                setLoading(false)
-                return
-            }
-
-            setFetchedEmail(store.email)
-
-            // Generate 6-digit OTP & 5-min expiry
-            const otp = Math.floor(100000 + Math.random() * 900000).toString()
-            const expiryTime = Date.now() + 5 * 60 * 1000
-
-            setGeneratedOtp(otp)
-            setOtpExpiry(expiryTime)
-
-            // Send real email via updated API path
-            const response = await fetch('/api/merchant/send-otp', {
+            const response = await fetch('/api/merchant/auth', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: store.email, otp }),
+                body: JSON.stringify({
+                    action: 'forgot_send_otp',
+                    email: email.trim().toLowerCase(),
+                }),
             })
 
             const result = await response.json()
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to send email.')
+                setIsError(true)
+                setMsg(result.error || 'Something went wrong. Please try again.')
+                setLoading(false)
+                return
             }
 
+            setFetchedEmail(result.email)
+            setOtpToken(result.otpToken)
+            setOtpExpiry(result.expiresAt)
             setLoading(false)
             setStep('otp_input')
             setMsg('OTP has been successfully sent to your email address!')
-
         } catch (err: any) {
             setIsError(true)
             setMsg(err.message || 'Something went wrong. Please try again.')
@@ -100,8 +81,7 @@ export default function ForgotPasswordPage() {
         }
     }
 
-    // Step 2: Verify OTP
-    const handleVerifyOtp = (e: React.FormEvent) => {
+    const handleVerifyOtp = async (e: React.FormEvent) => {
         e.preventDefault()
         setMsg('')
         setIsError(false)
@@ -112,16 +92,37 @@ export default function ForgotPasswordPage() {
             return
         }
 
-        if (otpInput.trim() === generatedOtp) {
+        setLoading(true)
+        try {
+            const response = await fetch('/api/merchant/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'forgot_verify_otp',
+                    otp: otpInput.trim(),
+                    otpToken,
+                }),
+            })
+
+            const result = await response.json()
+            if (!response.ok) {
+                setIsError(true)
+                setMsg(result.error || 'Invalid OTP. Please check and try again.')
+                setLoading(false)
+                return
+            }
+
+            setResetToken(result.resetToken)
             setMsg('')
             setStep('password_reset')
-        } else {
+        } catch (err: any) {
             setIsError(true)
-            setMsg('Invalid OTP. Please check and try again.')
+            setMsg(err.message || 'Verification failed. Please try again.')
+        } finally {
+            setLoading(false)
         }
     }
 
-    // Step 3: Directly update password in stores table
     const handleResetPassword = async (e: React.FormEvent) => {
         e.preventDefault()
 
@@ -136,22 +137,25 @@ export default function ForgotPasswordPage() {
         setIsError(false)
 
         try {
-            const cleanEmail = fetchedEmail.trim().toLowerCase()
-            const saltRounds = 10
-            const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds)
+            const response = await fetch('/api/merchant/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'forgot_reset_password',
+                    resetToken,
+                    newPassword,
+                }),
+            })
 
-            const { error: updateError } = await supabase
-                .from('stores')
-                .update({ password_hash: hashedNewPassword })
-                .eq('email', cleanEmail)
-
-            if (updateError) throw updateError
+            const result = await response.json()
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to reset password. Try again.')
+            }
 
             setMsg('Password updated successfully! Redirecting to login...')
             setTimeout(() => {
                 router.push('/merchant/login')
             }, 2000)
-
         } catch (err: any) {
             setIsError(true)
             setMsg(err.message || 'Failed to reset password. Try again.')
@@ -165,7 +169,6 @@ export default function ForgotPasswordPage() {
 
             <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-6 md:p-8 shadow-xl relative">
                 
-                {/* Header Section with Logo */}
                 <div className="text-center mb-6 space-y-2">
                     <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mx-auto mb-3 p-2">
                         <Image 
@@ -192,7 +195,6 @@ export default function ForgotPasswordPage() {
                     </div>
                 )}
 
-                {/* STEP 1: Email Input */}
                 {step === 'email_input' && (
                     <form onSubmit={handleSendOtpRequest} className="flex flex-col gap-4 text-xs">
                         <div>
@@ -217,7 +219,6 @@ export default function ForgotPasswordPage() {
                     </form>
                 )}
 
-                {/* STEP 2: OTP Verification */}
                 {step === 'otp_input' && (
                     <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4 text-xs">
                         <div>
@@ -245,14 +246,14 @@ export default function ForgotPasswordPage() {
 
                         <button
                             type="submit"
-                            className="w-full py-3.5 mt-2 bg-[#00875A] hover:bg-[#059669] text-white font-extrabold tracking-wider uppercase rounded-xl shadow-md shadow-[#00875A]/25 active:scale-[0.98] transition cursor-pointer"
+                            disabled={loading}
+                            className="w-full py-3.5 mt-2 bg-[#00875A] hover:bg-[#059669] text-white font-extrabold tracking-wider uppercase rounded-xl shadow-md shadow-[#00875A]/25 active:scale-[0.98] transition cursor-pointer flex items-center justify-center disabled:opacity-50"
                         >
-                            VERIFY OTP
+                            {loading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div> : 'VERIFY OTP'}
                         </button>
                     </form>
                 )}
 
-                {/* STEP 3: Password Reset */}
                 {step === 'password_reset' && (
                     <form onSubmit={handleResetPassword} className="flex flex-col gap-4 text-xs">
                         <div>
@@ -273,7 +274,7 @@ export default function ForgotPasswordPage() {
                                 >
                                     {showPassword ? (
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 0 1-4.293 5.774M6.228 6.228A3 3 0 0 0 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
                                         </svg>
                                     ) : (
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">

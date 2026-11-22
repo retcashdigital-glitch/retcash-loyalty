@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
-import { supabase } from '@/lib/supabase'
 import { CheckCircle2, AlertTriangle, XCircle, Loader2 } from 'lucide-react'
 
 export default function RedeemPage() {
@@ -18,45 +17,28 @@ export default function RedeemPage() {
             if (!id) return
 
             try {
-                // 1. Fetch claim details
-                const { data: claim, error: fetchErr } = await supabase
-                    .from('cashback_claims')
-                    .select('*, customers(*)')
-                    .eq('claim_token', id)
-                    .single()
+                const res = await fetch('/api/merchant/claim-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: id }),
+                })
 
-                if (fetchErr || !claim) {
-                    setStatus('error')
-                    return
-                }
+                const data = await res.json()
 
-                // 2. Prevent double claiming if already claimed
-                if (claim.status === 'CLAIMED') {
-                    setAmount(claim.claimable_amount)
+                if (data.status === 'already_claimed') {
+                    setAmount(Number(data.amount || 0))
                     setStatus('already_claimed')
                     return
                 }
 
-                // 3. Update status to CLAIMED
-                const { error: updateClaimErr } = await supabase
-                    .from('cashback_claims')
-                    .update({ status: 'CLAIMED' })
-                    .eq('id', claim.id)
-
-                if (updateClaimErr) {
+                if (!res.ok || data.status !== 'success') {
                     setStatus('error')
                     return
                 }
 
-                // 4. Reset customer's total cashback to 0 for next cycle
-                await supabase
-                    .from('customers')
-                    .update({ total_cashback: 0 })
-                    .eq('id', claim.customer_id)
-
-                setAmount(claim.claimable_amount)
+                setAmount(Number(data.amount || 0))
                 setStatus('success')
-            } catch (err) {
+            } catch {
                 setStatus('error')
             }
         }

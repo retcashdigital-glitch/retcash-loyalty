@@ -1,75 +1,60 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse } from 'next/server' // ✅ 'next/server' என மாற்றவும்
+import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export async function middleware(req: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request: req,
-  })
+async function verifyAdminCookie(token: string | undefined, secret: string): Promise<boolean> {
+  if (!token || !token.includes('.') || !secret) return false
 
+  const [encoded, sig] = token.split('.')
+  if (!encoded || !sig) return false
+
+  try {
+    const encoder = new TextEncoder()
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    )
+
+    const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(encoded))
+    const expectedHex = Array.from(new Uint8Array(signatureBuffer))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+
+    if (sig !== expectedHex) return false
+
+    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
+    const payload = JSON.parse(atob(padded))
+
+    if (payload.role !== 'admin') return false
+    if (Date.now() > Number(payload.exp || 0)) return false
+
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function middleware(req: NextRequest) {
   const url = req.nextUrl.clone()
 
-  // 1. ADMIN ROUTE GUARD
+  // 1. ADMIN ROUTE GUARD (Cryptographically Verified)
   if (url.pathname.startsWith('/admin') && !url.pathname.startsWith('/admin/login')) {
-    const adminAuth = req.cookies.get('admin_authenticated')?.value
-    if (adminAuth !== 'true') {
+    const adminCookie = req.cookies.get('admin_authenticated')?.value
+    const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    const isValidAdmin = await verifyAdminCookie(adminCookie, secret)
+
+    if (!isValidAdmin) {
       url.pathname = '/admin/login'
       return NextResponse.redirect(url)
     }
   }
 
-  // 2. MERCHANT SUBSCRIPTION CHECK
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  // Environment Variables இருந்தால் மட்டுமே Supabase செக் இயங்கும்
-  if (url.pathname.startsWith('/merchant') && supabaseUrl && supabaseAnonKey) {
-    const supabase = createServerClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        cookies: {
-          getAll() {
-            return req.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value))
-            supabaseResponse = NextResponse.next({
-              request: req,
-            })
-            cookiesToSet.forEach(({ name, value, options }) =>
-              supabaseResponse.cookies.set(name, value, options)
-            )
-          },
-        },
-      }
-    )
-
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (user) {
-      const { data: merchant } = await supabase
-        .from('merchants')
-        .select('subscription_status, trial_ends_at')
-        .eq('id', user.id)
-        .single()
-
-      if (merchant) {
-        const now = new Date()
-        const isSubValid = merchant.subscription_status === 'active' || merchant.subscription_status === 'trialing'
-        const isExplicitlyExpired = merchant.subscription_status === 'expired' || merchant.subscription_status === 'cancelled'
-        
-        const trialEnd = merchant.trial_ends_at ? new Date(merchant.trial_ends_at) : null
-        const isTrialOver = trialEnd ? now.getTime() >= trialEnd.getTime() : false
-
-        if (isExplicitlyExpired || (!isSubValid && isTrialOver) || (merchant.subscription_status === 'trialing' && isTrialOver)) {
-          supabaseResponse.headers.set('x-subscription-status', 'expired')
-        }
-      }
-    }
-  }
-
-  return supabaseResponse
+  return NextResponse.next({
+    request: req,
+  })
 }
 
 export const config = {

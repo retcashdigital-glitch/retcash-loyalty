@@ -48,8 +48,6 @@ const NAV_TAB_IDS = [
 
 type NavTabId = (typeof NAV_TAB_IDS)[number]['id']
 
-// ─── Push Notification Helper ─────────────────────────────────────────────────
-
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
@@ -60,8 +58,6 @@ function urlBase64ToUint8Array(base64String: string) {
   }
   return outputArray
 }
-
-// ─── Visual Helpers ───────────────────────────────────────────────────────────
 
 function getCategoryColor(_category?: string) {
   return { color: '#00875A', bgColor: '#ECFDF5' }
@@ -89,7 +85,7 @@ function getCategoryIcon(category?: string) {
 
 function VisitCapsules({ visits, maxVisits, color }: { visits: number; maxVisits: number; color: string }) {
   const targetVisits = Math.max(1, Math.min(maxVisits, 12))
-  
+
   return (
     <div className="w-[130px] sm:w-[150px] flex-shrink-0 flex items-center justify-end">
       <div className="flex gap-1.5 w-full items-center">
@@ -97,7 +93,7 @@ function VisitCapsules({ visits, maxVisits, color }: { visits: number; maxVisits
           <div
             key={i}
             className="h-2 flex-1 rounded-full transition-all duration-300"
-            style={{ 
+            style={{
               background: i < visits ? color : '#E2E8F0',
               opacity: i < visits ? 1 : 0.7
             }}
@@ -108,8 +104,6 @@ function VisitCapsules({ visits, maxVisits, color }: { visits: number; maxVisits
   )
 }
 
-// ─── WhatsApp-Style Latest Activity Sort Helper ───────────────────────────────
-
 function sortStoresByLatestActivity(storeList: any[]) {
   return [...storeList].sort((a, b) => {
     const timeA = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0
@@ -117,8 +111,6 @@ function sortStoresByLatestActivity(storeList: any[]) {
     return timeB - timeA
   })
 }
-
-// ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function CustomerWalletPage() {
   const params = useParams()
@@ -133,7 +125,7 @@ export default function CustomerWalletPage() {
   const [customerEmail, setCustomerEmail] = useState<string>('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [customerId, setCustomerId] = useState<string | null>(null)
-  
+
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -152,12 +144,10 @@ export default function CustomerWalletPage() {
   const [copied, setCopied] = useState(false)
   const [, startTransition] = useTransition()
 
-  // ─── Push Notification States ───────────────────────────────────────────────
   const [notifPermission, setNotifPermission] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('unsupported')
   const [isSubscribingNotif, setIsSubscribingNotif] = useState(false)
   const [isIosNotStandalone, setIsIosNotStandalone] = useState(false)
 
-  // ─── Instagram-Style Floating Pill Drag/Slide States ────────────────────────
   const [dragProgress, setDragProgress] = useState<number | null>(null)
   const [isDraggingNav, setIsDraggingNav] = useState(false)
   const navPillRef = useRef<HTMLDivElement>(null)
@@ -183,7 +173,6 @@ export default function CustomerWalletPage() {
   )
   const categoryList = ['All', ...availableCategories]
 
-  // ─── Deep Link Tab Reader (?tab=offers) & Service Worker Registration ───────
   useEffect(() => {
     if (typeof window === 'undefined' || !phone) return
 
@@ -318,7 +307,7 @@ export default function CustomerWalletPage() {
     reloadFromCache()
     setIsCheckingAuth(false)
 
-    const verifySessionInBackground = async () => {
+    const verifyAndLoadWallet = async () => {
       try {
         const sessionRes = await fetch('/api/customer/pin-auth', {
           method: 'POST',
@@ -333,39 +322,13 @@ export default function CustomerWalletPage() {
           return
         }
 
-        const cleanPhone = phone.replace(/\D/g, '')
-        const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
-
-        const { data: customerList, error } = await supabase
-          .from('customers')
-          .select('id, full_name, email, avatar_url')
-          .or(`phone_number.eq.${phone},phone_number.eq.${phoneWithZero}`)
-          .limit(1)
-
-        const customer = customerList?.[0]
-
-        if (error || !customer) {
-          localStorage.removeItem(`retcash_wallet_session_${phone}`)
-          localStorage.removeItem(`retcash_wallet_auth_${phone}`)
-          router.replace('/customer/login')
-          return
-        }
-
-        setCustomerId(customer.id)
-        if (customer.full_name) {
-          setCustomerName(customer.full_name)
-          localStorage.setItem(`customer_name_${phone}`, customer.full_name)
-        }
-        if (customer.email) setCustomerEmail(customer.email)
-        if (customer.avatar_url) setAvatarUrl(customer.avatar_url)
+        await fetchWalletAndClaimsData(true)
       } catch (err) {
         console.error('Authentication verification error:', err)
       }
     }
 
-    verifySessionInBackground()
-    fetchWalletAndClaimsData()
-    fetchActiveOffers()
+    verifyAndLoadWallet()
 
     let syncChannel: BroadcastChannel | null = null
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -396,7 +359,7 @@ export default function CustomerWalletPage() {
             }
           }
           reloadFromCache()
-          fetchWalletAndClaimsData()
+          fetchWalletAndClaimsData(false)
         }
       }
     }
@@ -404,7 +367,7 @@ export default function CustomerWalletPage() {
     const handleFocusOrVisibility = () => {
       if (document.visibilityState === 'visible') {
         reloadFromCache()
-        fetchWalletAndClaimsData()
+        fetchWalletAndClaimsData(false)
       }
     }
 
@@ -426,7 +389,7 @@ export default function CustomerWalletPage() {
         (payload: any) => {
           const updatedPhone = payload.new?.customer_phone || payload.old?.customer_phone
           if (updatedPhone === phone || updatedPhone === phoneWithZero) {
-            fetchWalletAndClaimsData()
+            fetchWalletAndClaimsData(false)
           }
         }
       )
@@ -440,10 +403,9 @@ export default function CustomerWalletPage() {
     }
   }, [phone, router])
 
-  const fetchWalletAndClaimsData = async () => {
+  const fetchWalletAndClaimsData = async (verifyCustomerExists = false) => {
     try {
-      const cleanPhone = phone.replace(/\D/g, '')
-      const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
+      setOffersLoading(true)
 
       const existingCacheMap = new Map<string, any>()
       if (typeof window !== 'undefined') {
@@ -460,13 +422,43 @@ export default function CustomerWalletPage() {
         }
       }
 
-      const { data: claimsData, error: claimsError } = await supabase
-        .from('cashback_claims')
-        .select('*')
-        .or(`customer_phone.eq.${phone},customer_phone.eq.${phoneWithZero}`)
-        .order('updated_at', { ascending: false })
+      const res = await fetch('/api/customer/wallet-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_wallet', phone }),
+      })
 
-      if (claimsError) throw claimsError
+      if (!res.ok) throw new Error('Failed to fetch wallet data')
+
+      const {
+        customer,
+        claimsData,
+        walletSummaries,
+        lastRedeemedTxs,
+        userStores,
+        activeOffers: fetchedOffers,
+      } = await res.json()
+
+      if (verifyCustomerExists) {
+        if (!customer) {
+          localStorage.removeItem(`retcash_wallet_session_${phone}`)
+          localStorage.removeItem(`retcash_wallet_auth_${phone}`)
+          router.replace('/customer/login')
+          return
+        }
+
+        setCustomerId(customer.id)
+        if (customer.full_name) {
+          setCustomerName(customer.full_name)
+          localStorage.setItem(`customer_name_${phone}`, customer.full_name)
+        }
+        if (customer.email) setCustomerEmail(customer.email)
+        if (customer.avatar_url) setAvatarUrl(customer.avatar_url)
+      }
+
+      if (Array.isArray(fetchedOffers)) {
+        setActiveOffers(fetchedOffers)
+      }
 
       if (!claimsData || claimsData.length === 0) {
         setStores([])
@@ -475,23 +467,10 @@ export default function CustomerWalletPage() {
         return
       }
 
-      const { data: walletSummaries } = await supabase
-        .from('customer_wallet_summary')
-        .select('store_id, current_balance, status')
-        .or(`customer_phone.eq.${phone},customer_phone.eq.${phoneWithZero}`)
-
       const summaryMap = new Map<string, any>()
       walletSummaries?.forEach((sum: any) => {
         summaryMap.set(String(sum.store_id), sum)
       })
-
-      const claimIds = claimsData.map((c: any) => c.id)
-      const { data: lastRedeemedTxs } = await supabase
-        .from('cashback_history')
-        .select('claim_id, cashback_amount, created_at')
-        .in('claim_id', claimIds)
-        .eq('transaction_type', 'REDEEMED')
-        .order('created_at', { ascending: false })
 
       const lastRedeemedMap = new Map<string, number>()
       lastRedeemedTxs?.forEach((tx: any) => {
@@ -508,15 +487,6 @@ export default function CustomerWalletPage() {
           latestClaimsMap.set(storeIdStr, claim)
         }
       })
-
-      const customerStoreIds = Array.from(latestClaimsMap.keys())
-
-      const { data: userStores, error: storeError } = await supabase
-        .from('stores')
-        .select('*')
-        .in('id', customerStoreIds)
-
-      if (storeError) throw storeError
 
       const mergedStores = userStores?.map((store: any) => {
         const latestClaim = latestClaimsMap.get(String(store.id))
@@ -568,37 +538,10 @@ export default function CustomerWalletPage() {
 
       setStores(sortedStores)
       localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(sortedStores))
-
     } catch (err) {
       console.error('Error in fetching wallet data:', err)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchActiveOffers = async () => {
-    try {
-      setOffersLoading(true)
-      const { data, error } = await supabase
-        .from('store_offers')
-        .select(`
-            *,
-            stores:store_id (
-                id,
-                store_name,
-                logo_url,
-                category
-            )
-        `)
-        .gte('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
-
-      if (!error && data) {
-        setActiveOffers(data)
-      }
-    } catch (err) {
-      console.error('Error fetching active offers:', err)
-    } finally {
       setOffersLoading(false)
     }
   }
@@ -664,29 +607,23 @@ export default function CustomerWalletPage() {
       setIsUploadingImage(true)
       setProfileMessage(null)
 
-      const fileExt = file.name.split('.').pop()
-      const filePath = `${customerId}/avatar.${fileExt}`
+      const formData = new FormData()
+      formData.append('action', 'upload_avatar')
+      formData.append('file', file)
+      formData.append('customerId', customerId)
+      formData.append('phone', phone)
 
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: true })
+      const res = await fetch('/api/customer/wallet-data', {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
 
-      if (uploadError) throw uploadError
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update profile picture.')
+      }
 
-      const { data: publicUrlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath)
-
-      const publicUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`
-
-      const { error: updateError } = await supabase
-        .from('customers')
-        .update({ avatar_url: publicUrl })
-        .eq('id', customerId)
-
-      if (updateError) throw updateError
-
-      setAvatarUrl(publicUrl)
+      setAvatarUrl(data.avatarUrl)
       setProfileMessage({ type: 'success', text: t.avatarSuccess })
     } catch (err: any) {
       console.error('Avatar upload error:', err)
@@ -704,12 +641,21 @@ export default function CustomerWalletPage() {
       setIsSavingProfile(true)
       setProfileMessage(null)
 
-      const { error } = await supabase
-        .from('customers')
-        .update({ full_name: customerName })
-        .eq('id', customerId)
+      const res = await fetch('/api/customer/wallet-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_profile',
+          customerId,
+          phone,
+          fullName: customerName,
+        }),
+      })
+      const data = await res.json()
 
-      if (error) throw error
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to save changes.')
+      }
 
       localStorage.setItem(`customer_name_${phone}`, customerName)
       setProfileMessage({ type: 'success', text: t.nameSuccess })
@@ -721,7 +667,6 @@ export default function CustomerWalletPage() {
     }
   }
 
-  // ─── Instagram-Style Floating Pill Pointer Handlers (Slide + Tap) ───────────
   const getProgressFromClientX = (clientX: number) => {
     if (!navPillRef.current) return 0
     const rect = navPillRef.current.getBoundingClientRect()
@@ -929,7 +874,6 @@ export default function CustomerWalletPage() {
                 </div>
               </div>
 
-              {/* 🔔 Push Notification Opt-in Banner (Only visible until enabled) */}
               {notifPermission === 'default' && (
                 <div className="bg-emerald-50/90 border border-emerald-200/80 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -1371,7 +1315,6 @@ export default function CustomerWalletPage() {
                   </button>
                 </form>
 
-                {/* 🔔 Notification Status Row in Profile */}
                 {notifPermission !== 'unsupported' && (
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -1415,7 +1358,6 @@ export default function CustomerWalletPage() {
           )}
         </main>
 
-        {/* ⚡ Instagram-Style Floating Pill Bottom Navigation (Slide + Tap) */}
         <nav
           className="fixed bottom-0 max-w-[430px] w-full z-30 px-3 pt-2 pointer-events-none"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 14px)" }}

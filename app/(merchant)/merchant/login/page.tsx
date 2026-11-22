@@ -3,8 +3,6 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import { supabase } from '@/lib/supabase'
-import bcrypt from 'bcryptjs'
 
 function LoginForm() {
     const router = useRouter()
@@ -20,7 +18,6 @@ function LoginForm() {
     const [errorMsg, setErrorMsg] = useState('')
     const [successMsg, setSuccessMsg] = useState('')
 
-    // Auto-redirect if already logged in as merchant
     useEffect(() => {
         const savedMerchant = localStorage.getItem('retcash_merchant')
         if (savedMerchant) {
@@ -36,20 +33,6 @@ function LoginForm() {
         }
     }, [phoneFromUrl, isRegistered, router])
 
-    // Format Sri Lankan phone numbers to international standard format
-    const formatPhoneNumber = (input: string) => {
-        const cleaned = input.replace(/\D/g, '')
-        if (!cleaned) return ''
-
-        if (cleaned.startsWith('0') && cleaned.length === 10) {
-            return '94' + cleaned.slice(1)
-        }
-        if (cleaned.startsWith('94') && cleaned.length === 11) {
-            return cleaned
-        }
-        return cleaned
-    }
-
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
@@ -57,50 +40,32 @@ function LoginForm() {
         setSuccessMsg('')
 
         try {
-            const cleanPhone = formatPhoneNumber(phone)
+            const res = await fetch('/api/merchant/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'login',
+                    phone,
+                    password,
+                }),
+            })
 
-            if (!cleanPhone || cleanPhone.length < 9) {
-                setErrorMsg('Please enter a valid phone number.')
+            const data = await res.json()
+
+            if (res.status === 404 && data.notFound) {
+                router.push(`/merchant/register?phone=${data.cleanPhone}`)
+                return
+            }
+
+            if (!res.ok) {
+                setErrorMsg(data.error || 'Login failed. Please try again.')
                 setLoading(false)
                 return
             }
 
-            // 1. Verify if merchant exists in database
-            const { data: store, error } = await supabase
-                .from('stores')
-                .select('*')
-                .eq('phone_number', cleanPhone)
-                .single()
-
-            // Redirect to registration if phone number not found
-            if (error || !store) {
-                router.push(`/merchant/register?phone=${cleanPhone}`)
-                return
-            }
-
-            // 2. Validate password hash
-            const isPasswordValid = await bcrypt.compare(password, store.password_hash)
-
-            if (!isPasswordValid) {
-                setErrorMsg('Invalid password. Please try again.')
-                setLoading(false)
-                return
-            }
-
-            // 3. Store merchant session safely without sensitive hashes
-            const safeMerchantSession = {
-                id: store.id,
-                store_name: store.store_name,
-                phone_number: store.phone_number,
-                default_cashback_percent: store.default_cashback_percent ?? 5,
-                target_visits: store.target_visits ?? 6
-            }
-            
-            localStorage.setItem('retcash_merchant', JSON.stringify(safeMerchantSession))
-            
-            // Redirect to merchant dashboard
+            localStorage.setItem('retcash_merchant', JSON.stringify(data.merchant))
             router.push('/merchant/dashboard')
-        } catch (err: any) {
+        } catch {
             setErrorMsg('Login failed. Please try again.')
         } finally {
             setLoading(false)
@@ -110,7 +75,6 @@ function LoginForm() {
     return (
         <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-6 md:p-8 shadow-xl relative my-auto">
             
-            {/* Logo & Header Section */}
             <div className="text-center mb-6 space-y-2">
                 <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mx-auto mb-3 p-2">
                     <Image 
@@ -207,7 +171,7 @@ function LoginForm() {
             </form>
 
             <p className="text-xs text-center text-slate-500 font-medium mt-6">
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <span
                     onClick={() => router.push('/merchant/register')}
                     className="text-[#00875A] font-extrabold cursor-pointer hover:underline"

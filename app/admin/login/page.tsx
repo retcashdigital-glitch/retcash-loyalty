@@ -2,16 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-
-// கடவுச்சொல்லை பாதுகாப்பாக Crypto Hash செய்வதற்கான ஃபங்ஷன் (SHA-256)
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'RETCASH_ADMIN_SALT_2026'); // Extra Secret Salt
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
@@ -29,7 +19,6 @@ export default function AdminLoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // லோக்கல் மெமரியில் பிளாக் செய்யப்பட்டிருக்கிறாரா எனச் சரிபார்த்தல்
     const blockedStatus = localStorage.getItem('admin_blocked') === 'true';
     const attempts = parseInt(localStorage.getItem('admin_failed_attempts') || '0', 10);
 
@@ -45,8 +34,7 @@ export default function AdminLoginPage() {
   // 📧 retcashdigital@gmail.com-க்கு மின்னஞ்சல் எச்சரிக்கை அனுப்பும் ஃபங்ஷன்
   async function sendSecurityAlertEmail(reason: string, failedCount: number) {
     try {
-      // API Route மூலம் மின்னஞ்சல் அனுப்பும் அழைப்பு (Optional Backend Route call)
-      await fetch('/api/admin-security-alert', {
+      await fetch('/api/admin/security-alert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -62,22 +50,18 @@ export default function AdminLoginPage() {
     }
   }
 
-  // Supabase-இல் பாஸ்வேர்ட் ஏற்கனவே அமைக்கப்பட்டுள்ளதா எனச் சரிபார்க்கிறது
+  // சர்வர் API மூலம் பாஸ்வேர்ட் ஏற்கனவே அமைக்கப்பட்டுள்ளதா எனச் சரிபார்க்கிறது
   async function checkPasswordSetup() {
     try {
-      const { data, error } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'admin_password_hash')
-        .single();
-
-      if (error || !data) {
-        setIsFirstTime(true); // பாஸ்வேர்ட் இல்லை என்றால் முதல் முறை
-      } else {
-        setIsFirstTime(false); // ஏற்கனவே பாஸ்வேர்ட் அமைக்கப்பட்டுவிட்டது
-      }
-    } catch (err) {
-      setIsFirstTime(true);
+      const res = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check_setup' }),
+      });
+      const data = await res.json();
+      setIsFirstTime(Boolean(data?.isFirstTime));
+    } catch {
+      setIsFirstTime(false);
     } finally {
       setLoading(false);
     }
@@ -94,8 +78,6 @@ export default function AdminLoginPage() {
     setSubmitting(true);
 
     try {
-      const hashedPassword = await hashPassword(password);
-
       if (isFirstTime) {
         // --- 1. முதல் முறை: புதிய பாஸ்வேர்ட் அமைத்தல் ---
         if (password.length < 6) {
@@ -110,53 +92,52 @@ export default function AdminLoginPage() {
           return;
         }
 
-        // Supabase-இல் பாதுகாப்பாக Hash செய்து சேமித்தல்
-        const { error } = await supabase
-          .from('app_settings')
-          .upsert({ key: 'admin_password_hash', value: hashedPassword });
+        const res = await fetch('/api/admin/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'setup',
+            password,
+            confirmPassword,
+          }),
+        });
+        const data = await res.json();
 
-        if (error) throw error;
+        if (!res.ok) {
+          throw new Error(data.error || 'கடவுச்சொல் சேமிக்க முடியவில்லை');
+        }
 
         alert('அட்மின் கடவுச்சொல் வெற்றிகரமாக அமைக்கப்பட்டது!');
-
-        // Auth Cookie & LocalStorage
-        document.cookie = 'admin_authenticated=true; path=/; max-age=86400';
         localStorage.setItem('admin_auth', 'true');
         router.push('/admin/subscriptions');
       } else {
         // --- 2. அடுத்தடுத்த முறைகள்: பாஸ்வேர்ட் சரிபார்த்தல் ---
-        const { data, error } = await supabase
-          .from('app_settings')
-          .select('value')
-          .eq('key', 'admin_password_hash')
-          .single();
+        const res = await fetch('/api/admin/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'login',
+            password,
+          }),
+        });
+        const data = await res.json();
 
-        if (error || !data) {
-          alert('பிழை: கடவுச்சொல் தரவுத்தளத்தில் இல்லை!');
-          setSubmitting(false);
-          return;
-        }
-
-        // Hash ஒப்பீடு செய்தல்
-        if (data.value === hashedPassword) {
+        if (res.ok && data.success) {
           alert('Admin Login வெற்றிகரமானது!');
-          
-          // வெற்றி பெற்றவுடன் முயற்சிகள் ரீசெட் செய்யப்படும்
           localStorage.setItem('admin_failed_attempts', '0');
-          document.cookie = 'admin_authenticated=true; path=/; max-age=86400';
           localStorage.setItem('admin_auth', 'true');
           router.push('/admin/subscriptions');
-        } else {
+        } else if (data?.notConfigured) {
+          alert('பிழை: கடவுச்சொல் தரவுத்தளத்தில் இல்லை!');
+        } else if (data?.invalidPassword) {
           // ⚠️ தவறான பாஸ்வேர்ட் உள்ளீடு
           const newAttempts = failedAttempts + 1;
           setFailedAttempts(newAttempts);
           localStorage.setItem('admin_failed_attempts', newAttempts.toString());
 
-          // 🚨 மெயிலுக்கு எச்சரிக்கை அனுப்புதல்
           sendSecurityAlertEmail('தவறான அட்மின் கடவுச்சொல் உள்ளீடு செய்ய முயற்சி', newAttempts);
 
           if (newAttempts >= 3) {
-            // ❌ 3 முறை தவறாகப் போட்டால் முடக்குதல் (Lock Out)
             setIsBlocked(true);
             localStorage.setItem('admin_blocked', 'true');
             sendSecurityAlertEmail('அதிகபட்ச தவறான முயற்சிகள்! அட்மின் பக்கம் முடக்கம் செய்யப்பட்டது.', newAttempts);
@@ -164,6 +145,8 @@ export default function AdminLoginPage() {
           } else {
             alert(`பிழை: தவறான அட்மின் கடவுச்சொல்! (மீதமுள்ள முயற்சிகள்: ${3 - newAttempts})`);
           }
+        } else {
+          alert('பிழை ஏற்பட்டது: ' + (data?.error || 'Login failed'));
         }
       }
     } catch (err: any) {
@@ -205,7 +188,6 @@ export default function AdminLoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-4 font-sans">
-      {/* Autofill மஞ்சள் நிறத்தை தடுப்பதற்கான CSS Style Injection */}
       <style jsx global>{`
         input:-webkit-autofill,
         input:-webkit-autofill:hover,
@@ -233,7 +215,6 @@ export default function AdminLoginPage() {
               {isFirstTime ? 'புதிய Admin Password உருவாக்கவும்' : 'Admin Password'}
             </label>
 
-            {/* Password Input + Eye Icon */}
             <div className="relative flex items-center">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -244,7 +225,6 @@ export default function AdminLoginPage() {
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 pr-12 text-white focus:outline-none focus:border-emerald-500 transition-colors"
               />
 
-              {/* Eye Icon Button */}
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -253,7 +233,6 @@ export default function AdminLoginPage() {
                 aria-label="Toggle password visibility"
               >
                 {showPassword ? (
-                  // Eye Off Icon (மறைக்க)
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -269,7 +248,6 @@ export default function AdminLoginPage() {
                     />
                   </svg>
                 ) : (
-                  // Eye Icon (பார்க்க)
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -294,7 +272,6 @@ export default function AdminLoginPage() {
             </div>
           </div>
 
-          {/* முதல்முறை மட்டும் Confirm Password கேட்கப்படும் */}
           {isFirstTime && (
             <div>
               <label className="block text-sm font-medium mb-1 text-gray-300">

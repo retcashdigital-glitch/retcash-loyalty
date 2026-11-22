@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@supabase/supabase-js'
 import {
   Smartphone,
   CheckCircle2,
@@ -19,10 +18,6 @@ import {
 import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
 import CustomerLangSwitcher from '@/components/CustomerLangSwitcher'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null
-
 interface StoreBrandInfo {
   id: string
   name: string
@@ -31,7 +26,6 @@ interface StoreBrandInfo {
   targetVisits?: number
 }
 
-// Format local Sri Lankan mobile input cleanly as "71 234 5678"
 function formatSriLankaDisplay(raw: string): string {
   const digits = raw.replace(/\D/g, '')
   if (!digits) return ''
@@ -110,43 +104,25 @@ function CustomerPinLoginContent() {
     return cleaned.length === 9 ? `94${cleaned}` : ''
   }
 
-  // 1. Fetch scanned store branding (Logo, Name & Cashback Rules) if ?store= is present
+  // 1. Fetch scanned store branding safely via Server API
   useEffect(() => {
-    if (!storeParam || !supabase) return
+    if (!storeParam) return
 
     let isMounted = true
     const loadStoreBranding = async () => {
       try {
-        let { data } = await supabase
-          .from('stores')
-          .select('*')
-          .eq('id', storeParam)
-          .maybeSingle()
+        const res = await fetch('/api/customer/card-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'store_info', storeId: storeParam }),
+        })
+        if (!res.ok) return
+        const { store } = await res.json()
 
-        if (!data) {
-          const fallback = await supabase
-            .from('merchants')
-            .select('*')
-            .eq('id', storeParam)
-            .maybeSingle()
-          data = fallback.data
-        }
-
-        if (isMounted && data) {
-          const resolvedName =
-            data.store_name || data.business_name || data.name || 'Partner Store'
-          const resolvedLogo =
-            data.logo_url || data.store_logo || data.avatar_url || null
-
+        if (isMounted && store) {
           setLogoLoadError(false)
-          setStoreInfo({
-            id: String(data.id),
-            name: resolvedName,
-            logoUrl: resolvedLogo,
-            cashbackPercent: data.default_cashback_percent,
-            targetVisits: data.target_visits,
-          })
-          localStorage.setItem('retcash_last_scanned_store', String(data.id))
+          setStoreInfo(store)
+          localStorage.setItem('retcash_last_scanned_store', String(store.id))
         }
       } catch {
         // Fail silently and keep standard RETCASH login UI
@@ -187,7 +163,6 @@ function CustomerPinLoginContent() {
           return
         }
 
-        // Returning user who logged out on this device: pre-fill their own saved number
         const localDisplay = savedPhone.startsWith('94') ? savedPhone.slice(2) : savedPhone
         if (isMounted) {
           setPhoneInput(formatSriLankaDisplay(localDisplay))
@@ -227,7 +202,6 @@ function CustomerPinLoginContent() {
     }
   }, [router, redirectParam, phoneParam, storeParam])
 
-  // Focus first PIN box automatically when entering login/setup step
   useEffect(() => {
     if (step === 'login' || step === 'setup') {
       autoSubmittedPinRef.current = ''
@@ -400,7 +374,6 @@ function CustomerPinLoginContent() {
     }
   }
 
-  // Handle individual PIN box input
   const handleDigitChange = (index: number, rawVal: string) => {
     const digit = rawVal.replace(/\D/g, '').slice(-1)
     const nextDigits = [...pinDigits]
@@ -412,7 +385,6 @@ function CustomerPinLoginContent() {
       pinInputRefs.current[index + 1]?.focus()
     }
 
-    // Auto-unlock immediately on 4th digit for returning users
     const combined = nextDigits.join('')
     if (
       step === 'login' &&
@@ -456,7 +428,6 @@ function CustomerPinLoginContent() {
 
   return (
     <div className="min-h-screen min-h-dvh w-full bg-white sm:max-w-md sm:mx-auto sm:border-x sm:border-slate-200/80 flex flex-col justify-between">
-      {/* TOP APP BAR, BANNER & INLINE FORM */}
       <div>
         <header className="flex items-center justify-between gap-2 px-5 pt-4 pb-3">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -478,7 +449,6 @@ function CustomerPinLoginContent() {
           <CustomerLangSwitcher />
         </header>
 
-        {/* SCANNED PARTNER STORE CO-BRANDING CARD OR DIGITAL LOYALTY PASS BANNER */}
         {storeInfo ? (
           <div className="mx-5 mt-3 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-[#ECFDF5] via-[#D1FAE5]/60 to-white px-4 py-3.5 shadow-2xs">
             <div className="flex items-center gap-3 min-w-0">
@@ -531,7 +501,6 @@ function CustomerPinLoginContent() {
                   </p>
                 </div>
 
-                {/* Emerald Cashback Card + Gold Voucher Ticket Illustration */}
                 <div className="shrink-0">
                   <svg
                     width="112"
@@ -541,16 +510,8 @@ function CustomerPinLoginContent() {
                     xmlns="http://www.w3.org/2000/svg"
                     aria-hidden="true"
                   >
-                    {/* Back Emerald Cashback Card */}
                     <g transform="rotate(-11 45 34)">
-                      <rect
-                        x="6"
-                        y="12"
-                        width="74"
-                        height="46"
-                        rx="8"
-                        fill="#00875A"
-                      />
+                      <rect x="6" y="12" width="74" height="46" rx="8" fill="#00875A" />
                       <text
                         x="13"
                         y="24"
@@ -563,37 +524,13 @@ function CustomerPinLoginContent() {
                         CASHBACK
                       </text>
                       <rect x="13" y="30" width="11" height="8" rx="2" fill="#FBBF24" />
-                      <line
-                        x1="13"
-                        y1="44"
-                        x2="34"
-                        y2="44"
-                        stroke="#A7F3D0"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-                      <line
-                        x1="13"
-                        y1="49"
-                        x2="28"
-                        y2="49"
-                        stroke="#A7F3D0"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-                      <text
-                        x="58"
-                        y="32"
-                        fill="#FFFFFF"
-                        fontSize="16"
-                        fontWeight="900"
-                        fontFamily="sans-serif"
-                      >
+                      <line x1="13" y1="44" x2="34" y2="44" stroke="#A7F3D0" strokeWidth="2" strokeLinecap="round" />
+                      <line x1="13" y1="49" x2="28" y2="49" stroke="#A7F3D0" strokeWidth="2" strokeLinecap="round" />
+                      <text x="58" y="32" fill="#FFFFFF" fontSize="16" fontWeight="900" fontFamily="sans-serif">
                         %
                       </text>
                     </g>
 
-                    {/* Front Gold Voucher Ticket */}
                     <g transform="translate(38, 36)">
                       <path
                         d="M4 0H62C64.2091 0 66 1.79086 66 4V9C63.7909 9 62 10.7909 62 13C62 15.2091 63.7909 17 66 17V22C66 24.2091 64.2091 26 62 26H4C1.79086 26 0 24.2091 0 22V4C0 1.79086 1.79086 0 4 0Z"
@@ -624,7 +561,6 @@ function CustomerPinLoginContent() {
           )
         )}
 
-        {/* MAIN LEFT-ALIGNED CONTENT WITH INLINE ACTION BUTTON */}
         <main className="px-5 pt-6 pb-4">
           {step !== 'phone' && (
             <button
@@ -673,7 +609,6 @@ function CustomerPinLoginContent() {
             </div>
           )}
 
-          {/* STEP 1: MOBILE NUMBER + INLINE CONTINUE BUTTON */}
           {step === 'phone' && (
             <form onSubmit={handleCheckPhone} className="space-y-4">
               <div>
@@ -715,7 +650,6 @@ function CustomerPinLoginContent() {
             </form>
           )}
 
-          {/* STEP 2A: ENTER 4-DIGIT PIN + INLINE OPEN WALLET BUTTON */}
           {step === 'login' && (
             <form onSubmit={handlePinLogin} className="space-y-5">
               <div>
@@ -788,7 +722,6 @@ function CustomerPinLoginContent() {
             </form>
           )}
 
-          {/* STEP 2B: FIRST-TIME PIN SETUP + INLINE SAVE BUTTON */}
           {step === 'setup' && (
             <form onSubmit={handlePinSetup} className="space-y-5">
               <div>
@@ -859,7 +792,6 @@ function CustomerPinLoginContent() {
         </main>
       </div>
 
-      {/* BOTTOM PINNED TRUST FOOTER */}
       <footer className="mt-auto px-5 py-4 bg-slate-50/60 border-t border-slate-100">
         <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-slate-500 text-center">
           <ShieldCheck className="size-4 text-[#00875A] shrink-0" />

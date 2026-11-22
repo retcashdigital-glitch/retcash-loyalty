@@ -3,8 +3,6 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import { supabase } from '@/lib/supabase'
-import bcrypt from 'bcryptjs'
 
 function RegisterForm() {
     const router = useRouter()
@@ -26,25 +24,19 @@ function RegisterForm() {
     })
     const [errorMsg, setErrorMsg] = useState('')
 
-    // Helper Function: Formats any Sri Lankan mobile number variation into standard '947XXXXXXXX'
     const formatPhoneNumber = (phone: string): string => {
-        let clean = phone.replace(/\D/g, '') // Keep digits only
-
+        let clean = phone.replace(/\D/g, '')
         if (!clean) return ''
 
-        // Handle case starting with 0 (e.g., 0771234567 -> 94771234567)
         if (clean.startsWith('0')) {
             clean = '94' + clean.slice(1)
-        }
-        // Handle case without leading 0 or 94 (e.g., 771234567 -> 94771234567)
-        else if (!clean.startsWith('94') && clean.length === 9) {
+        } else if (!clean.startsWith('94') && clean.length === 9) {
             clean = '94' + clean
         }
 
         return clean
     }
 
-    // Auto-redirect to merchant dashboard if already logged in
     useEffect(() => {
         const savedMerchant = localStorage.getItem('retcash_merchant')
         if (savedMerchant) {
@@ -57,7 +49,6 @@ function RegisterForm() {
         }
     }, [phoneFromUrl, router])
 
-    // Convert uploaded image file to Base64 Data URL to prevent storage configuration issues
     const convertBase64 = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
             const fileReader = new FileReader()
@@ -73,7 +64,6 @@ function RegisterForm() {
         setErrorMsg('')
 
         try {
-            // Format phone number to standard Sri Lankan 94 format
             const formattedPhone = formatPhoneNumber(formData.phone_number)
 
             if (!formattedPhone || formattedPhone.length < 11) {
@@ -82,20 +72,6 @@ function RegisterForm() {
                 return
             }
 
-            // 1. Check if phone number is already registered
-            const { data: existingStore } = await supabase
-                .from('stores')
-                .select('id')
-                .eq('phone_number', formattedPhone)
-                .maybeSingle()
-
-            // If already registered, seamlessly redirect to Merchant Login Page with pre-filled phone number
-            if (existingStore) {
-                router.push(`/merchant/login?phone=${formattedPhone}&already_exists=true`)
-                return
-            }
-
-            // 2. Convert logo file to Data URL if provided
             let logoUrl = null
             if (logoFile) {
                 try {
@@ -105,40 +81,34 @@ function RegisterForm() {
                 }
             }
 
-            // 3. Generate unique store slug with phone suffix to avoid collisions
-            const baseSlug = formData.store_name
-                .trim()
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/(^-|-$)+/g, '')
-
-            const phoneSuffix = formattedPhone.length >= 4 ? formattedPhone.slice(-4) : Math.floor(1000 + Math.random() * 9000)
-            const storeSlug = `${baseSlug}-${phoneSuffix}`
-
-            // 4. Hash password securely
-            const hashedPassword = await bcrypt.hash(formData.password, 10)
-
-            // 5. Insert new store record into Supabase using standardized 94 phone number
-            const { data, error } = await supabase.from('stores').insert([
-                {
+            const res = await fetch('/api/merchant/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'register',
                     store_name: formData.store_name.trim(),
-                    store_slug: storeSlug,
                     phone_number: formattedPhone,
                     email: formData.email.trim(),
-                    password_hash: hashedPassword,
+                    password: formData.password,
                     logo_url: logoUrl,
                     location_url: formData.location_url.trim() || null,
                     review_url: formData.review_url.trim() || null,
-                    default_cashback_percent: parseFloat(formData.default_cashback_percent) || 10
-                }
-            ]).select()
+                    default_cashback_percent: parseFloat(formData.default_cashback_percent) || 10,
+                }),
+            })
 
-            if (error) throw error
+            const data = await res.json()
 
-            if (data) {
-                // Redirect to login page with pre-filled formatted phone number and registration flag
-                router.push(`/merchant/login?phone=${formattedPhone}&registered=true`)
+            if (res.status === 409 && data.alreadyExists) {
+                router.push(`/merchant/login?phone=${data.formattedPhone || formattedPhone}&already_exists=true`)
+                return
             }
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Registration failed. Try again.')
+            }
+
+            router.push(`/merchant/login?phone=${data.formattedPhone || formattedPhone}&registered=true`)
         } catch (err: any) {
             console.error('Registration Error:', err)
             setErrorMsg(err.message || 'Registration failed. Try again.')
@@ -153,7 +123,6 @@ function RegisterForm() {
     return (
         <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-6 md:p-8 shadow-xl relative my-auto">
             
-            {/* Logo & Header Section */}
             <div className="text-center mb-6 space-y-2">
                 <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-md shadow-slate-200/60 mx-auto mb-3 p-2">
                     <Image 
@@ -234,7 +203,7 @@ function RegisterForm() {
                         >
                             {showPassword ? (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.52 10.52 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
                                 </svg>
                             ) : (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
