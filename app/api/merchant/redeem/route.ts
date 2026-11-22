@@ -50,14 +50,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'This QR code has already been redeemed or has zero balance.' }, { status: 400 })
     }
 
-    // 4. Mark as REDEEMED and reset balance & visit cycle for future visits
+    // 4. Mark as REDEEMED and reset balance while keeping completed visit count visible until next visit
     const { data, error } = await supabaseAdmin
       .from('cashback_claims')
       .update({ 
         status: 'REDEEMED',
         claimable_amount: 0,
         cashback_amount: 0,
-        visit_count: 0,
+        visit_count: claimData.visit_count,
         updated_at: new Date().toISOString()
       })
       .eq('id', claimId)
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      data: data && data.length > 0 ? data[0] : { id: claimId, status: 'REDEEMED', claimable_amount: 0, visit_count: 0 } 
+      data: data && data.length > 0 ? data[0] : { id: claimId, status: 'REDEEMED', claimable_amount: 0, visit_count: claimData.visit_count } 
     })
 
   } catch (err: any) {

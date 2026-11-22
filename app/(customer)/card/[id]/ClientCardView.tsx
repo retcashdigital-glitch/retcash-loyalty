@@ -360,7 +360,9 @@ export default function ClientCardView({
                     <div className="bg-white border border-slate-100 rounded-3xl p-5 text-center shadow-xs">
                         <div className="flex justify-between text-[11px] font-bold tracking-wider uppercase mb-3.5">
                             <span className="text-slate-600">{t.visitChallengeTitle(totalVisits)}</span>
-                            <span className="text-[#00875A] font-extrabold">{t.visitsCaps(currentVisits, totalVisits)}</span>
+                            <span className="text-[#00875A] font-extrabold">
+                                {isRedeemed ? `${t.visitsCaps(currentVisits, totalVisits)} ✓` : t.visitsCaps(currentVisits, totalVisits)}
+                            </span>
                         </div>
 
                         <div className={`grid gap-2.5 ${getGridColumnsClass(totalVisits)}`}>
