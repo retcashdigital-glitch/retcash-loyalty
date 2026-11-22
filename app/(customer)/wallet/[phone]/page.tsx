@@ -1044,62 +1044,76 @@ export default function CustomerWalletPage() {
                   <p className="text-xs text-slate-500 font-bold leading-normal">{t.noActiveOffers}</p>
                 </div>
               ) : (
-                activeOffers.map((offer) => (
-                  <div key={offer.id} className="bg-white rounded-3xl p-4 space-y-3 shadow-xs border border-slate-100">
-                    <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
-                      <div className="flex items-center space-x-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-xs text-[#00875A] shrink-0">
-                          {offer.stores?.store_name?.[0] || 'S'}
+                activeOffers.map((offer) => {
+                  const storeLogo =
+                    offer.stores?.logo_url ||
+                    stores.find((s) => String(s.id) === String(offer.store_id))?.logo_url
+
+                  return (
+                    <div key={offer.id} className="bg-white rounded-3xl p-4 space-y-3 shadow-xs border border-slate-100">
+                      <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                        <div className="flex items-center space-x-2.5 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-xs text-[#00875A] shrink-0 overflow-hidden">
+                            {storeLogo ? (
+                              <img
+                                src={storeLogo}
+                                alt={offer.stores?.store_name || 'Store Logo'}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              offer.stores?.store_name?.[0]?.toUpperCase() || 'S'
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="text-xs font-bold text-[#0F172A] truncate leading-normal">{offer.stores?.store_name || 'Store'}</h3>
+                            <p className="text-[10px] text-slate-400 font-medium leading-normal">{t.activePromotion}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <h3 className="text-xs font-bold text-[#0F172A] truncate leading-normal">{offer.stores?.store_name || 'Store'}</h3>
-                          <p className="text-[10px] text-slate-400 font-medium leading-normal">{t.activePromotion}</p>
-                        </div>
+                        <span className="text-[10px] bg-emerald-50 text-[#00875A] px-2.5 py-1 rounded-full font-bold border border-emerald-100 uppercase tracking-wider whitespace-nowrap shrink-0">
+                          {t.dealBadge}
+                        </span>
                       </div>
-                      <span className="text-[10px] bg-emerald-50 text-[#00875A] px-2.5 py-1 rounded-full font-bold border border-emerald-100 uppercase tracking-wider whitespace-nowrap shrink-0">
-                        {t.dealBadge}
-                      </span>
-                    </div>
 
-                    {offer.image_url && (
-                      <div
-                        onClick={() => setSelectedImage(offer.image_url)}
-                        className="relative w-full h-44 bg-slate-100 rounded-2xl overflow-hidden border border-slate-100 cursor-pointer group"
-                      >
-                        <img
-                          src={offer.image_url}
-                          alt={offer.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                        />
-                        <div className="absolute bottom-2 right-2 bg-slate-900/60 text-white p-1.5 rounded-lg backdrop-blur-xs">
-                          <Maximize2 className="w-3.5 h-3.5" />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-1">
-                      <h4 className="font-bold text-sm text-[#0F172A] leading-normal">{offer.title}</h4>
-                      {offer.description && (
-                        <p className="text-xs text-slate-500 leading-relaxed">{offer.description}</p>
-                      )}
-                    </div>
-
-                    <div className="pt-2 flex items-center justify-between gap-2 border-t border-slate-100">
-                      <span className="text-[10px] font-semibold text-slate-400 leading-normal">
-                        {t.endsLabel} {new Date(offer.expires_at).toLocaleDateString()}
-                      </span>
-                      {offer.stores?.id && (
-                        <button
-                          onClick={() => handleStoreClick(offer.stores.id)}
-                          className="text-xs font-bold text-[#00875A] hover:underline flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0"
+                      {offer.image_url && (
+                        <div
+                          onClick={() => setSelectedImage(offer.image_url)}
+                          className="relative w-full h-44 bg-slate-100 rounded-2xl overflow-hidden border border-slate-100 cursor-pointer group"
                         >
-                          <span>{t.viewCard}</span>
-                          <ChevronRight className="w-3.5 h-3.5 shrink-0" />
-                        </button>
+                          <img
+                            src={offer.image_url}
+                            alt={offer.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                          />
+                          <div className="absolute bottom-2 right-2 bg-slate-900/60 text-white p-1.5 rounded-lg backdrop-blur-xs">
+                            <Maximize2 className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
                       )}
+
+                      <div className="space-y-1">
+                        <h4 className="font-bold text-sm text-[#0F172A] leading-normal">{offer.title}</h4>
+                        {offer.description && (
+                          <p className="text-xs text-slate-500 leading-relaxed">{offer.description}</p>
+                        )}
+                      </div>
+
+                      <div className="pt-2 flex items-center justify-between gap-2 border-t border-slate-100">
+                        <span className="text-[10px] font-semibold text-slate-400 leading-normal">
+                          {t.endsLabel} {new Date(offer.expires_at).toLocaleDateString()}
+                        </span>
+                        {offer.stores?.id && (
+                          <button
+                            onClick={() => handleStoreClick(offer.stores.id)}
+                            className="text-xs font-bold text-[#00875A] hover:underline flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <span>{t.viewCard}</span>
+                            <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           )}
