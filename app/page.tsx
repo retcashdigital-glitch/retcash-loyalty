@@ -9,7 +9,7 @@ import {
   Sparkles, 
   CheckCircle2, 
   QrCode,
-  Calendar,
+  BellRing,
   Gift
 } from 'lucide-react'
 
@@ -36,7 +36,7 @@ export default function HomePage() {
                 RETCASH
               </span>
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mt-0.5">
-                Loyalty & Rewards
+                Loyalty &amp; Rewards
               </span>
             </div>
           </div>
@@ -77,11 +77,11 @@ export default function HomePage() {
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-black text-slate-900 leading-tight">
-              Grow Your Business with Smart <span className="text-[#00875A]">Cashback & Rewards</span>
+              Grow Your Business with Smart <span className="text-[#00875A]">Cashback &amp; Rewards</span>
             </h1>
 
             <p className="text-sm sm:text-base text-slate-600 font-medium max-w-xl mx-auto lg:mx-0 leading-relaxed">
-              Retcash helps retail stores retain customers, boost repeat visits, and manage digital loyalty wallets seamlessly without complex hardware.
+              Retcash helps retail stores retain customers, boost repeat visits, and deliver instant lock-screen push alerts inside a digital loyalty wallet—without complex hardware or messaging fees.
             </p>
 
             {/* Portal Choice Cards */}
@@ -97,7 +97,7 @@ export default function HomePage() {
                   </div>
                   <div>
                     <h3 className="text-xs font-black text-slate-800 group-hover:text-[#00875A] transition">Merchant Portal</h3>
-                    <p className="text-[11px] text-slate-400 font-medium">Store Login & Billing</p>
+                    <p className="text-[11px] text-slate-400 font-medium">Store Login &amp; Billing</p>
                   </div>
                 </div>
                 <ChevronRight size={16} className="text-slate-300 group-hover:text-[#00875A] transition" />
@@ -136,11 +136,27 @@ export default function HomePage() {
                 <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white">
                   <QrCode size={26} />
                 </div>
-                <h2 className="text-xl font-extrabold">Digital Loyalty Card</h2>
+                <h2 className="text-xl font-extrabold">Digital Loyalty Wallet</h2>
                 <p className="text-xs text-emerald-100 leading-relaxed">
-                  No plastic cards required. Customers track their visits and redeem cashback instantly using their phone number or QR pass.
+                  No plastic cards required. Customers track their visits, receive instant cashback push alerts, and redeem rewards using their phone number or QR pass.
                 </p>
-                <div className="pt-2 flex items-center gap-2 text-[11px] font-bold text-emerald-200">
+
+                {/* Live Push Notification Preview Pill */}
+                <div className="rounded-2xl bg-white/15 border border-white/20 p-3 backdrop-blur-xs flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-white text-[#00875A] flex items-center justify-center shrink-0 mt-0.5">
+                    <BellRing size={14} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[11px] font-extrabold text-white leading-tight">
+                      Instant Cashback Alert
+                    </p>
+                    <p className="text-[10px] text-emerald-100 mt-0.5 leading-snug">
+                      You earned Rs. 150 cashback! Tap to view your updated wallet balance.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-1 flex items-center gap-2 text-[11px] font-bold text-emerald-200">
                   <CheckCircle2 size={14} /> Instant Setup for Retailers
                 </div>
               </div>
@@ -150,7 +166,90 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 3. MERCHANT SUBSCRIPTION PLANS (Updated to 2 Plans) */}
+      {/* 3. CORE FEATURES - Direct In-App & Push Experience */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-8 pb-12 sm:pb-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          
+          <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-3">
+            <div className="w-11 h-11 rounded-2xl bg-[#ECFDF5] text-[#00875A] flex items-center justify-center">
+              <QrCode size={22} />
+            </div>
+            <h3 className="text-sm font-black text-slate-900">Digital QR &amp; Phone Pass</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              Identify customers in seconds using their mobile number or QR wallet pass—no printed cards or extra POS devices needed.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-3">
+            <div className="w-11 h-11 rounded-2xl bg-[#ECFDF5] text-[#00875A] flex items-center justify-center">
+              <BellRing size={22} />
+            </div>
+            <h3 className="text-sm font-black text-slate-900">Instant Lock-Screen Push Alerts</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              Notify customers directly on their phone screen the moment cashback is credited or a new store offer goes live—zero SMS or API charges.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-3">
+            <div className="w-11 h-11 rounded-2xl bg-[#ECFDF5] text-[#00875A] flex items-center justify-center">
+              <Sparkles size={22} />
+            </div>
+            <h3 className="text-sm font-black text-slate-900">Smart Cashback &amp; Offer Manager</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              Reward repeat shoppers automatically across visits and publish promotional store banners straight into every connected customer wallet.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 4. HOW IT WORKS - 3 Simple Steps */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-8 pb-14 sm:pb-18">
+        <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-10 shadow-xs space-y-8">
+          <div className="text-center space-y-2 max-w-lg mx-auto">
+            <span className="text-xs font-extrabold text-[#00875A] uppercase tracking-wider bg-[#ECFDF5] px-3 py-1 rounded-full border border-emerald-200/60">
+              How It Works
+            </span>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+              Turn One-Time Buyers into Regulars
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2.5">
+              <span className="inline-block text-xs font-black text-[#00875A] bg-[#ECFDF5] px-2.5 py-1 rounded-lg">
+                STEP 01
+              </span>
+              <h3 className="text-sm font-black text-slate-800">Enter Number or Scan Pass</h3>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                At checkout, enter the customer&apos;s phone number or scan their QR loyalty pass to record the purchase.
+              </p>
+            </div>
+
+            <div className="space-y-2.5">
+              <span className="inline-block text-xs font-black text-[#00875A] bg-[#ECFDF5] px-2.5 py-1 rounded-lg">
+                STEP 02
+              </span>
+              <h3 className="text-sm font-black text-slate-800">Instant Wallet &amp; Push Update</h3>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                Cashback is added immediately to their digital wallet and a real-time push notification alerts them on their phone.
+              </p>
+            </div>
+
+            <div className="space-y-2.5">
+              <span className="inline-block text-xs font-black text-[#00875A] bg-[#ECFDF5] px-2.5 py-1 rounded-lg">
+                STEP 03
+              </span>
+              <h3 className="text-sm font-black text-slate-800">Customers Return to Claim</h3>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                Customers come back to your store to redeem their accumulated rewards and check your latest seasonal offers.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. MERCHANT SUBSCRIPTION PLANS (Updated to 2 Plans) */}
       <section className="bg-slate-100/70 border-y border-slate-200/80 py-12 sm:py-16 px-4 sm:px-8">
         <div className="max-w-5xl mx-auto space-y-10">
           
@@ -192,13 +291,13 @@ export default function HomePage() {
                     <CheckCircle2 size={14} className="text-[#00875A]" /> Unlimited Customers
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> WhatsApp Click-to-Chat Pass
+                    <CheckCircle2 size={14} className="text-[#00875A]" /> Instant Push Notifications (Cashback &amp; Offers)
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> Visit Stamp & Cashback Tracker
+                    <CheckCircle2 size={14} className="text-[#00875A]" /> Visit Stamp &amp; Cashback Tracker
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> Store Offers & Banner Manager
+                    <CheckCircle2 size={14} className="text-[#00875A]" /> Store Offers &amp; Banner Manager
                   </li>
                 </ul>
               </div>
@@ -219,7 +318,7 @@ export default function HomePage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="text-base font-extrabold text-slate-800">Annual Pass</h3>
-                    <p className="text-xs text-slate-400 font-medium mt-0.5">Pay yearly & get maximum savings</p>
+                    <p className="text-xs text-slate-400 font-medium mt-0.5">Pay yearly &amp; get maximum savings</p>
                   </div>
                   <span className="text-[10px] font-bold bg-[#ECFDF5] text-[#00875A] px-2.5 py-1 rounded-full border border-emerald-200">
                     4 Months Free
@@ -236,7 +335,7 @@ export default function HomePage() {
                     <CheckCircle2 size={14} className="text-[#00875A]" /> Everything in Monthly Pass
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-[#00875A]" /> Unlimited Customers & Visits
+                    <CheckCircle2 size={14} className="text-[#00875A]" /> Unlimited Customers &amp; Visits
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 size={14} className="text-[#00875A]" /> Save Rs. 3,980 per year
@@ -259,7 +358,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 4. FOOTER */}
+      {/* 6. FOOTER */}
       <footer className="py-6 px-4 border-t border-slate-200 bg-white">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
