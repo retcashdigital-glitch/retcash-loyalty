@@ -165,12 +165,27 @@ export default function CustomerWalletPage() {
 
   const reloadFromCache = () => {
     if (!phone || typeof window === 'undefined') return
+    const cachedName = localStorage.getItem(`customer_name_${phone}`)
+    if (cachedName) {
+      setCustomerName((prev) => prev || cachedName)
+    }
+
     const cachedData = localStorage.getItem(`wallet_cache_${phone}`)
     if (cachedData) {
       try {
         const parsed = JSON.parse(cachedData)
         if (Array.isArray(parsed)) {
-          setStores(sortStoresByLatestActivity(parsed))
+          const normalized = parsed.map((item: any) => {
+            const target = Math.max(1, Number(item.targetVisits) || 6)
+            const rawVisits = Number(item.visits || 0)
+            const fixedVisits = item.isRedeemed && rawVisits === 0 ? target : rawVisits
+            return {
+              ...item,
+              visits: fixedVisits,
+              targetVisits: target
+            }
+          })
+          setStores(sortStoresByLatestActivity(normalized))
           setLoading(false)
         }
       } catch (e) {
@@ -185,16 +200,21 @@ export default function CustomerWalletPage() {
       return
     }
 
-    const checkAuthAndInit = async () => {
+    const session = localStorage.getItem(`retcash_wallet_session_${phone}`)
+    const authKey = localStorage.getItem(`retcash_wallet_auth_${phone}`)
+
+    if (!session || !authKey) {
+      router.replace('/customer/login')
+      return
+    }
+
+    // Hydrate UI immediately from local session & cache (prevents spinner flash & 0/3 -> 3/3 flicker)
+    reloadFromCache()
+    setIsCheckingAuth(false)
+
+    // Verify session & fetch fresh data in parallel
+    const verifySessionInBackground = async () => {
       try {
-        const session = localStorage.getItem(`retcash_wallet_session_${phone}`)
-        const authKey = localStorage.getItem(`retcash_wallet_auth_${phone}`)
-
-        if (!session || !authKey) {
-          router.replace('/customer/login')
-          return
-        }
-
         const sessionRes = await fetch('/api/customer/pin-auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -233,20 +253,14 @@ export default function CustomerWalletPage() {
         }
         if (customer.email) setCustomerEmail(customer.email)
         if (customer.avatar_url) setAvatarUrl(customer.avatar_url)
-
-        setIsCheckingAuth(false)
-
-        reloadFromCache()
-        fetchWalletAndClaimsData()
-        fetchActiveOffers()
-
       } catch (err) {
         console.error('Authentication verification error:', err)
-        router.replace('/customer/login')
       }
     }
 
-    checkAuthAndInit()
+    verifySessionInBackground()
+    fetchWalletAndClaimsData()
+    fetchActiveOffers()
 
     let syncChannel: BroadcastChannel | null = null
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {

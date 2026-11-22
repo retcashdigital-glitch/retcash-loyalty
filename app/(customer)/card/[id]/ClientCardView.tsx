@@ -118,10 +118,64 @@ export default function ClientCardView({
     const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false)
     const [loadingHistory, setLoadingHistory] = useState<boolean>(false)
 
+    // Sync latest card state into localStorage wallet cache so Wallet page never flashes stale 0/3 state
+    const syncWalletCacheFromCard = (data: any) => {
+        if (typeof window === 'undefined' || !data) return;
+        const rawPhone = String(data.customer_phone || '');
+        if (!rawPhone) return;
+
+        const cleaned = rawPhone.replace(/\D/g, '');
+        const normalizedPhone = cleaned.startsWith('94') ? cleaned : `94${cleaned.replace(/^0/, '')}`;
+        const cacheKey = `wallet_cache_${normalizedPhone}`;
+
+        try {
+            const existingRaw = localStorage.getItem(cacheKey);
+            if (!existingRaw) return;
+            const parsed = JSON.parse(existingRaw);
+            if (!Array.isArray(parsed)) return;
+
+            const targetStoreId = String(data.stores?.id || data.store_id || '');
+            const targetClaimId = String(data.id || '');
+            const rawTarget = Number(data.stores?.target_visits) || 6;
+            const totalTarget = Math.min(Math.max(rawTarget, 1), 10);
+
+            const statusUpper = String(data.status || '').toUpperCase();
+            const isRedeemedState = statusUpper === 'REDEEMED';
+            const balanceVal = Number(data.claimable_amount || 0);
+            const rawVisits = Math.max(0, Number(data.visit_count ?? 0));
+            const fixedVisits = isRedeemedState && rawVisits === 0 ? totalTarget : rawVisits;
+            const isReadyState = !isRedeemedState && balanceVal > 0 && (statusUpper === 'READY' || fixedVisits >= totalTarget);
+
+            const updatedList = parsed.map((item: any) => {
+                if (String(item.id) === targetStoreId || (targetClaimId && String(item.claimId) === targetClaimId)) {
+                    return {
+                        ...item,
+                        claimId: targetClaimId || item.claimId,
+                        balance: balanceVal,
+                        cashbackAmount: isRedeemedState
+                            ? (Number(latestTransaction?.redeemed_amount || data.cashback_amount || item.cashbackAmount || 0))
+                            : Number(data.cashback_amount ?? item.cashbackAmount ?? 0),
+                        isRedeemed: isRedeemedState,
+                        isReadyToRedeem: isReadyState,
+                        visits: fixedVisits,
+                        targetVisits: totalTarget,
+                        lastActivityAt: data.updated_at || item.lastActivityAt || new Date().toISOString()
+                    };
+                }
+                return item;
+            });
+
+            localStorage.setItem(cacheKey, JSON.stringify(updatedList));
+        } catch (err) {
+            console.error('Error syncing wallet cache from card:', err);
+        }
+    };
+
     // initialClaim மாறும்போது claimData-வை அப்டேட் செய்தல்
     useEffect(() => {
         if (initialClaim) {
             setClaimData(initialClaim)
+            syncWalletCacheFromCard(initialClaim)
         }
     }, [initialClaim])
 
@@ -182,16 +236,24 @@ export default function ClientCardView({
                             .maybeSingle()
 
                         if (updatedClaim) {
-                            setClaimData((prev: any) => ({
-                                ...prev,
-                                ...updatedClaim,
-                                stores: updatedClaim.stores || prev?.stores
-                            }))
+                            setClaimData((prev: any) => {
+                                const merged = {
+                                    ...prev,
+                                    ...updatedClaim,
+                                    stores: updatedClaim.stores || prev?.stores
+                                };
+                                syncWalletCacheFromCard(merged);
+                                return merged;
+                            })
                         } else {
-                            setClaimData((prev: any) => ({
-                                ...prev,
-                                ...payload.new
-                            }))
+                            setClaimData((prev: any) => {
+                                const merged = {
+                                    ...prev,
+                                    ...payload.new
+                                };
+                                syncWalletCacheFromCard(merged);
+                                return merged;
+                            })
                         }
                     }
                 }
@@ -263,6 +325,12 @@ export default function ClientCardView({
     const currentClaimId = id || claimData?.id;
     const qrPayloadData = currentClaimId || '';
 
+    const handleGoToWallet = () => {
+        if (!customerPhone) return;
+        syncWalletCacheFromCard(claimData);
+        router.push(`/wallet/${customerPhone}`);
+    };
+
     const getGridColumnsClass = (count: number) => {
         switch (count) {
             case 1: return 'grid-cols-1 max-w-[120px] mx-auto';
@@ -287,7 +355,7 @@ export default function ClientCardView({
                 <div className="w-full flex items-center justify-between gap-2 pt-1 pb-3 border-b border-slate-200/80 mb-4">
                     {customerPhone ? (
                         <button
-                            onClick={() => router.push(`/wallet/${customerPhone}`)}
+                            onClick={handleGoToWallet}
                             className="flex items-center gap-1.5 text-xs font-bold text-[#00875A] bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-xl hover:bg-emerald-100/80 transition active:scale-95 cursor-pointer shadow-xs shrink-0"
                         >
                             <IconWallet />
