@@ -15,12 +15,14 @@ import {
   Smartphone,
   Mail,
   ArrowUpRight,
+  CreditCard,
+  BadgePercent,
 } from 'lucide-react'
 
 type Lang = 'en' | 'ta' | 'si'
 
-const SUPPORT_EMAIL = 'retcashdigital@gmail.com'
-const SUPPORT_PHONE = '+94 75 095 7336' // விருப்பமிருந்தால் உங்கள் Support எண்ணை இங்கே இடவும் (உதா: '+94 76 000 0000')
+const SUPPORT_EMAIL: string = 'retcashdigital@gmail.com'
+const SUPPORT_PHONE: string = '+94 75 095 7336'
 
 const COPY: Record<
   Lang,
@@ -55,6 +57,16 @@ const COPY: Record<
     step2Desc: string
     step3Title: string
     step3Desc: string
+    shopperBadge: string
+    shopperTitle: string
+    shopperSubtitle: string
+    shopper1Title: string
+    shopper1Desc: string
+    shopper2Title: string
+    shopper2Desc: string
+    shopper3Title: string
+    shopper3Desc: string
+    shopperCta: string
     plansBadge: string
     plansTitle: string
     plansSubtitle: string
@@ -91,7 +103,7 @@ const COPY: Record<
     merchantCardTitle: 'Merchant Portal',
     merchantCardDesc: 'Store Login & Billing',
     customerCardTitle: 'Customer Pass',
-    customerCardDesc: 'Check Rewards Wallet',
+    customerCardDesc: 'Rewards Wallet • 100% Free',
     mockupPushTitle: 'RETCASH • Just now',
     mockupPushBody: 'You earned Rs. 150 cashback! Tap to view your updated loyalty wallet.',
     mockupPassLabel: 'DIGITAL LOYALTY PASS',
@@ -118,6 +130,20 @@ const COPY: Record<
     step3Title: 'Customers Return to Claim',
     step3Desc:
       'Customers come back to your store to redeem their accumulated rewards and check your latest seasonal offers.',
+    shopperBadge: 'For Shoppers • 100% Free',
+    shopperTitle: 'Why Customers Love Retcash Wallet',
+    shopperSubtitle:
+      'One digital wallet for all your favorite neighborhood stores—completely free for shoppers.',
+    shopper1Title: 'No Plastic Cards to Carry',
+    shopper1Desc:
+      'Earn cashback and visit stamps using just your phone number—never lose a paper punch card again.',
+    shopper2Title: 'Instant Cashback & Store Offers',
+    shopper2Desc:
+      'Track your reward balance anytime and get notified first when your favorite shops drop exclusive deals.',
+    shopper3Title: 'Always Free for Customers',
+    shopper3Desc:
+      'Zero subscription fees or hidden charges—log in anytime to check and redeem your accumulated cashback.',
+    shopperCta: 'Open Customer Wallet',
     plansBadge: 'Merchant Plans',
     plansTitle: 'Start Free for 30 Days',
     plansSubtitle:
@@ -164,7 +190,7 @@ const COPY: Record<
     merchantCardTitle: 'Merchant Portal',
     merchantCardDesc: 'கடை லாகின் & பில்லிங்',
     customerCardTitle: 'Customer Pass',
-    customerCardDesc: 'கேஷ்பேக் வாலட் பார்க்க',
+    customerCardDesc: 'கேஷ்பேக் வாலட் • 100% இலவசம்',
     mockupPushTitle: 'RETCASH • இப்போது',
     mockupPushBody: 'உங்களுக்கு Rs. 150 கேஷ்பேக் கிடைத்துள்ளது! வாலட்டைப் பார்க்க தட்டவும்.',
     mockupPassLabel: 'டிஜிட்டல் லாயல்டி கார்டு',
@@ -191,6 +217,20 @@ const COPY: Record<
     step3Title: 'மீண்டும் கடைக்கு வருதல்',
     step3Desc:
       'சேமித்த கேஷ்பேக்கைப் பயன்படுத்தவும் புதிய சலுகைகளைப் பெறவும் வாடிக்கையாளர் மீண்டும் உங்கள் கடைக்கு வருவார்.',
+    shopperBadge: 'வாடிக்கையாளர்களுக்கு • 100% இலவசம்',
+    shopperTitle: 'வாடிக்கையாளர்களுக்கு என்ன கிடைக்கும்?',
+    shopperSubtitle:
+      'உங்களுக்குப் பிடித்த கடைகளின் கேஷ்பேக் மற்றும் ஆஃபர்கள் அனைத்தும் ஒரே டிஜிட்டல் வாலட்டில்.',
+    shopper1Title: 'பிளாஸ்டிக் கார்டு சுமை இல்லை',
+    shopper1Desc:
+      'உங்கள் போன் நம்பரைச் சொன்னாலே போதும் — காகித அட்டைகளைத் தொலைக்கும் கவலையின்றி கேஷ்பேக் சேமிக்கலாம்.',
+    shopper2Title: 'உடனடி கேஷ்பேக் & சலுகை அலர்ட்',
+    shopper2Desc:
+      'உங்கள் கேஷ்பேக் இருப்பை எப்போது வேண்டுமானாலும் பார்க்கலாம்; கடைகளின் சிறப்புத் தள்ளுபடிகளும் உடனே போனில் வரும்.',
+    shopper3Title: 'வாடிக்கையாளர்களுக்கு எப்போதும் இலவசம்',
+    shopper3Desc:
+      'எந்தவொரு கட்டணமும் இன்றி உங்கள் வாலட்டில் உள்நுழைந்து சேமித்த கேஷ்பேக்கை கடையில் பயன்படுத்திக்கொள்ளலாம்.',
+    shopperCta: 'எனது வாலட்டைத் திறக்கவும்',
     plansBadge: 'கடைக்காரர் திட்டங்கள்',
     plansTitle: '30 நாட்கள் இலவசமாகப் பயன்படுத்துங்கள்',
     plansSubtitle:
@@ -237,7 +277,7 @@ const COPY: Record<
     merchantCardTitle: 'Merchant Portal',
     merchantCardDesc: 'වෙළඳසැල් පිවිසුම සහ බිල්පත්',
     customerCardTitle: 'Customer Pass',
-    customerCardDesc: 'Cashback වොලට් පරීක්ෂාව',
+    customerCardDesc: 'Cashback වොලට් • 100% නොමිලේ',
     mockupPushTitle: 'RETCASH • දැන්',
     mockupPushBody: 'ඔබට Rs. 150 Cashback ලැබී ඇත! ඔබේ වොලට් එක බැලීමට තට්ටු කරන්න.',
     mockupPassLabel: 'ඩිජිටල් ලෝයල්ටි කාඩ්පත',
@@ -264,6 +304,20 @@ const COPY: Record<
     step3Title: 'නැවත වෙළඳසැලට පැමිණීම',
     step3Desc:
       'එකතු වූ Cashback මුදල භාවිතා කිරීමට සහ නව දීමනා ලබා ගැනීමට පාරිභෝගිකයා නැවත ඔබේ වෙළඳසැලට පැමිණේ.',
+    shopperBadge: 'පාරිභෝගිකයින් සඳහා • 100% නොමිලේ',
+    shopperTitle: 'පාරිභෝගිකයින්ට ලැබෙන ප්‍රතිලාභ මොනවාද?',
+    shopperSubtitle:
+      'ඔබේ ප්‍රියතම වෙළඳසැල්වල සියලුම Cashback සහ දීමනා එකම ඩිජිටල් වොලට් එකකින්.',
+    shopper1Title: 'ප්ලාස්ටික් කාඩ්පත් අවශ්‍ය නැත',
+    shopper1Desc:
+      'ඔබේ දුරකථන අංකය පමණක් ලබා දී Cashback එකතු කරගන්න — කාඩ්පත් නැතිවීමේ කරදරයක් නැත.',
+    shopper2Title: 'ක්ෂණික Cashback සහ විශේෂ දීමනා',
+    shopper2Desc:
+      'ඕනෑම වේලාවක ඔබේ Cashback ශේෂය පරීක්ෂා කර වෙළඳසැල්වල නවතම වට්ටම් දුරකථනයටම ලබාගන්න.',
+    shopper3Title: 'පාරිභෝගිකයින්ට සැමදා නොමිලේ',
+    shopper3Desc:
+      'කිසිදු ගාස්තුවකින් තොරව ඔබේ වොලට් එකට පිවිස එකතු වූ Cashback මුදල වෙළඳසැල්වලදී භාවිතා කළ හැක.',
+    shopperCta: 'මගේ වොලට් එක විවෘත කරන්න',
     plansBadge: 'වෙළඳසැල් පැකේජ',
     plansTitle: 'දින 30ක් නොමිලේ භාවිතා කරන්න',
     plansSubtitle:
@@ -326,7 +380,7 @@ export default function HomePage() {
       {/* Background Emerald Glows */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-[#00875A]/5 blur-3xl pointer-events-none -z-10" />
 
-      {/* 1. HEADER - Responsive Navbar with Language Switcher */}
+      {/* 1. HEADER - Compact Sticky Navbar */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
         <div className="max-w-6xl mx-auto px-4 sm:px-8 py-3 flex items-center justify-between gap-2">
           {/* Logo & Branding */}
@@ -389,31 +443,31 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
-
-        {/* Mobile Language Switcher Bar */}
-        <div className="flex md:hidden items-center justify-center gap-1.5 px-4 py-2 bg-slate-50/90 border-t border-slate-200/70">
-          {(
-            [
-              { code: 'en', label: 'EN' },
-              { code: 'ta', label: 'தமிழ்' },
-              { code: 'si', label: 'සිංහල' },
-            ] as const
-          ).map((item) => (
-            <button
-              key={item.code}
-              type="button"
-              onClick={() => handleLanguageChange(item.code)}
-              className={`px-3.5 py-1 rounded-full text-[11px] font-extrabold transition cursor-pointer ${
-                lang === item.code
-                  ? 'bg-[#00875A] text-white shadow-2xs'
-                  : 'bg-white text-slate-600 border border-slate-200/80'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
       </header>
+
+      {/* Mobile Language Switcher Bar (Non-sticky to preserve screen space while scrolling) */}
+      <div className="flex md:hidden items-center justify-center gap-1.5 px-4 py-2 bg-white/80 border-b border-slate-200/70">
+        {(
+          [
+            { code: 'en', label: 'EN' },
+            { code: 'ta', label: 'தமிழ்' },
+            { code: 'si', label: 'සිංහල' },
+          ] as const
+        ).map((item) => (
+          <button
+            key={item.code}
+            type="button"
+            onClick={() => handleLanguageChange(item.code)}
+            className={`px-3.5 py-1 rounded-full text-[11px] font-extrabold transition cursor-pointer ${
+              lang === item.code
+                ? 'bg-[#00875A] text-white shadow-2xs'
+                : 'bg-slate-100 text-slate-600 border border-slate-200/80'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
 
       {/* 2. HERO SECTION */}
       <section className="max-w-6xl mx-auto px-4 sm:px-8 pt-7 sm:pt-14 pb-12">
@@ -473,7 +527,7 @@ export default function HomePage() {
                     <h3 className="text-xs font-black text-slate-800 group-hover:text-[#00875A] transition">
                       {t.customerCardTitle}
                     </h3>
-                    <p className="text-[11px] text-slate-400 font-medium">
+                    <p className="text-[11px] text-[#00875A] font-semibold">
                       {t.customerCardDesc}
                     </p>
                   </div>
@@ -564,7 +618,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 3. CORE FEATURES - Non-Redundant Value Props */}
+      {/* 3. CORE FEATURES - Merchant Value Props */}
       <section className="max-w-6xl mx-auto px-4 sm:px-8 pb-12 sm:pb-16">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-3">
@@ -600,7 +654,7 @@ export default function HomePage() {
       </section>
 
       {/* 4. HOW IT WORKS - 3 Simple Steps */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-8 pb-14 sm:pb-16">
+      <section className="max-w-6xl mx-auto px-4 sm:px-8 pb-12 sm:pb-16">
         <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-10 shadow-xs space-y-8">
           <div className="text-center space-y-2 max-w-xl mx-auto">
             <span className="text-xs font-extrabold text-[#00875A] uppercase tracking-wider bg-[#ECFDF5] px-3 py-1 rounded-full border border-emerald-200/60">
@@ -645,7 +699,67 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 5. MERCHANT SUBSCRIPTION PLANS (CTA fixed to /merchant/register) */}
+      {/* 5. FOR SHOPPERS - Customer Benefits & Free Wallet Access */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-8 pb-14 sm:pb-16">
+        <div className="bg-gradient-to-br from-[#ECFDF5] via-white to-emerald-50/60 rounded-3xl border border-emerald-200/80 p-6 sm:p-10 shadow-xs space-y-7">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="space-y-2 max-w-xl">
+              <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#00875A] uppercase tracking-wider bg-white px-3 py-1 rounded-full border border-emerald-200">
+                <Wallet size={13} /> {t.shopperBadge}
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                {t.shopperTitle}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                {t.shopperSubtitle}
+              </p>
+            </div>
+
+            <Link
+              href="/customer/login"
+              className="inline-flex items-center justify-center gap-2 bg-[#00875A] hover:bg-emerald-700 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-sm transition shrink-0"
+            >
+              <Wallet size={15} />
+              <span>{t.shopperCta}</span>
+              <ChevronRight size={15} />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="bg-white/90 rounded-2xl p-5 border border-emerald-100 space-y-2">
+              <div className="w-9 h-9 rounded-xl bg-[#ECFDF5] text-[#00875A] flex items-center justify-center">
+                <CreditCard size={18} />
+              </div>
+              <h3 className="text-sm font-black text-slate-800">{t.shopper1Title}</h3>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                {t.shopper1Desc}
+              </p>
+            </div>
+
+            <div className="bg-white/90 rounded-2xl p-5 border border-emerald-100 space-y-2">
+              <div className="w-9 h-9 rounded-xl bg-[#ECFDF5] text-[#00875A] flex items-center justify-center">
+                <BadgePercent size={18} />
+              </div>
+              <h3 className="text-sm font-black text-slate-800">{t.shopper2Title}</h3>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                {t.shopper2Desc}
+              </p>
+            </div>
+
+            <div className="bg-white/90 rounded-2xl p-5 border border-emerald-100 space-y-2">
+              <div className="w-9 h-9 rounded-xl bg-[#ECFDF5] text-[#00875A] flex items-center justify-center">
+                <CheckCircle2 size={18} />
+              </div>
+              <h3 className="text-sm font-black text-slate-800">{t.shopper3Title}</h3>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                {t.shopper3Desc}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 6. MERCHANT SUBSCRIPTION PLANS (CTA -> /merchant/register) */}
       <section className="bg-slate-100/70 border-y border-slate-200/80 py-12 sm:py-16 px-4 sm:px-8">
         <div className="max-w-5xl mx-auto space-y-10">
           <div className="text-center space-y-2 max-w-xl mx-auto">
@@ -760,8 +874,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 6. FOOTER WITH TRUST & SUPPORT SIGNALS */}
-      <footer className="py-8 px-4 sm:px-8 border-t border-slate-200 bg-white">
+      {/* 7. FOOTER WITH TRUST & SUPPORT SIGNALS (Extra bottom padding for mobile browser bars) */}
+      <footer className="pt-8 pb-24 sm:pb-10 px-4 sm:px-8 border-t border-slate-200 bg-white">
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
             <div className="space-y-1">
