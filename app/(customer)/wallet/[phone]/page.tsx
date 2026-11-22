@@ -35,7 +35,9 @@ import {
   Wrench,
   Camera,
   Loader2,
-  Lock
+  Lock,
+  Bell,
+  BellRing
 } from 'lucide-react'
 
 const NAV_TAB_IDS = [
@@ -45,6 +47,19 @@ const NAV_TAB_IDS = [
 ] as const
 
 type NavTabId = (typeof NAV_TAB_IDS)[number]['id']
+
+// ─── Push Notification Helper ─────────────────────────────────────────────────
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
 
 // ─── Visual Helpers ───────────────────────────────────────────────────────────
 
@@ -137,6 +152,11 @@ export default function CustomerWalletPage() {
   const [copied, setCopied] = useState(false)
   const [, startTransition] = useTransition()
 
+  // ─── Push Notification States ───────────────────────────────────────────────
+  const [notifPermission, setNotifPermission] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('unsupported')
+  const [isSubscribingNotif, setIsSubscribingNotif] = useState(false)
+  const [isIosNotStandalone, setIsIosNotStandalone] = useState(false)
+
   // ─── Instagram-Style Floating Pill Drag/Slide States ────────────────────────
   const [dragProgress, setDragProgress] = useState<number | null>(null)
   const [isDraggingNav, setIsDraggingNav] = useState(false)
@@ -162,6 +182,93 @@ export default function CustomerWalletPage() {
     )
   )
   const categoryList = ['All', ...availableCategories]
+
+  // ─── Deep Link Tab Reader (?tab=offers) & Service Worker Registration ───────
+  useEffect(() => {
+    if (typeof window === 'undefined' || !phone) return
+
+    const urlParams = new URLSearchParams(window.location.search)
+    const tabParam = urlParams.get('tab')
+    if (tabParam === 'offers' || tabParam === 'profile' || tabParam === 'wallet') {
+      setActiveTab(tabParam)
+    }
+
+    const ua = window.navigator.userAgent
+    const isIos = /iPad|iPhone|iPod/.test(ua)
+    const isStandalone =
+      Boolean((window.navigator as any).standalone) ||
+      window.matchMedia('(display-mode: standalone)').matches
+
+    if (isIos && !isStandalone) {
+      setIsIosNotStandalone(true)
+    }
+
+    if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
+      setNotifPermission(Notification.permission)
+
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then(async (reg) => {
+          if (Notification.permission === 'granted') {
+            const existingSub = await reg.pushManager.getSubscription()
+            if (existingSub) {
+              await fetch('/api/push/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, subscription: existingSub.toJSON() }),
+              })
+            }
+          }
+        })
+        .catch((err) => console.error('Service Worker registration failed:', err))
+    } else {
+      setNotifPermission('unsupported')
+    }
+  }, [phone])
+
+  const handleEnableNotifications = async () => {
+    if (typeof window === 'undefined' || !phone) return
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      return
+    }
+
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    if (!vapidPublicKey) {
+      console.error('NEXT_PUBLIC_VAPID_PUBLIC_KEY is missing')
+      return
+    }
+
+    try {
+      setIsSubscribingNotif(true)
+      const permission = await Notification.requestPermission()
+      setNotifPermission(permission)
+
+      if (permission !== 'granted') return
+
+      const registration = await navigator.serviceWorker.ready
+      let subscription = await registration.pushManager.getSubscription()
+
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        })
+      }
+
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone,
+          subscription: subscription.toJSON(),
+        }),
+      })
+    } catch (err) {
+      console.error('Failed to enable push notifications:', err)
+    } finally {
+      setIsSubscribingNotif(false)
+    }
+  }
 
   const reloadFromCache = () => {
     if (!phone || typeof window === 'undefined') return
@@ -208,11 +315,9 @@ export default function CustomerWalletPage() {
       return
     }
 
-    // Hydrate UI immediately from local session & cache (prevents spinner flash & 0/3 -> 3/3 flicker)
     reloadFromCache()
     setIsCheckingAuth(false)
 
-    // Verify session & fetch fresh data in parallel
     const verifySessionInBackground = async () => {
       try {
         const sessionRes = await fetch('/api/customer/pin-auth', {
@@ -824,6 +929,38 @@ export default function CustomerWalletPage() {
                 </div>
               </div>
 
+              {/* 🔔 Push Notification Opt-in Banner (Only visible until enabled) */}
+              {notifPermission === 'default' && (
+                <div className="bg-emerald-50/90 border border-emerald-200/80 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-[#00875A] text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <Bell size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-extrabold text-slate-800 leading-snug">
+                        Get Instant Cashback & Offer Alerts
+                      </p>
+                      <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
+                        Tap to receive alerts when you earn rewards or new store deals drop.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleEnableNotifications}
+                    disabled={isSubscribingNotif}
+                    className="bg-[#00875A] hover:bg-emerald-700 text-white text-[11px] font-extrabold px-3 py-2 rounded-xl shrink-0 transition active:scale-95 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubscribingNotif ? '...' : 'Enable'}
+                  </button>
+                </div>
+              )}
+
+              {isIosNotStandalone && notifPermission !== 'granted' && (
+                <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-3 text-[11px] text-amber-900 font-medium leading-snug">
+                  <strong>iPhone Tip:</strong> Tap <strong>Share → Add to Home Screen</strong> to install RETCASH and receive instant cashback & offer notifications.
+                </div>
+              )}
+
               <div className="space-y-3">
                 <form onSubmit={handleSearchSubmit} className="relative">
                   <button
@@ -1233,6 +1370,34 @@ export default function CustomerWalletPage() {
                     )}
                   </button>
                 </form>
+
+                {/* 🔔 Notification Status Row in Profile */}
+                {notifPermission !== 'unsupported' && (
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <BellRing className="w-4 h-4 text-[#00875A] shrink-0" />
+                      <span className="text-xs font-bold text-slate-700">Push Notifications</span>
+                    </div>
+                    {notifPermission === 'granted' ? (
+                      <span className="text-[11px] font-extrabold text-[#00875A] bg-emerald-50 px-2.5 py-1 rounded-full">
+                        Active ✓
+                      </span>
+                    ) : notifPermission === 'denied' ? (
+                      <span className="text-[10px] font-bold text-slate-400">
+                        Blocked in Browser Settings
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleEnableNotifications}
+                        disabled={isSubscribingNotif}
+                        className="text-[11px] font-extrabold bg-[#00875A] text-white px-3 py-1.5 rounded-xl cursor-pointer"
+                      >
+                        {isSubscribingNotif ? '...' : 'Turn On'}
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 <div className="pt-2 border-t border-slate-100">
                   <button

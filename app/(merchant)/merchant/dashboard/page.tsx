@@ -554,6 +554,18 @@ export default function MerchantDashboardPage() {
 
       if (dbError) throw dbError
 
+      // 🔔 Send push notification to subscribed customers of this store
+      fetch('/api/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'OFFER',
+          storeId: merchantSession.id,
+          storeName: merchantSession.store_name,
+          offerTitle: offerTitle,
+        }),
+      }).catch((pushErr) => console.error('Offer push notification error:', pushErr))
+
       setOfferStatusMsg({ type: 'success', text: '🎉 Offer posted successfully!' })
       showToast('success', 'Offer posted successfully!')
       setOfferTitle('')
@@ -863,6 +875,21 @@ export default function MerchantDashboardPage() {
       setBillAmount('')
       setExistingCustomerClaim(null)
       fetchStoreCustomers(storeId)
+
+      // 🔔 Send push notification to customer if subscribed
+      fetch('/api/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'CASHBACK',
+          phone: cleanCustPhone,
+          storeId: storeId,
+          storeName: merchantSession?.store_name || 'RETCASH',
+          amount: cashbackAmount > 0 ? cashbackAmount : totalClaimable,
+          visits: newVisitCount,
+          targetVisits: targetVisits,
+        }),
+      }).catch((pushErr) => console.error('Cashback push notification error:', pushErr))
 
       if (cashbackAmount > 0) {
         showToast(

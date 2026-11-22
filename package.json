@@ -28,7 +28,8 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-qr-code": "^2.2.0",
-    "resend": "^6.22.1"
+    "resend": "^6.22.1",
+    "web-push": "^4.0.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",
@@ -38,6 +39,7 @@
     "@types/node": "^20.19.43",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
