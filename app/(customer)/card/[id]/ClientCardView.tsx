@@ -227,21 +227,21 @@ export default function ClientCardView({
 
     const store = claimData?.stores
     const customerPhone = claimData?.customer_phone || ''
-    const currentVisits = Number(claimData?.visit_count) || 1
+    const currentVisits = Math.max(0, Number(claimData?.visit_count ?? 0))
     const rawTotalVisits = Number(store?.target_visits) || 6
     const totalVisits = Math.min(Math.max(rawTotalVisits, 1), 10)
 
     const claimableBalance = Number(claimData?.claimable_amount || 0);
     const claimStatus = String(claimData?.status || '').toUpperCase();
 
-    const isRedeemed = claimStatus === 'REDEEMED' || claimableBalance <= 0;
-    const isRewardReady = (currentVisits >= totalVisits) && claimableBalance > 0 && claimStatus !== 'REDEEMED';
+    const isRedeemed = claimStatus === 'REDEEMED';
+    const isRewardReady = !isRedeemed && claimableBalance > 0 && (claimStatus === 'READY' || currentVisits >= totalVisits);
 
     const storeInitials = store?.store_name
         ? store.store_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
         : 'RC'
 
-    const visitsLeft = totalVisits - currentVisits;
+    const visitsLeft = Math.max(0, totalVisits - currentVisits);
 
     const billAmount = latestTransaction?.bill_amount || 0;
     const netPaidAmount = latestTransaction?.net_paid_amount !== undefined 
@@ -598,6 +598,9 @@ export default function ClientCardView({
                                         ? item.net_paid_amount
                                         : Math.max(0, (item.bill_amount || 0) - (item.transaction_type?.includes('REDEEMED') ? (item.cashback_amount || 0) : 0));
 
+                                    const isRedeemedRow = String(item.transaction_type || '').toUpperCase().includes('REDEEMED');
+                                    const isVoidedRow = String(item.transaction_type || '').toUpperCase().includes('VOIDED');
+
                                     return (
                                         <div key={item.id} className="bg-slate-50 border border-slate-100/80 rounded-2xl p-3 flex justify-between items-center text-xs">
                                             <div>
@@ -618,11 +621,19 @@ export default function ClientCardView({
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="font-extrabold text-[#00875A]">
-                                                    + Rs. {Number(item.cashback_amount || 0).toFixed(2)}
+                                                <div className={`font-extrabold ${isRedeemedRow || isVoidedRow ? 'text-rose-600' : 'text-[#00875A]'}`}>
+                                                    {isRedeemedRow
+                                                        ? `- Rs. ${Number(item.cashback_amount || 0).toFixed(2)}`
+                                                        : isVoidedRow
+                                                        ? `Rs. ${Number(item.cashback_amount || 0).toFixed(2)}`
+                                                        : `+ Rs. ${Number(item.cashback_amount || 0).toFixed(2)}`}
                                                 </div>
-                                                <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-0.5 bg-emerald-100 text-[#00875A]">
-                                                    {t.earnedBadge}
+                                                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-0.5 ${
+                                                    isRedeemedRow || isVoidedRow
+                                                        ? 'bg-rose-100 text-rose-700'
+                                                        : 'bg-emerald-100 text-[#00875A]'
+                                                }`}>
+                                                    {isRedeemedRow ? t.claimedLabel : isVoidedRow ? 'VOIDED' : t.earnedBadge}
                                                 </span>
                                             </div>
                                         </div>

@@ -405,21 +405,26 @@ export default function CustomerWalletPage() {
 
         const visitCount = Number(latestClaim?.visit_count || 0)
         const claimableAmount = Number(latestClaim?.claimable_amount || 0)
+        const claimStatus = latestClaim?.status || storeSummary?.status || 'PENDING'
 
-        const isRedeemed = latestClaim?.status === 'REDEEMED' || storeSummary?.status === 'REDEEMED'
+        const isRedeemed = latestClaim
+          ? latestClaim.status === 'REDEEMED'
+          : storeSummary?.status === 'REDEEMED'
+        const isReadyToRedeem = !isRedeemed && claimStatus === 'READY' && claimableAmount > 0
 
         const lastRedeemedVal = latestClaim ? lastRedeemedMap.get(String(latestClaim.id)) : 0
         const displayRedeemedCashback = (lastRedeemedVal && lastRedeemedVal > 0)
           ? lastRedeemedVal
           : Number(latestClaim?.cashback_amount || 0)
 
-        const storeTarget = Number(store.target_visits) || 6
+        const storeTarget = Math.max(1, Number(store.target_visits) || 6)
         const lastActivityAt = latestClaim?.updated_at || latestClaim?.created_at || store.created_at || ''
 
         const prevCached = existingCacheMap.get(String(store.id))
         const isSameState = prevCached &&
           prevCached.visits === visitCount &&
           prevCached.isRedeemed === isRedeemed &&
+          prevCached.isReadyToRedeem === isReadyToRedeem &&
           Number(prevCached.balance) === claimableAmount &&
           Number(prevCached.cashbackAmount) === displayRedeemedCashback
 
@@ -430,7 +435,8 @@ export default function CustomerWalletPage() {
           claimId: latestClaim?.id,
           balance: claimableAmount,
           cashbackAmount: displayRedeemedCashback,
-          isRedeemed: isRedeemed,
+          isRedeemed,
+          isReadyToRedeem,
           visits: visitCount,
           targetVisits: storeTarget,
           lastActivityAt,
@@ -907,7 +913,7 @@ export default function CustomerWalletPage() {
                     const style = getCategoryColor(store.category)
                     const Icon = getCategoryIcon(store.category)
                     const visits = store.visits || 0
-                    const targetVisits = store.targetVisits || 6
+                    const targetVisits = Math.max(1, store.targetVisits || 6)
                     const isThisNavigating = navigatingStoreId === store.id
 
                     const hasValidCategory =
@@ -943,16 +949,21 @@ export default function CustomerWalletPage() {
                                   {store.store_name} {isThisNavigating && t.openingStore}
                                 </h3>
 
-                                {hasValidCategory && (
-                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                  {hasValidCategory && (
                                     <span
                                       className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize inline-block truncate max-w-full"
                                       style={{ background: style.bgColor, color: style.color }}
                                     >
                                       {store.category}
                                     </span>
-                                  </div>
-                                )}
+                                  )}
+                                  {store.isReadyToRedeem && (
+                                    <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-[#00875A] text-white uppercase tracking-wider">
+                                      READY
+                                    </span>
+                                  )}
+                                </div>
                               </div>
 
                               <div className="text-right flex-shrink-0">

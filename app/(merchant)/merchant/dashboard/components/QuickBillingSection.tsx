@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   RotateCcw,
   X,
+  Sparkles,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
@@ -144,6 +145,21 @@ export default function QuickBillingSection({
     return elapsed >= 0 && elapsed <= 15 * 60 * 1000
   })()
 
+  // Predict upcoming visit milestone for clear counter feedback
+  const upcomingVisitInfo = (() => {
+    const hasActiveCycle =
+      existingCustomerClaim &&
+      existingCustomerClaim.status !== 'REDEEMED' &&
+      existingCustomerClaim.status !== 'VOIDED' &&
+      currentClaimable > 0
+
+    const currentVisits = hasActiveCycle ? existingCustomerClaim.visit_count || 0 : 0
+    const nextVisit = currentVisits >= targetVisits ? targetVisits : currentVisits + 1
+    const isRedemptionVisit = targetVisits > 1 && nextVisit >= targetVisits && currentClaimable > 0
+
+    return { nextVisit, isRedemptionVisit }
+  })()
+
   return (
     <section className="grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
       <div className="rounded-3xl border border-[#00875A]/10 bg-white p-5 shadow-xs sm:p-7">
@@ -153,10 +169,14 @@ export default function QuickBillingSection({
               <Zap className="size-5" />
             </div>
             <h2 className="text-lg font-extrabold text-slate-900">New cashback transaction</h2>
-            <p className="mt-1 text-xs text-slate-500">Add a visit and credit cashback directly to the customer&apos;s wallet.</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {targetVisits <= 1
+                ? 'Instant Cashback Mode: Credit cashback immediately on this bill.'
+                : `Collect cashback on Visits 1–${targetVisits - 1}; unlock & redeem on Visit #${targetVisits}.`}
+            </p>
           </div>
           <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-[#00875A]">
-            Live
+            {targetVisits <= 1 ? '1-Visit Instant' : `${targetVisits}-Visit Cycle`}
           </span>
         </div>
 
@@ -166,10 +186,17 @@ export default function QuickBillingSection({
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 text-xs font-extrabold text-[#00875A]">
                 <CheckCircle2 className="size-4 shrink-0" />
-                <span>
-                  Credited Rs. {Number(lastAddedClaim.cashback_amount || 0).toFixed(2)} to{' '}
-                  <span className="font-mono underline">{lastAddedClaim.customer_phone}</span>
-                </span>
+                {Number(lastAddedClaim.cashback_amount || 0) > 0 ? (
+                  <span>
+                    Credited Rs. {Number(lastAddedClaim.cashback_amount || 0).toFixed(2)} to{' '}
+                    <span className="font-mono underline">{lastAddedClaim.customer_phone}</span>
+                  </span>
+                ) : (
+                  <span>
+                    Unlocked Rs. {Number(lastAddedClaim.claimable_amount || 0).toFixed(2)} reward for{' '}
+                    <span className="font-mono underline">{lastAddedClaim.customer_phone}</span>
+                  </span>
+                )}
               </div>
               {onDismissLastClaim && (
                 <button
@@ -187,6 +214,11 @@ export default function QuickBillingSection({
               <span>
                 Progress: <strong className="text-slate-900">{lastAddedClaim.visit_count} / {targetVisits} Visits</strong> • Wallet Balance:{' '}
                 <strong className="font-mono text-[#00875A]">Rs. {Number(lastAddedClaim.claimable_amount || 0).toFixed(2)}</strong>
+                {lastAddedClaim.status === 'READY' && (
+                  <span className="ml-1.5 rounded-full bg-[#00875A] px-2 py-0.5 text-[9px] font-extrabold text-white">
+                    READY TO REDEEM
+                  </span>
+                )}
               </span>
 
               {isLastClaimStillUndoable && onVoidLastClaim && !confirmVoidLast && (
@@ -305,18 +337,27 @@ export default function QuickBillingSection({
             <p className="text-xs text-slate-400 animate-pulse">Checking customer balance...</p>
           )}
 
-          {/* Customer Balance Info Display Box (Read-Only) */}
-          {existingCustomerClaim && currentClaimable > 0 && (
-            <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 flex items-center justify-between gap-2 animate-in fade-in duration-200">
-              <div className="flex items-center gap-2">
-                <Gift className="size-4 text-[#00875A] shrink-0" />
-                <span className="text-xs font-extrabold text-slate-900">
-                  Available Cashback Balance: <span className="font-mono text-[#00875A]">Rs. {currentClaimable}</span>
+          {/* Customer Balance & Milestone Status Display Box */}
+          {existingCustomerClaim && currentClaimable > 0 && existingCustomerClaim.status !== 'REDEEMED' && existingCustomerClaim.status !== 'VOIDED' && (
+            <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-1.5 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Gift className="size-4 text-[#00875A] shrink-0" />
+                  <span className="text-xs font-extrabold text-slate-900">
+                    Collected Balance: <span className="font-mono text-[#00875A]">Rs. {currentClaimable.toFixed(2)}</span>
+                  </span>
+                </div>
+                <span className="text-[10px] font-extrabold text-[#00875A] bg-emerald-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                  Visit {upcomingVisitInfo.nextVisit} of {targetVisits}
                 </span>
               </div>
-              <span className="text-[10px] font-extrabold text-[#00875A] bg-emerald-100/70 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                Regular Customer
-              </span>
+
+              {upcomingVisitInfo.isRedemptionVisit && (
+                <p className="text-[11px] font-semibold text-[#00875A] flex items-center gap-1">
+                  <Sparkles className="size-3.5 shrink-0" />
+                  Redemption Visit! Submitting this bill unlocks Rs. {currentClaimable.toFixed(2)} to deduct right away (no new cashback added on this bill).
+                </p>
+              )}
             </div>
           )}
 
@@ -326,7 +367,11 @@ export default function QuickBillingSection({
             className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#00875A] hover:bg-[#00704a] px-4 text-xs font-extrabold text-white shadow-md shadow-[#00875A]/20 transition cursor-pointer disabled:opacity-50 active:scale-98"
           >
             <CheckCircle2 className="size-4" />
-            {actionLoading ? 'Adding Cashback...' : 'Add Cashback & Record Visit'}
+            {actionLoading
+              ? 'Processing...'
+              : upcomingVisitInfo.isRedemptionVisit
+              ? `Unlock Rs. ${currentClaimable.toFixed(2)} Reward for Redemption`
+              : 'Add Cashback & Record Visit'}
             <ChevronRight className="size-4" />
           </button>
         </form>

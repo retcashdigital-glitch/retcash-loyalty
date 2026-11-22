@@ -43,7 +43,13 @@ export default function SingleCardPage() {
             if (cachedWalletRaw) {
                 let parsedStores = JSON.parse(cachedWalletRaw)
                 const storeIdToFind = updatedClaimData.store_id || updatedClaimData.stores?.id
-                const isNowRedeemed = (updatedSummaryData?.status || updatedClaimData.status) === 'REDEEMED'
+                const isNowRedeemed = updatedClaimData.status
+                    ? updatedClaimData.status === 'REDEEMED'
+                    : updatedSummaryData?.status === 'REDEEMED'
+                const isNowReady =
+                    !isNowRedeemed &&
+                    updatedClaimData.status === 'READY' &&
+                    Number(updatedClaimData.claimable_amount || 0) > 0
 
                 // 1. Cache-இல் இருக்கும் குறித்த கடைக் கார்டைப் புதுப்பித்தல்
                 let updated = false
@@ -60,9 +66,10 @@ export default function SingleCardPage() {
                             ...s,
                             claimId: updatedClaimData.id,
                             cashbackAmount: resolvedCashback,
-                            balance: isNowRedeemed ? 0 : (updatedSummaryData?.current_balance ?? updatedClaimData.claimable_amount ?? s.balance),
+                            balance: isNowRedeemed ? 0 : (updatedClaimData.claimable_amount ?? updatedSummaryData?.current_balance ?? s.balance),
                             visits: updatedClaimData.visit_count ?? s.visits,
                             isRedeemed: isNowRedeemed,
+                            isReadyToRedeem: isNowReady,
                             latestTransaction: updatedTxData !== undefined ? updatedTxData : s.latestTransaction
                         }
                     }
@@ -150,8 +157,12 @@ export default function SingleCardPage() {
                                     customer_phone: formattedAuthPhone,
                                     cashback_amount: cachedStore.cashbackAmount || 0,
                                     claimable_amount: cachedStore.balance || 0,
-                                    visit_count: cachedStore.visits || 1,
-                                    status: cachedStore.isRedeemed ? 'REDEEMED' : 'ACTIVE',
+                                    visit_count: cachedStore.visits ?? 0,
+                                    status: cachedStore.isRedeemed
+                                        ? 'REDEEMED'
+                                        : cachedStore.isReadyToRedeem
+                                        ? 'READY'
+                                        : 'PENDING',
                                     stores: cachedStore
                                 })
                                 setLatestTransaction(cachedStore.latestTransaction)
@@ -205,7 +216,7 @@ export default function SingleCardPage() {
                     currentClaim = claimByStore;
                 }
 
-                // C. Claim இல்லை என்றால் Supabase-இல் Unique Upsert செய்து பெறுதல்
+                // C. Claim இல்லை என்றால் Supabase-இல் Unique Upsert செய்து பெறுதல் (0 visits, Rs. 0 initial state)
                 if (!currentClaim) {
                     const { data: storeData } = await supabase
                         .from('stores')
@@ -240,7 +251,7 @@ export default function SingleCardPage() {
                                 customer_id: customerUuid,
                                 customer_phone: formattedAuthPhone,
                                 claimable_amount: 0,
-                                visit_count: 1,
+                                visit_count: 0,
                                 status: 'PENDING',
                                 updated_at: new Date().toISOString()
                             }, {
@@ -319,10 +330,10 @@ export default function SingleCardPage() {
                             net_paid_amount: netPaid,
                             redeemed_amount: redeemedAmt,
                             total_redeemed: walletSummary?.total_redeemed_amount || 0,
-                            summary_status: walletSummary?.status || currentClaim.status
+                            summary_status: currentClaim.status || walletSummary?.status
                         }
 
-                        if ((walletSummary?.status === 'REDEEMED' || currentClaim.status === 'REDEEMED') && redeemedAmt > 0) {
+                        if (currentClaim.status === 'REDEEMED' && redeemedAmt > 0) {
                             trueDisplayCashback = redeemedAmt
                         }
 
@@ -401,10 +412,10 @@ export default function SingleCardPage() {
                                                 net_paid_amount: netPaid,
                                                 redeemed_amount: redeemedAmt,
                                                 total_redeemed: updatedSummary?.total_redeemed_amount || 0,
-                                                summary_status: (updatedSummary as { status?: string } | null)?.status || (payload.new as { status?: string }).status
+                                                summary_status: (payload.new as { status?: string }).status || (updatedSummary as { status?: string } | null)?.status
                                             }
 
-                                            if ((updatedSummary?.status === 'REDEEMED' || updatedClaimObj.status === 'REDEEMED') && redeemedAmt > 0) {
+                                            if (updatedClaimObj.status === 'REDEEMED' && redeemedAmt > 0) {
                                                 updatedDisplayCashback = redeemedAmt
                                             }
 

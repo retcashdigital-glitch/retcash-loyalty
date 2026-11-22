@@ -408,8 +408,8 @@ export default function MerchantDashboardPage() {
     e.preventDefault()
     let newTarget = parseInt(targetVisitsInput, 10)
 
-    if (isNaN(newTarget) || newTarget < 3) {
-      showToast('error', 'Target visits must be at least 3.')
+    if (isNaN(newTarget) || newTarget < 1) {
+      showToast('error', 'Target visits must be at least 1.')
       return
     }
 
@@ -691,6 +691,7 @@ export default function MerchantDashboardPage() {
         .update({
           claimable_amount: 0,
           cashback_amount: 0,
+          visit_count: 0,
           status: 'REDEEMED',
           updated_at: new Date().toISOString()
         })
@@ -715,7 +716,7 @@ export default function MerchantDashboardPage() {
       setScannedClaimData(null)
       setIsScanning(false)
       setLastAddedClaim(null)
-      showToast('success', '🎉 Reward successfully redeemed! Balance cleared.')
+      showToast('success', '🎉 Reward successfully redeemed! New cycle ready.')
 
       if (merchantSession?.id) fetchStoreCustomers(merchantSession.id)
     } catch (err: any) {
@@ -725,7 +726,7 @@ export default function MerchantDashboardPage() {
     }
   }
 
-  // ✅ 1. INSTANT CASHBACK BILLING (NO WHATSAPP REDIRECT)
+  // ✅ 1. GLOBAL-STANDARD CASHBACK & VISIT CYCLE BILLING (SUPPORTS 1-VISIT INSTANT & MULTI-VISIT LOYALTY)
   const handleGenerateCashback = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerPhone || !billAmount || actionLoading) return
@@ -744,7 +745,7 @@ export default function MerchantDashboardPage() {
     setActionLoading(true)
     try {
       const cashbackPercentage = merchantSession?.default_cashback_percent || 5
-      const targetVisits = Math.min(merchantSession?.target_visits || 6, 10)
+      const targetVisits = Math.min(Math.max(merchantSession?.target_visits || 6, 1), 10)
 
       const cleanCustPhone = formatPhoneNumber(customerPhone)
       const storeId = merchantSession?.id
@@ -778,16 +779,43 @@ export default function MerchantDashboardPage() {
         if (!custErr && newCust) customerUuid = newCust.id
       }
 
-      const existingAmount = existingCustomerClaim ? Number(existingCustomerClaim.claimable_amount || 0) : 0
-      const cashbackAmount = Math.round(((initialBillNum * cashbackPercentage) / 100) * 100) / 100
+      const isActiveCycle =
+        existingCustomerClaim &&
+        existingCustomerClaim.status !== 'REDEEMED' &&
+        existingCustomerClaim.status !== 'VOIDED' &&
+        Number(existingCustomerClaim.claimable_amount || 0) > 0
+
+      const existingAmount = isActiveCycle ? Number(existingCustomerClaim.claimable_amount || 0) : 0
+      const currentVisits = isActiveCycle ? Number(existingCustomerClaim.visit_count || 0) : 0
 
       let newVisitCount = 1
-      let totalClaimable = cashbackAmount
+      let cashbackAmount = 0
+      let totalClaimable = 0
 
-      if (existingCustomerClaim) {
-        const currentVisits = existingCustomerClaim.visit_count || 0
-        newVisitCount = currentVisits >= targetVisits ? 1 : currentVisits + 1
-        totalClaimable = Math.round((existingAmount + cashbackAmount) * 100) / 100
+      if (targetVisits === 1) {
+        // 1-Visit Instant Cashback Mode:
+        // If customer already has an unredeemed reward waiting, keep it ready for this bill; otherwise earn on this bill immediately.
+        if (isActiveCycle && existingCustomerClaim?.status === 'READY') {
+          newVisitCount = 1
+          cashbackAmount = 0
+          totalClaimable = existingAmount
+        } else {
+          newVisitCount = 1
+          cashbackAmount = Math.round(((initialBillNum * cashbackPercentage) / 100) * 100) / 100
+          totalClaimable = Math.round((existingAmount + cashbackAmount) * 100) / 100
+        }
+      } else {
+        // Multi-Visit Loyalty Mode (e.g., Target = 3):
+        // Visits 1 to (targetVisits - 1) earn cashback; Visit #targetVisits unlocks the collected balance WITHOUT earning new cashback on the redemption bill.
+        newVisitCount = currentVisits >= targetVisits ? targetVisits : currentVisits + 1
+
+        if (newVisitCount >= targetVisits && existingAmount > 0) {
+          cashbackAmount = 0
+          totalClaimable = existingAmount
+        } else {
+          cashbackAmount = Math.round(((initialBillNum * cashbackPercentage) / 100) * 100) / 100
+          totalClaimable = Math.round((existingAmount + cashbackAmount) * 100) / 100
+        }
       }
 
       const claimStatus = newVisitCount >= targetVisits ? 'READY' : 'PENDING'
@@ -820,7 +848,7 @@ export default function MerchantDashboardPage() {
           customer_phone: cleanCustPhone,
           visit_count: newVisitCount,
           bill_amount: initialBillNum,
-          cashback_percentage: cashbackPercentage,
+          cashback_percentage: cashbackAmount > 0 ? cashbackPercentage : 0,
           cashback_amount: cashbackAmount,
           net_paid_amount: initialBillNum,
           transaction_type: 'BILL_ADDED',
@@ -836,10 +864,17 @@ export default function MerchantDashboardPage() {
       setExistingCustomerClaim(null)
       fetchStoreCustomers(storeId)
 
-      showToast(
-        'success',
-        `✅ Added Rs. ${cashbackAmount.toFixed(2)} cashback (${newVisitCount}/${targetVisits} visits) for ${cleanCustPhone}`
-      )
+      if (cashbackAmount > 0) {
+        showToast(
+          'success',
+          `✅ Added Rs. ${cashbackAmount.toFixed(2)} cashback (${newVisitCount}/${targetVisits} visits) for ${cleanCustPhone}`
+        )
+      } else {
+        showToast(
+          'success',
+          `🎉 Visit #${newVisitCount}/${targetVisits} reached! Rs. ${totalClaimable.toFixed(2)} unlocked for ${cleanCustPhone}`
+        )
+      }
     } catch (err: any) {
       showToast('error', 'Error processing cashback: ' + err.message)
     } finally {
@@ -854,9 +889,8 @@ export default function MerchantDashboardPage() {
     setActionLoading(true)
     try {
       const storeId = merchantSession.id
-      const targetVisits = Math.min(merchantSession?.target_visits || 6, 10)
+      const targetVisits = Math.min(Math.max(merchantSession?.target_visits || 6, 1), 10)
 
-      // Fetch latest DB state to prevent double-voiding or voiding after redeem
       const { data: freshClaim, error: fetchErr } = await supabase
         .from('cashback_claims')
         .select('*')
@@ -1028,7 +1062,7 @@ export default function MerchantDashboardPage() {
     )
   }
 
-  const targetVisits = Math.min(merchantSession?.target_visits || 6, 10)
+  const targetVisits = Math.min(Math.max(merchantSession?.target_visits || 6, 1), 10)
   const filteredCustomers = customersList.filter(c => c.customer_phone.includes(customerSearchQuery))
   const totalClaimableSum = customersList.reduce((acc, curr) => acc + Number(curr.claimable_amount || 0), 0)
   const currentClaimable = existingCustomerClaim ? Number(existingCustomerClaim.claimable_amount || 0) : 0
@@ -1218,7 +1252,7 @@ export default function MerchantDashboardPage() {
             <div id="reader" className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-900"></div>
 
             {scanMode === 'PHONE' ? (
-              <p className="text-xs text-slate-500">Point your camera at the customer's QR code to read their phone number.</p>
+              <p className="text-xs text-slate-500">Point your camera at the customer&apos;s QR code to read their phone number.</p>
             ) : scannedClaimData ? (
               <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-200 text-xs space-y-3 text-left">
                 <div className="flex justify-between text-[11px] text-[#00875A] font-extrabold">
@@ -1260,7 +1294,7 @@ export default function MerchantDashboardPage() {
                 )}
               </div>
             ) : (
-              <p className="text-xs text-slate-500">Point your camera at the customer's Retcash QR code.</p>
+              <p className="text-xs text-slate-500">Point your camera at the customer&apos;s Retcash QR code.</p>
             )}
           </div>
         </div>

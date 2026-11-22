@@ -52,6 +52,13 @@ const CATEGORIES = [
   'others'
 ]
 
+const VISIT_PRESETS = [
+  { visits: 1, label: '1 Visit (Instant)' },
+  { visits: 3, label: '3 Visits' },
+  { visits: 5, label: '5 Visits' },
+  { visits: 6, label: '6 Visits' },
+]
+
 export default function StoreSettingsModal({
   merchantSession,
   onClose,
@@ -83,6 +90,7 @@ export default function StoreSettingsModal({
   const [detailsSuccess, setDetailsSuccess] = useState<boolean>(false)
 
   const isLogoUploading = externalLogoUploading ?? internalLogoUploading
+  const parsedTarget = parseInt(targetVisitsInput, 10) || 1
 
   useEffect(() => {
     if (focusQrSection && qrBlockRef.current) {
@@ -164,6 +172,13 @@ export default function StoreSettingsModal({
     } finally {
       setDetailsLoading(false)
     }
+  }
+
+  const applyPresetVisits = (visits: number) => {
+    const syntheticEvent = {
+      target: { value: String(visits) },
+    } as ChangeEvent<HTMLInputElement>
+    handleTargetInputChange(syntheticEvent)
   }
 
   return (
@@ -277,7 +292,7 @@ export default function StoreSettingsModal({
                 <label htmlFor="cashbackPercentModal" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                   <Percent className="size-3.5 text-[#00875A]" /> Default Cashback %
                 </label>
-                <span className="font-mono text-[10px] text-slate-400">per transaction</span>
+                <span className="font-mono text-[10px] text-slate-400">per earning bill</span>
               </div>
               <div className="flex gap-2">
                 <input
@@ -305,17 +320,39 @@ export default function StoreSettingsModal({
               )}
             </form>
 
-            {/* Form B: Target Visits */}
-            <form onSubmit={handleUpdateTargetVisits} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-xs">
+            {/* Form B: Target Visits (1 to 10) */}
+            <form onSubmit={handleUpdateTargetVisits} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2.5 shadow-xs">
               <div className="flex items-center justify-between">
-                <label htmlFor="targetModal" className="text-xs font-semibold text-slate-700">Target Visits</label>
-                <span className="font-mono text-[10px] text-slate-400">per customer</span>
+                <label htmlFor="targetModal" className="text-xs font-semibold text-slate-700">Target Visits (1 – 10)</label>
+                <span className="font-mono text-[10px] text-slate-400">redeem milestone</span>
               </div>
+
+              {/* Quick Preset Chips */}
+              <div className="flex flex-wrap gap-1.5">
+                {VISIT_PRESETS.map((preset) => {
+                  const isActive = parsedTarget === preset.visits
+                  return (
+                    <button
+                      key={preset.visits}
+                      type="button"
+                      onClick={() => applyPresetVisits(preset.visits)}
+                      className={`rounded-lg px-2.5 py-1 text-[10px] font-bold border transition cursor-pointer ${
+                        isActive
+                          ? 'bg-[#00875A] text-white border-[#00875A]'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-[#00875A]/50'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  )
+                })}
+              </div>
+
               <div className="flex gap-2">
                 <input
                   id="targetModal"
                   type="number"
-                  min="3"
+                  min="1"
                   max="10"
                   value={targetVisitsInput}
                   onChange={handleTargetInputChange}
@@ -330,6 +367,13 @@ export default function StoreSettingsModal({
                   {settingLoading ? '...' : 'Update'}
                 </button>
               </div>
+
+              <p className="text-[10px] leading-relaxed text-slate-500">
+                {parsedTarget <= 1
+                  ? '⚡ Instant Mode: Customers earn cashback on Visit #1 and can redeem it right away.'
+                  : `🎯 Loyalty Mode: Customers collect cashback on Visits 1–${parsedTarget - 1}, then unlock & redeem on Visit #${parsedTarget}.`}
+              </p>
+
               {successMsg && (
                 <p className="text-[11px] text-[#00875A] font-bold mt-1">✓ Target visits updated!</p>
               )}

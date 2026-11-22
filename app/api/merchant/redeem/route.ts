@@ -4,7 +4,6 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    // frontend-இல் இருந்து claimId மற்றும் optional-ஆக storeId வரலாம்
     const { claimId, storeId } = body 
 
     if (!claimId) {
@@ -26,7 +25,7 @@ export async function POST(request: Request) {
       auth: { persistSession: false }
     })
 
-    // 1. முதலில் இந்த Claim ID உள்ளதா என சரிபார்க்கிறோம்
+    // 1. Verify claim exists
     const { data: claimData, error: fetchError } = await supabaseAdmin
       .from('cashback_claims')
       .select('*')
@@ -37,23 +36,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid QR Code or Claim not found' }, { status: 400 })
     }
 
-    // 2. கடையின் Store ID அனுப்பப்பட்டிருந்தால் அது பொருந்துகிறதா என சரிபார்க்கிறோம்
+    // 2. Verify store ownership if storeId is provided
     if (storeId && claimData.store_id !== storeId) {
       return NextResponse.json({ error: 'Invalid QR Code or does not belong to this store.' }, { status: 400 })
     }
 
-    // 3. ஏற்கனவே Redeem செய்யப்பட்டிருந்தால் அல்லது இருப்பு 0 ஆக இருந்தால் (Number conversion உடன்)
+    // 3. Ensure reward is active and has a positive balance
     const currentAmount = Number(claimData.claimable_amount || 0)
+    const lastBillAmt = Number(claimData.bill_amount || 0)
+    const calculatedNetPaid = Math.max(0, Math.round((lastBillAmt - currentAmount) * 100) / 100)
+
     if (claimData.status === 'REDEEMED' || currentAmount <= 0) {
       return NextResponse.json({ error: 'This QR code has already been redeemed or has zero balance.' }, { status: 400 })
     }
 
-    // 4. நிலையை REDEEMED ஆகவும் இருப்பை 0 ஆகவும் மாற்றுகிறோம்
+    // 4. Mark as REDEEMED and reset balance & visit cycle for future visits
     const { data, error } = await supabaseAdmin
       .from('cashback_claims')
       .update({ 
         status: 'REDEEMED',
         claimable_amount: 0,
+        cashback_amount: 0,
+        visit_count: 0,
         updated_at: new Date().toISOString()
       })
       .eq('id', claimId)
@@ -64,7 +68,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // 5. Redemption History-இல் பதிவிடுதல் (Optional Audit Logging)
+    // 5. Audit logging in cashback_history
     try {
       await supabaseAdmin
         .from('cashback_history')
@@ -73,9 +77,10 @@ export async function POST(request: Request) {
           store_id: claimData.store_id,
           customer_phone: claimData.customer_phone,
           visit_count: claimData.visit_count,
-          bill_amount: 0,
+          bill_amount: lastBillAmt,
           cashback_percentage: 0,
           cashback_amount: currentAmount,
+          net_paid_amount: calculatedNetPaid,
           transaction_type: 'REDEEMED',
           status: 'REDEEMED'
         })
@@ -85,7 +90,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      data: data && data.length > 0 ? data[0] : { id: claimId, status: 'REDEEMED', claimable_amount: 0 } 
+      data: data && data.length > 0 ? data[0] : { id: claimId, status: 'REDEEMED', claimable_amount: 0, visit_count: 0 } 
     })
 
   } catch (err: any) {
