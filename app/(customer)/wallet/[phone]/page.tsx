@@ -403,7 +403,7 @@ export default function CustomerWalletPage() {
         const latestClaim = latestClaimsMap.get(String(store.id))
         const storeSummary = summaryMap.get(String(store.id))
 
-        const visitCount = Number(latestClaim?.visit_count || 0)
+        const rawVisitCount = Number(latestClaim?.visit_count || 0)
         const claimableAmount = Number(latestClaim?.claimable_amount || 0)
         const claimStatus = latestClaim?.status || storeSummary?.status || 'PENDING'
 
@@ -418,6 +418,7 @@ export default function CustomerWalletPage() {
           : Number(latestClaim?.cashback_amount || 0)
 
         const storeTarget = Math.max(1, Number(store.target_visits) || 6)
+        const visitCount = isRedeemed && rawVisitCount === 0 ? storeTarget : rawVisitCount
         const lastActivityAt = latestClaim?.updated_at || latestClaim?.created_at || store.created_at || ''
 
         const prevCached = existingCacheMap.get(String(store.id))

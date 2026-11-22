@@ -691,7 +691,7 @@ export default function MerchantDashboardPage() {
         .update({
           claimable_amount: 0,
           cashback_amount: 0,
-          visit_count: 0,
+          visit_count: scannedClaimData.visit_count,
           status: 'REDEEMED',
           updated_at: new Date().toISOString()
         })

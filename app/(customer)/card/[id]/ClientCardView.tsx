@@ -227,7 +227,6 @@ export default function ClientCardView({
 
     const store = claimData?.stores
     const customerPhone = claimData?.customer_phone || ''
-    const currentVisits = Math.max(0, Number(claimData?.visit_count ?? 0))
     const rawTotalVisits = Number(store?.target_visits) || 6
     const totalVisits = Math.min(Math.max(rawTotalVisits, 1), 10)
 
@@ -235,6 +234,8 @@ export default function ClientCardView({
     const claimStatus = String(claimData?.status || '').toUpperCase();
 
     const isRedeemed = claimStatus === 'REDEEMED';
+    const rawCurrentVisits = Math.max(0, Number(claimData?.visit_count ?? 0));
+    const currentVisits = isRedeemed && rawCurrentVisits === 0 ? totalVisits : rawCurrentVisits;
     const isRewardReady = !isRedeemed && claimableBalance > 0 && (claimStatus === 'READY' || currentVisits >= totalVisits);
 
     const storeInitials = store?.store_name
