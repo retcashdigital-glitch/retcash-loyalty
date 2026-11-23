@@ -142,7 +142,7 @@ const COPY: Record<
       'Track your reward balance anytime and get notified first when your favorite shops drop exclusive deals.',
     shopper3Title: 'Always Free for Customers',
     shopper3Desc:
-      'Zero subscription fees or hidden charges—log in anytime to check and redeem your accumulated cashback.',
+      'Zero subscription fees or hidden charges—log in securely anytime with your 4-digit PIN and Email OTP verification to check and redeem cashback.',
     shopperCta: 'Open Customer Wallet',
     plansBadge: 'Merchant Plans',
     plansTitle: 'Start Free for 30 Days',
@@ -229,7 +229,7 @@ const COPY: Record<
       'உங்கள் கேஷ்பேக் இருப்பை எப்போது வேண்டுமானாலும் பார்க்கலாம்; கடைகளின் சிறப்புத் தள்ளுபடிகளும் உடனே போனில் வரும்.',
     shopper3Title: 'வாடிக்கையாளர்களுக்கு எப்போதும் இலவசம்',
     shopper3Desc:
-      'எந்தவொரு கட்டணமும் இன்றி உங்கள் வாலட்டில் உள்நுழைந்து சேமித்த கேஷ்பேக்கை கடையில் பயன்படுத்திக்கொள்ளலாம்.',
+      'எந்தவொரு கட்டணமும் இன்றி உங்கள் 4-இலக்க PIN மற்றும் Email OTP பாதுகாப்புடன் எப்போது வேண்டுமானாலும் உள்நுழைந்து கேஷ்பேக்கை பயன்படுத்திக்கொள்ளலாம்.',
     shopperCta: 'எனது வாலட்டைத் திறக்கவும்',
     plansBadge: 'கடைக்காரர் திட்டங்கள்',
     plansTitle: '30 நாட்கள் இலவசமாகப் பயன்படுத்துங்கள்',
@@ -316,7 +316,7 @@ const COPY: Record<
       'ඕනෑම වේලාවක ඔබේ Cashback ශේෂය පරීක්ෂා කර වෙළඳසැල්වල නවතම වට්ටම් දුරකථනයටම ලබාගන්න.',
     shopper3Title: 'පාරිභෝගිකයින්ට සැමදා නොමිලේ',
     shopper3Desc:
-      'කිසිදු ගාස්තුවකින් තොරව ඔබේ වොලට් එකට පිවිස එකතු වූ Cashback මුදල වෙළඳසැල්වලදී භාවිතා කළ හැක.',
+      'කිසිදු ගාස්තුවකින් තොරව ඔබේ ඉලක්කම් 4ක PIN සහ Email OTP ආරක්ෂාව සමඟ ඕනෑම වේලාවක පිවිස Cashback භාවිතා කළ හැක.',
     shopperCta: 'මගේ වොලට් එක විවෘත කරන්න',
     plansBadge: 'වෙළඳසැල් පැකේජ',
     plansTitle: 'දින 30ක් නොමිලේ භාවිතා කරන්න',
