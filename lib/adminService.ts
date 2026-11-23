@@ -1,5 +1,3 @@
-import { supabase } from './supabase';
-
 export interface Store {
   id: string;
   store_name: string;
@@ -9,36 +7,35 @@ export interface Store {
   trial_ends_at: string | null;
 }
 
-// 1. அனைத்து கடைகளின் விவரங்களையும் பெறுதல்
 export async function getAllStoresWithSubscriptions(): Promise<Store[]> {
-  const { data, error } = await supabase
-    .from('stores')
-    .select('id, store_name, phone_number, plan_type, subscription_status, trial_ends_at')
-    .order('created_at', { ascending: false });
+  const res = await fetch('/api/admin/subscriptions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'list_stores' }),
+  });
 
-  if (error) throw error;
-  return data || [];
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch stores');
+  return data.stores || [];
 }
 
-// 2. சப்ஸ்கிரிப்ஷனை புதுப்பித்தல்
 export async function renewStoreSubscription(
   storeId: string,
   monthsToAdd: number = 1,
   planType: string = 'monthly'
 ) {
-  const newEndDate = new Date();
-  newEndDate.setMonth(newEndDate.getMonth() + monthsToAdd);
+  const res = await fetch('/api/admin/subscriptions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'adjust_months',
+      storeId,
+      months: monthsToAdd,
+      plan: planType,
+    }),
+  });
 
-  const { data, error } = await supabase
-    .from('stores')
-    .update({
-      subscription_status: 'active',
-      plan_type: planType,
-      trial_ends_at: newEndDate.toISOString(),
-    })
-    .eq('id', storeId)
-    .select();
-
-  if (error) throw error;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to renew subscription');
   return data;
 }

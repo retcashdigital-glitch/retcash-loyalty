@@ -2,11 +2,7 @@
 
 import { useEffect, useState, use } from 'react'
 import Image from 'next/image'
-import { supabase } from '@/lib/supabase'
 import { Store, MapPin, Star, Wallet, Loader2, ArrowLeft } from 'lucide-react'
-
-const SAFE_STORE_COLUMNS =
-  'id, store_name, store_slug, logo_url, default_cashback_percent, location_url, review_url'
 
 export default function DynamicStorePage({ params }: { params: Promise<{ storeSlug: string }> }) {
     const { storeSlug } = use(params)
@@ -16,6 +12,7 @@ export default function DynamicStorePage({ params }: { params: Promise<{ storeSl
     const [isLoggedIn, setIsLoggedIn] = useState(false)
     const [customerBalances, setCustomerBalances] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [checkingBalance, setCheckingBalance] = useState(false)
 
     useEffect(() => {
         fetchStoreDetails()
@@ -23,21 +20,14 @@ export default function DynamicStorePage({ params }: { params: Promise<{ storeSl
 
     const fetchStoreDetails = async () => {
         try {
-            const { data, error } = await supabase
-                .from('stores')
-                .select(SAFE_STORE_COLUMNS)
-                .eq('store_slug', storeSlug)
-                .maybeSingle()
-
-            if ((error || !data) && storeSlug) {
-                const { data: idData } = await supabase
-                    .from('stores')
-                    .select(SAFE_STORE_COLUMNS)
-                    .eq('id', storeSlug)
-                    .maybeSingle()
-                setStore(idData)
-            } else {
-                setStore(data)
+            const res = await fetch('/api/store/public', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get_store', storeSlug }),
+            })
+            if (res.ok) {
+                const data = await res.json()
+                setStore(data.store || null)
             }
         } catch (err) {
             console.error(err)
@@ -48,33 +38,29 @@ export default function DynamicStorePage({ params }: { params: Promise<{ storeSl
 
     const handlePhoneCheck = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!userPhone) return
+        if (!userPhone || checkingBalance) return
         const digits = userPhone.replace(/\D/g, '')
         if (digits.length < 9) return
 
-        const formatted94 = digits.startsWith('94') ? digits : `94${digits.replace(/^0+/, '')}`
-        const local0 = formatted94.replace(/^94/, '0')
-
-        const { data: transactions } = await supabase
-            .from('transactions')
-            .select('store_id, cashback_amount, stores(store_name, logo_url)')
-            .or(`customer_phone.eq.${formatted94},customer_phone.eq.${local0}`)
-
-        const storeMap: Record<string, any> = {}
-        transactions?.forEach((tx: any) => {
-            const sId = tx.store_id
-            if (!storeMap[sId]) {
-                storeMap[sId] = {
-                    store_name: tx.stores?.store_name || 'Store',
-                    logo_url: tx.stores?.logo_url,
-                    total_cashback: 0
-                }
+        setCheckingBalance(true)
+        try {
+            const res = await fetch('/api/store/public', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'check_balance', phone: digits }),
+            })
+            if (res.ok) {
+                const data = await res.json()
+                setCustomerBalances(data.balances || [])
+            } else {
+                setCustomerBalances([])
             }
-            storeMap[sId].total_cashback += Number(tx.cashback_amount || 0)
-        })
-
-        setCustomerBalances(Object.values(storeMap))
-        setIsLoggedIn(true)
+            setIsLoggedIn(true)
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setCheckingBalance(false)
+        }
     }
 
     if (loading) {
@@ -160,9 +146,10 @@ export default function DynamicStorePage({ params }: { params: Promise<{ storeSl
                         </div>
                         <button
                             type="submit"
-                            className="w-full py-3.5 bg-[#00875A] hover:bg-[#059669] text-white font-extrabold text-xs tracking-wider uppercase rounded-xl shadow-md shadow-[#00875A]/25 active:scale-[0.98] transition duration-200 cursor-pointer"
+                            disabled={checkingBalance}
+                            className="w-full py-3.5 bg-[#00875A] hover:bg-[#059669] text-white font-extrabold text-xs tracking-wider uppercase rounded-xl shadow-md shadow-[#00875A]/25 active:scale-[0.98] transition duration-200 cursor-pointer disabled:opacity-50"
                         >
-                            View My Cashback & Rewards
+                            {checkingBalance ? 'Checking...' : 'View My Cashback & Rewards'}
                         </button>
                     </form>
                 ) : (
