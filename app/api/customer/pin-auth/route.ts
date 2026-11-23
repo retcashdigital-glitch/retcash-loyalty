@@ -129,7 +129,7 @@ async function sendOtpEmail(toEmail: string, otp: string, title: string) {
   }
   const resend = new Resend(apiKey)
   const { error } = await resend.emails.send({
-    from: 'Retcash Security <onboarding@resend.dev>',
+    from: 'Retcash Security <noreply@retcashapp.com>',
     to: [toEmail],
     subject: `${otp} is your RETCASH Verification Code`,
     html: `
