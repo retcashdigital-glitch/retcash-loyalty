@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import ClientCardView from './ClientCardView'
@@ -22,6 +22,11 @@ export default function SingleCardPage() {
     const [loading, setLoading] = useState(true)
     const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
     const [accessDenied, setAccessDenied] = useState(false)
+
+    const claimStatusRef = useRef<string>('')
+    useEffect(() => {
+        claimStatusRef.current = claim?.status || ''
+    }, [claim?.status])
 
     const updateWalletCacheAndNotify = (
         formattedAuthPhone: string,
@@ -92,6 +97,8 @@ export default function SingleCardPage() {
         if (!paramId) return
 
         let channel: any = null
+        let pollTimer: ReturnType<typeof setTimeout> | null = null
+        let isUnmounted = false
 
         async function loadFromSecureApi(formattedAuthPhone: string) {
             const res = await fetch('/api/customer/card-data', {
@@ -104,6 +111,11 @@ export default function SingleCardPage() {
                 }),
             })
 
+            if (res.status === 401) {
+                router.replace('/customer/login')
+                return null
+            }
+
             if (res.status === 403) {
                 setAccessDenied(true)
                 setIsAuthorized(true)
@@ -113,6 +125,32 @@ export default function SingleCardPage() {
 
             if (!res.ok) return null
             return res.json()
+        }
+
+        function applyFreshCardData(freshResult: any, formattedAuthPhone: string) {
+            if (!freshResult?.claim || isUnmounted) return
+
+            const freshClaim = freshResult.claim
+            const freshTx = freshResult.latestTransaction
+            let updatedDisplayCashback = Number(freshClaim.cashback_amount || 0)
+
+            setClaim(freshClaim)
+            claimStatusRef.current = freshClaim.status || ''
+
+            if (freshTx) {
+                setLatestTransaction(freshTx)
+                if (freshClaim.status === 'REDEEMED' && Number(freshTx.redeemed_amount || 0) > 0) {
+                    updatedDisplayCashback = Number(freshTx.redeemed_amount)
+                }
+            }
+
+            updateWalletCacheAndNotify(
+                formattedAuthPhone,
+                freshClaim,
+                freshResult.walletSummary,
+                freshTx,
+                updatedDisplayCashback
+            )
         }
 
         async function verifyAuthAndFetchCardData() {
@@ -147,16 +185,24 @@ export default function SingleCardPage() {
                     ? authenticatedPhone
                     : `94${authenticatedPhone.replace(/^0/, '')}`
 
-                // Optimistic Cache Read
+                // 0ms Instant Optimistic Cache Read (opens immediately even before latestTransaction is cached)
                 let hasLoadedFromCache = false
                 if (typeof window !== 'undefined') {
                     const cachedWallet = localStorage.getItem(`wallet_cache_${formattedAuthPhone}`)
                     if (cachedWallet) {
                         try {
                             const parsedStores = JSON.parse(cachedWallet)
-                            const cachedStore = parsedStores.find((s: any) => String(s.id) === String(paramId) || String(s.claimId) === String(paramId))
+                            const cachedStore = parsedStores.find(
+                                (s: any) => String(s.id) === String(paramId) || String(s.claimId) === String(paramId)
+                            )
 
-                            if (cachedStore && cachedStore.latestTransaction) {
+                            if (cachedStore) {
+                                const cachedStatus = cachedStore.isRedeemed
+                                    ? 'REDEEMED'
+                                    : cachedStore.isReadyToRedeem
+                                    ? 'READY'
+                                    : 'PENDING'
+
                                 setClaim({
                                     id: cachedStore.claimId || cachedStore.id,
                                     store_id: cachedStore.id,
@@ -164,14 +210,13 @@ export default function SingleCardPage() {
                                     cashback_amount: cachedStore.cashbackAmount || 0,
                                     claimable_amount: cachedStore.balance || 0,
                                     visit_count: cachedStore.visits ?? 0,
-                                    status: cachedStore.isRedeemed
-                                        ? 'REDEEMED'
-                                        : cachedStore.isReadyToRedeem
-                                        ? 'READY'
-                                        : 'PENDING',
+                                    status: cachedStatus,
                                     stores: cachedStore
                                 })
-                                setLatestTransaction(cachedStore.latestTransaction)
+                                claimStatusRef.current = cachedStatus
+                                if (cachedStore.latestTransaction) {
+                                    setLatestTransaction(cachedStore.latestTransaction)
+                                }
                                 setIsAuthorized(true)
                                 setLoading(false)
                                 hasLoadedFromCache = true
@@ -193,78 +238,74 @@ export default function SingleCardPage() {
                     return
                 }
 
-                const { claim: currentClaim, latestTransaction: resolvedTxObj, walletSummary } = apiResult
+                applyFreshCardData(apiResult, formattedAuthPhone)
 
-                if (currentClaim) {
-                    let trueDisplayCashback = Number(currentClaim.cashback_amount || 0)
-                    if (resolvedTxObj) {
-                        setLatestTransaction(resolvedTxObj)
-                        if (currentClaim.status === 'REDEEMED' && Number(resolvedTxObj.redeemed_amount || 0) > 0) {
-                            trueDisplayCashback = Number(resolvedTxObj.redeemed_amount)
+                const currentClaim = apiResult.claim
+                if (currentClaim?.id) {
+                    // RLS-safe Realtime Broadcast listener (triggers instant refresh when merchant bills or redeems)
+                    channel = supabase
+                        .channel(`realtime-card-${currentClaim.id}`)
+                        .on(
+                            'broadcast',
+                            { event: 'claim_updated' },
+                            async () => {
+                                const freshResult = await loadFromSecureApi(formattedAuthPhone)
+                                applyFreshCardData(freshResult, formattedAuthPhone)
+                            }
+                        )
+                        .subscribe()
+                }
+
+                // Adaptive Fast Sync: 2s when Redeem QR is READY at counter, 8s otherwise (only when visible)
+                const scheduleNextSync = () => {
+                    if (isUnmounted) return
+                    const delay = claimStatusRef.current === 'READY' ? 2000 : 8000
+                    pollTimer = setTimeout(async () => {
+                        if (isUnmounted) return
+                        if (document.visibilityState === 'visible') {
+                            const freshResult = await loadFromSecureApi(formattedAuthPhone)
+                            applyFreshCardData(freshResult, formattedAuthPhone)
                         }
-                    }
+                        scheduleNextSync()
+                    }, delay)
+                }
 
-                    updateWalletCacheAndNotify(
-                        formattedAuthPhone,
-                        currentClaim,
-                        walletSummary,
-                        resolvedTxObj,
-                        trueDisplayCashback
-                    )
+                scheduleNextSync()
 
-                    setClaim(currentClaim)
-
-                    if (currentClaim.id) {
-                        channel = supabase
-                            .channel(`realtime-card-${currentClaim.id}`)
-                            .on(
-                                'postgres_changes',
-                                {
-                                    event: '*',
-                                    schema: 'public',
-                                    table: 'cashback_claims',
-                                    filter: `id=eq.${currentClaim.id}`
-                                },
-                                async () => {
-                                    const freshResult = await loadFromSecureApi(formattedAuthPhone)
-                                    if (freshResult?.claim) {
-                                        const freshClaim = freshResult.claim
-                                        const freshTx = freshResult.latestTransaction
-                                        let updatedDisplayCashback = Number(freshClaim.cashback_amount || 0)
-
-                                        setClaim(freshClaim)
-                                        if (freshTx) {
-                                            setLatestTransaction(freshTx)
-                                            if (freshClaim.status === 'REDEEMED' && Number(freshTx.redeemed_amount || 0) > 0) {
-                                                updatedDisplayCashback = Number(freshTx.redeemed_amount)
-                                            }
-                                        }
-
-                                        updateWalletCacheAndNotify(
-                                            formattedAuthPhone,
-                                            freshClaim,
-                                            freshResult.walletSummary,
-                                            freshTx,
-                                            updatedDisplayCashback
-                                        )
-                                    }
-                                }
-                            )
-                            .subscribe()
+                const handleVisibility = async () => {
+                    if (document.visibilityState === 'visible' && !isUnmounted) {
+                        const freshResult = await loadFromSecureApi(formattedAuthPhone)
+                        applyFreshCardData(freshResult, formattedAuthPhone)
                     }
                 }
 
+                window.addEventListener('visibilitychange', handleVisibility)
+                window.addEventListener('focus', handleVisibility)
+
                 setIsAuthorized(true)
+
+                return () => {
+                    window.removeEventListener('visibilitychange', handleVisibility)
+                    window.removeEventListener('focus', handleVisibility)
+                }
             } catch (err) {
                 console.error('Error fetching card details:', err)
             } finally {
-                setLoading(false)
+                if (!isUnmounted) {
+                    setLoading(false)
+                }
             }
         }
 
-        verifyAuthAndFetchCardData()
+        let cleanupListeners: (() => void) | undefined
+        verifyAuthAndFetchCardData().then((cleanup) => {
+            cleanupListeners = cleanup
+        })
 
         return () => {
+            isUnmounted = true
+            if (pollTimer) clearTimeout(pollTimer)
+            if (cleanupListeners) cleanupListeners()
             if (channel) {
                 supabase.removeChannel(channel)
             }
