@@ -2,11 +2,16 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import * as webpush from 'web-push'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-const supabase = createClient(supabaseUrl, supabaseKey)
+function getAdminClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase server environment variables')
+  }
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
 
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ''
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || ''
@@ -28,11 +33,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'VAPID keys not configured' }, { status: 500 })
     }
 
+    const supabase = getAdminClient()
     const body = await req.json()
     const { type, storeId, storeName, amount, visits, targetVisits, offerTitle } = body
 
-    if (!type || !storeId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if ((type !== 'CASHBACK' && type !== 'OFFER') || !storeId) {
+      return NextResponse.json({ error: 'Missing or invalid required fields' }, { status: 400 })
     }
 
     let targetSubs: any[] = []
@@ -50,7 +56,6 @@ export async function POST(req: Request) {
 
       targetSubs = data || []
     } else if (type === 'OFFER') {
-      // Find all customers linked to this store
       const { data: claims } = await supabase
         .from('cashback_claims')
         .select('customer_phone')
@@ -115,7 +120,6 @@ export async function POST(req: Request) {
       })
     )
 
-    // Clean up expired subscriptions automatically
     if (expiredEndpoints.length > 0) {
       await supabase.from('push_subscriptions').delete().in('endpoint', expiredEndpoints)
     }

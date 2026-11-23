@@ -9,11 +9,16 @@ import {
   getCustomerSessionCookieOptions,
 } from '@/lib/customerSession'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-const supabase = createClient(supabaseUrl, supabaseKey)
+function getAdminClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase server environment variables')
+  }
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
 
 function normalizePhone(input: string) {
   let cleaned = (input || '').replace(/\D/g, '')
@@ -59,6 +64,7 @@ function attachCustomerSessionCookie(
 
 export async function POST(request: Request) {
   try {
+    const supabase = getAdminClient()
     const body = await request.json()
     const { action, phone, pin, full_name, store_id } = body
 
@@ -320,8 +326,16 @@ export async function POST(request: Request) {
       return res
     }
 
-    // ─── ACTION 6: MERCHANT COUNTER PIN RESET ────────────────────────────────
+    // ─── ACTION 6: MERCHANT COUNTER PIN RESET (Requires Merchant/Admin Cookie) ─
     if (action === 'merchant-reset-pin') {
+      const cookieStore = await cookies()
+      const hasMerchantSession = Boolean(cookieStore.get('retcash_merchant_session')?.value)
+      const hasAdminSession = Boolean(cookieStore.get('admin_authenticated')?.value)
+
+      if (!hasMerchantSession && !hasAdminSession) {
+        return NextResponse.json({ error: 'Unauthorized PIN reset request.' }, { status: 403 })
+      }
+
       const { error: clearErr } = await supabase
         .from('customers')
         .update({ pin_hash: null })
