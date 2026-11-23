@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
+import { Resend } from 'resend'
 import crypto from 'crypto'
 import {
   CUSTOMER_SESSION_COOKIE,
@@ -9,9 +10,12 @@ import {
   getCustomerSessionCookieOptions,
 } from '@/lib/customerSession'
 
+export const preferredRegion = 'sin1'
+
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+
 function getAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error('Missing Supabase server environment variables')
   }
@@ -50,6 +54,102 @@ function verifyPin(pin: string, stored: string): boolean {
   return crypto.timingSafeEqual(hashBuffer, originalBuffer)
 }
 
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@')
+  if (!local || !domain) return '***'
+  const visible = local.slice(0, 2)
+  return `${visible}***@${domain}`
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+// Signed Stateless OTP Token (expires in 10 minutes, tamper-proof via HMAC)
+function createSignedOtpChallenge(payload: {
+  purpose: 'link_email' | 'verify_old_email' | 'reset_pin'
+  phone: string
+  targetEmail: string
+  otp: string
+}): string {
+  const data = {
+    ...payload,
+    exp: Date.now() + 10 * 60 * 1000, // 10 mins
+  }
+  const encoded = Buffer.from(JSON.stringify(data)).toString('base64url')
+  const sig = crypto
+    .createHmac('sha256', serviceRoleKey)
+    .update(encoded)
+    .digest('hex')
+  return `${encoded}.${sig}`
+}
+
+function verifySignedOtpChallenge(
+  token: string,
+  expectedPurpose: string,
+  expectedPhone: string,
+  submittedOtp: string
+): { valid: boolean; targetEmail?: string; error?: string } {
+  if (!token || !token.includes('.') || !serviceRoleKey) {
+    return { valid: false, error: 'Invalid or missing verification session. Please request a new code.' }
+  }
+  const [encoded, sig] = token.split('.')
+  const expectedSig = crypto
+    .createHmac('sha256', serviceRoleKey)
+    .update(encoded)
+    .digest('hex')
+
+  const sigBuf = Buffer.from(sig)
+  const expBuf = Buffer.from(expectedSig)
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return { valid: false, error: 'Invalid verification token.' }
+  }
+
+  try {
+    const parsed = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'))
+    if (Date.now() > Number(parsed.exp || 0)) {
+      return { valid: false, error: 'Verification code has expired. Please request a new one.' }
+    }
+    if (parsed.purpose !== expectedPurpose || parsed.phone !== expectedPhone) {
+      return { valid: false, error: 'Verification session mismatch.' }
+    }
+    if (String(parsed.otp) !== String(submittedOtp).trim()) {
+      return { valid: false, error: 'Incorrect 6-digit verification code.' }
+    }
+    return { valid: true, targetEmail: String(parsed.targetEmail || '').toLowerCase().trim() }
+  } catch {
+    return { valid: false, error: 'Corrupted verification session.' }
+  }
+}
+
+async function sendOtpEmail(toEmail: string, otp: string, title: string) {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) {
+    throw new Error('Email service is not configured on server.')
+  }
+  const resend = new Resend(apiKey)
+  const { error } = await resend.emails.send({
+    from: 'Retcash Security <onboarding@resend.dev>',
+    to: [toEmail],
+    subject: `${otp} is your RETCASH Verification Code`,
+    html: `
+      <div style="font-family: sans-serif; padding: 24px; background-color: #f8fafc;">
+        <div style="max-width: 480px; margin: 0 auto; background: #ffffff; padding: 28px; border-radius: 16px; border: 1px solid #e2e8f0;">
+          <h2 style="margin: 0 0 8px; color: #00875A; font-size: 18px;">RETCASH Digital Loyalty</h2>
+          <p style="margin: 0 0 18px; color: #334155; font-size: 14px;">${title}</p>
+          <div style="background: #ecfdf5; border: 1px dashed #00875A; border-radius: 12px; padding: 16px; text-align: center; margin-bottom: 18px;">
+            <span style="font-size: 28px; font-weight: 900; letter-spacing: 6px; color: #0f172a;">${otp}</span>
+          </div>
+          <p style="margin: 0; color: #64748b; font-size: 12px;">This code is valid for 10 minutes. Never share this code with anyone.</p>
+        </div>
+      </div>
+    `,
+  })
+  if (error) {
+    throw new Error(error.message || 'Failed to send verification email.')
+  }
+}
+
 function attachCustomerSessionCookie(
   res: NextResponse,
   customerId: string,
@@ -66,7 +166,7 @@ export async function POST(request: Request) {
   try {
     const supabase = getAdminClient()
     const body = await request.json()
-    const { action, phone, pin, full_name, store_id } = body
+    const { action, phone, pin, full_name, email, otp, challengeToken } = body
 
     // ─── ACTION 0A: VERIFY SIGNED SESSION COOKIE ─────────────────────────────
     if (action === 'session') {
@@ -113,7 +213,7 @@ export async function POST(request: Request) {
     // Fetch existing customer rows (supports both 94... and 0... formats)
     const { data: existingRows, error: fetchError } = await supabase
       .from('customers')
-      .select('id, full_name, phone_number, pin_hash')
+      .select('id, full_name, phone_number, pin_hash, email')
       .or(`phone_number.eq.${phoneObj.full},phone_number.eq.${phoneObj.local}`)
 
     if (fetchError) {
@@ -122,7 +222,9 @@ export async function POST(request: Request) {
     }
 
     const rowWithPin = existingRows?.find((r) => Boolean(r.pin_hash))
+    const rowWithEmail = existingRows?.find((r) => Boolean(r.email))
     const primaryCustomer = rowWithPin || existingRows?.[0] || null
+    const verifiedEmail = rowWithEmail?.email ? String(rowWithEmail.email).trim().toLowerCase() : ''
 
     // ─── ACTION 1: CHECK PHONE STATUS ────────────────────────────────────────
     if (action === 'check') {
@@ -206,7 +308,7 @@ export async function POST(request: Request) {
             full_name: cleanName || null,
             pin_hash: pinHash,
           })
-          .select('id, full_name, phone_number, pin_hash')
+          .select('id, full_name, phone_number, pin_hash, email')
           .single()
 
         if (insertErr) throw insertErr
@@ -228,7 +330,129 @@ export async function POST(request: Request) {
       return res
     }
 
-    // ─── ACTION 4: SMART STORE CHECK FOR FORGOT PIN ──────────────────────────
+    // ─── ACTION 3B: LOGGED-IN USER SENDS OTP TO LINK OR CHANGE EMAIL ──────────
+    if (action === 'send-email-link-otp') {
+      const cookieStore = await cookies()
+      const rawToken = cookieStore.get(CUSTOMER_SESSION_COOKIE)?.value
+      const session = verifyCustomerSessionToken(rawToken)
+
+      if (!session || session.phone !== phoneObj.full) {
+        return NextResponse.json({ error: 'Unauthorized session. Please login again.' }, { status: 401 })
+      }
+
+      const mode = String(body?.mode || 'link') // 'link' | 'verify_old'
+      const generatedOtp = String(crypto.randomInt(100000, 999999))
+
+      if (mode === 'verify_old') {
+        if (!verifiedEmail) {
+          return NextResponse.json({ error: 'No existing email found to verify.' }, { status: 400 })
+        }
+        await sendOtpEmail(
+          verifiedEmail,
+          generatedOtp,
+          'Verify your current email address before changing your RETCASH recovery email:'
+        )
+        const token = createSignedOtpChallenge({
+          purpose: 'verify_old_email',
+          phone: phoneObj.full,
+          targetEmail: verifiedEmail,
+          otp: generatedOtp,
+        })
+        return NextResponse.json({
+          success: true,
+          challengeToken: token,
+          maskedEmail: maskEmail(verifiedEmail),
+        })
+      }
+
+      // Linking a new email (only allowed if no email exists OR old email was already verified)
+      const cleanNewEmail = String(email || '').trim().toLowerCase()
+      if (!isValidEmail(cleanNewEmail)) {
+        return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 })
+      }
+
+      if (verifiedEmail) {
+        const oldCheck = verifySignedOtpChallenge(
+          String(body?.oldEmailVerifiedToken || ''),
+          'verify_old_email',
+          phoneObj.full,
+          String(body?.oldOtp || '')
+        )
+        if (!oldCheck.valid) {
+          return NextResponse.json(
+            { error: 'Please verify your existing email address first.' },
+            { status: 403 }
+          )
+        }
+      }
+
+      // Ensure email is not already bound to another phone number
+      const { data: duplicateEmailRows } = await supabase
+        .from('customers')
+        .select('id, phone_number')
+        .ilike('email', cleanNewEmail)
+
+      const usedByOther = duplicateEmailRows?.some(
+        (r) => r.phone_number !== phoneObj.full && r.phone_number !== phoneObj.local
+      )
+      if (usedByOther) {
+        return NextResponse.json(
+          { error: 'This email is already linked to another mobile number.' },
+          { status: 409 }
+        )
+      }
+
+      await sendOtpEmail(
+        cleanNewEmail,
+        generatedOtp,
+        'Use this code to link your recovery email to your RETCASH Loyalty Wallet:'
+      )
+
+      const token = createSignedOtpChallenge({
+        purpose: 'link_email',
+        phone: phoneObj.full,
+        targetEmail: cleanNewEmail,
+        otp: generatedOtp,
+      })
+
+      return NextResponse.json({ success: true, challengeToken: token })
+    }
+
+    // ─── ACTION 3C: LOGGED-IN USER VERIFIES OTP & SAVES EMAIL ────────────────
+    if (action === 'confirm-email-link') {
+      const cookieStore = await cookies()
+      const rawToken = cookieStore.get(CUSTOMER_SESSION_COOKIE)?.value
+      const session = verifyCustomerSessionToken(rawToken)
+
+      if (!session || session.phone !== phoneObj.full) {
+        return NextResponse.json({ error: 'Unauthorized session.' }, { status: 401 })
+      }
+
+      const check = verifySignedOtpChallenge(
+        String(challengeToken || ''),
+        'link_email',
+        phoneObj.full,
+        String(otp || '')
+      )
+
+      if (!check.valid || !check.targetEmail) {
+        return NextResponse.json({ error: check.error || 'Verification failed.' }, { status: 400 })
+      }
+
+      const { error: updateErr } = await supabase
+        .from('customers')
+        .update({ email: check.targetEmail })
+        .or(`phone_number.eq.${phoneObj.full},phone_number.eq.${phoneObj.local}`)
+
+      if (updateErr) throw updateErr
+
+      return NextResponse.json({
+        success: true,
+        email: check.targetEmail,
+      })
+    }
+
+    // ─── ACTION 4: SECURE RECOVERY INFO & SEND OTP FOR FORGOT PIN ────────────
     if (action === 'recovery-info') {
       if (!rowWithPin) {
         return NextResponse.json(
@@ -237,69 +461,57 @@ export async function POST(request: Request) {
         )
       }
 
-      const { data: claims } = await supabase
-        .from('cashback_claims')
-        .select('store_id, updated_at')
-        .or(`customer_phone.eq.${phoneObj.full},customer_phone.eq.${phoneObj.local}`)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-
-      const lastVisitedStoreId = claims?.[0]?.store_id || null
-
-      let storeOptions: { id: string; store_name: string }[] = []
-      if (lastVisitedStoreId) {
-        const { data: allStores } = await supabase
-          .from('stores')
-          .select('id, store_name')
-          .limit(15)
-
-        const visitedStore = allStores?.find((s) => String(s.id) === String(lastVisitedStoreId))
-        const otherStores = (allStores || [])
-          .filter((s) => String(s.id) !== String(lastVisitedStoreId))
-          .slice(0, 3)
-
-        if (visitedStore) {
-          storeOptions = [visitedStore, ...otherStores].sort(() => Math.random() - 0.5)
-        }
+      if (!verifiedEmail) {
+        return NextResponse.json({
+          hasVerifiedEmail: false,
+        })
       }
 
+      const generatedOtp = String(crypto.randomInt(100000, 999999))
+      await sendOtpEmail(
+        verifiedEmail,
+        generatedOtp,
+        'Use this verification code to reset your 4-digit RETCASH Wallet PIN:'
+      )
+
+      const token = createSignedOtpChallenge({
+        purpose: 'reset_pin',
+        phone: phoneObj.full,
+        targetEmail: verifiedEmail,
+        otp: generatedOtp,
+      })
+
       return NextResponse.json({
-        hasStoreVerification: storeOptions.length >= 2,
-        storeOptions,
+        hasVerifiedEmail: true,
+        maskedEmail: maskEmail(verifiedEmail),
+        challengeToken: token,
       })
     }
 
-    // ─── ACTION 5: RESET PIN VIA LAST VISITED STORE ──────────────────────────
+    // ─── ACTION 5: RESET PIN ONLY VIA VERIFIED EMAIL OTP ─────────────────────
     if (action === 'reset-pin') {
       const cleanPin = String(pin || '').trim()
       if (!/^\d{4}$/.test(cleanPin)) {
         return NextResponse.json({ error: 'New PIN must be exactly 4 digits.' }, { status: 400 })
       }
 
-      if (!rowWithPin) {
-        return NextResponse.json({ error: 'Account not found.' }, { status: 404 })
-      }
-
-      if (!store_id) {
+      if (!rowWithPin || !verifiedEmail) {
         return NextResponse.json(
-          { error: 'Please select the store you last visited.' },
-          { status: 400 }
+          { error: 'Recovery email not configured for this account.' },
+          { status: 403 }
         )
       }
 
-      const { data: claims } = await supabase
-        .from('cashback_claims')
-        .select('store_id')
-        .or(`customer_phone.eq.${phoneObj.full},customer_phone.eq.${phoneObj.local}`)
-        .order('updated_at', { ascending: false })
-        .limit(1)
+      const check = verifySignedOtpChallenge(
+        String(challengeToken || ''),
+        'reset_pin',
+        phoneObj.full,
+        String(otp || '')
+      )
 
-      const isVerified =
-        Boolean(claims?.[0]?.store_id) && String(claims?.[0]?.store_id) === String(store_id)
-
-      if (!isVerified) {
+      if (!check.valid || check.targetEmail !== verifiedEmail) {
         return NextResponse.json(
-          { error: 'Incorrect store selected. Please pick the store where you last earned cashback.' },
+          { error: check.error || 'Invalid or expired verification code.' },
           { status: 401 }
         )
       }

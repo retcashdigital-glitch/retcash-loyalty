@@ -38,7 +38,9 @@ import {
   Lock,
   Bell,
   BellRing,
-  RefreshCw
+  RefreshCw,
+  Mail,
+  ShieldCheck
 } from 'lucide-react'
 
 const NAV_TAB_IDS = [
@@ -138,6 +140,15 @@ export default function CustomerWalletPage() {
   const [customerEmail, setCustomerEmail] = useState<string>('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [customerId, setCustomerId] = useState<string | null>(null)
+
+  // Secure Email OTP Link / Change states
+  const [emailStep, setEmailStep] = useState<'idle' | 'verify_old' | 'enter_new' | 'verify_new'>('idle')
+  const [newEmailInput, setNewEmailInput] = useState('')
+  const [emailOtpInput, setEmailOtpInput] = useState('')
+  const [emailChallengeToken, setEmailChallengeToken] = useState('')
+  const [oldEmailVerifiedToken, setOldEmailVerifiedToken] = useState('')
+  const [oldEmailOtpVerified, setOldEmailOtpVerified] = useState('')
+  const [isEmailBusy, setIsEmailBusy] = useState(false)
 
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
@@ -332,10 +343,8 @@ export default function CustomerWalletPage() {
     reloadFromCache()
     setIsCheckingAuth(false)
 
-    // Single unified call: verifies session cookie AND loads wallet data in 1 network hop
     fetchWalletAndClaimsData(true)
 
-    // RLS-safe Realtime Broadcast listener for instant updates when merchant bills or redeems
     const realtimeWalletChannel = supabase
       .channel(`realtime-wallet-${phone}`)
       .on(
@@ -687,6 +696,124 @@ export default function CustomerWalletPage() {
       setProfileMessage({ type: 'error', text: err.message || 'Failed to save changes.' })
     } finally {
       setIsSavingProfile(false)
+    }
+  }
+
+  // ─── SECURE EMAIL OTP FLOW HANDLERS ──────────────────────────────────────
+  const handleStartChangeOldEmail = async () => {
+    try {
+      setIsEmailBusy(true)
+      setProfileMessage(null)
+      const res = await fetch('/api/customer/pin-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send-email-link-otp', phone, mode: 'verify_old' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send code.')
+
+      setEmailChallengeToken(data.challengeToken)
+      setEmailOtpInput('')
+      setEmailStep('verify_old')
+      setProfileMessage({
+        type: 'success',
+        text: `Verification code sent to your current email (${data.maskedEmail}).`,
+      })
+    } catch (err: any) {
+      setProfileMessage({ type: 'error', text: err.message })
+    } finally {
+      setIsEmailBusy(false)
+    }
+  }
+
+  const handleConfirmOldEmailOtp = () => {
+    if (!/^\d{6}$/.test(emailOtpInput.trim())) {
+      setProfileMessage({ type: 'error', text: 'Please enter the 6-digit code.' })
+      return
+    }
+    setOldEmailVerifiedToken(emailChallengeToken)
+    setOldEmailOtpVerified(emailOtpInput.trim())
+    setEmailOtpInput('')
+    setNewEmailInput('')
+    setEmailStep('enter_new')
+    setProfileMessage(null)
+  }
+
+  const handleSendNewEmailOtp = async () => {
+    const cleanEmail = newEmailInput.trim().toLowerCase()
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setProfileMessage({ type: 'error', text: 'Please enter a valid email address.' })
+      return
+    }
+
+    try {
+      setIsEmailBusy(true)
+      setProfileMessage(null)
+      const res = await fetch('/api/customer/pin-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send-email-link-otp',
+          phone,
+          mode: 'link',
+          email: cleanEmail,
+          oldEmailVerifiedToken,
+          oldOtp: oldEmailOtpVerified,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send verification code.')
+
+      setEmailChallengeToken(data.challengeToken)
+      setEmailOtpInput('')
+      setEmailStep('verify_new')
+      setProfileMessage({
+        type: 'success',
+        text: `6-digit verification code sent to ${cleanEmail}.`,
+      })
+    } catch (err: any) {
+      setProfileMessage({ type: 'error', text: err.message })
+    } finally {
+      setIsEmailBusy(false)
+    }
+  }
+
+  const handleVerifyAndSaveNewEmail = async () => {
+    if (!/^\d{6}$/.test(emailOtpInput.trim())) {
+      setProfileMessage({ type: 'error', text: 'Please enter the 6-digit verification code.' })
+      return
+    }
+
+    try {
+      setIsEmailBusy(true)
+      setProfileMessage(null)
+      const res = await fetch('/api/customer/pin-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'confirm-email-link',
+          phone,
+          otp: emailOtpInput.trim(),
+          challengeToken: emailChallengeToken,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Verification failed.')
+
+      setCustomerEmail(data.email)
+      setEmailStep('idle')
+      setEmailOtpInput('')
+      setNewEmailInput('')
+      setOldEmailVerifiedToken('')
+      setOldEmailOtpVerified('')
+      setProfileMessage({
+        type: 'success',
+        text: 'Recovery email verified and linked successfully!',
+      })
+    } catch (err: any) {
+      setProfileMessage({ type: 'error', text: err.message })
+    } finally {
+      setIsEmailBusy(false)
     }
   }
 
@@ -1324,20 +1451,6 @@ export default function CustomerWalletPage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1 leading-normal">
-                      <span>{t.emailAddressLabel}</span>
-                      <Lock className="w-3 h-3 text-slate-400 shrink-0" />
-                    </label>
-                    <input
-                      type="text"
-                      value={customerEmail || t.noEmailAssociated}
-                      disabled
-                      readOnly
-                      className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-500 font-semibold cursor-not-allowed"
-                    />
-                  </div>
-
                   <button
                     type="submit"
                     disabled={isSavingProfile}
@@ -1353,6 +1466,150 @@ export default function CustomerWalletPage() {
                     )}
                   </button>
                 </form>
+
+                {/* SECURE OTP-VERIFIED RECOVERY EMAIL SECTION */}
+                <div className="pt-3 border-t border-slate-100 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-[#00875A]" />
+                      <span>{t.emailAddressLabel} (PIN Recovery)</span>
+                    </label>
+                    {customerEmail && emailStep === 'idle' && (
+                      <span className="text-[10px] font-extrabold text-[#00875A] bg-emerald-50 px-2 py-0.5 rounded-full">
+                        Verified ✓
+                      </span>
+                    )}
+                  </div>
+
+                  {emailStep === 'idle' && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={customerEmail || 'Not linked yet'}
+                        disabled
+                        readOnly
+                        className="flex-1 bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 font-semibold"
+                      />
+                      <button
+                        type="button"
+                        disabled={isEmailBusy}
+                        onClick={() => {
+                          if (customerEmail) {
+                            handleStartChangeOldEmail()
+                          } else {
+                            setNewEmailInput('')
+                            setEmailOtpInput('')
+                            setEmailStep('enter_new')
+                            setProfileMessage(null)
+                          }
+                        }}
+                        className="bg-emerald-50 hover:bg-emerald-100 text-[#00875A] border border-emerald-200 px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap cursor-pointer disabled:opacity-50"
+                      >
+                        {isEmailBusy ? '...' : customerEmail ? 'Change' : 'Add Email'}
+                      </button>
+                    </div>
+                  )}
+
+                  {emailStep === 'verify_old' && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2.5">
+                      <p className="text-[11px] font-semibold text-slate-600">
+                        Enter the 6-digit code sent to your current email to confirm ownership:
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={emailOtpInput}
+                          onChange={(e) => setEmailOtpInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="000000"
+                          className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-center text-sm font-black tracking-widest text-slate-900 outline-none focus:border-[#00875A]"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleConfirmOldEmailOtp}
+                          className="bg-[#00875A] text-white px-3.5 py-2 rounded-xl text-xs font-extrabold cursor-pointer"
+                        >
+                          Verify
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEmailStep('idle')}
+                          className="bg-slate-200 text-slate-700 px-2.5 py-2 rounded-xl text-xs font-bold cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {emailStep === 'enter_new' && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2.5">
+                      <p className="text-[11px] font-semibold text-slate-600">
+                        Enter your email address. We will send a 6-digit OTP to verify it:
+                      </p>
+                      <input
+                        type="email"
+                        value={newEmailInput}
+                        onChange={(e) => setNewEmailInput(e.target.value)}
+                        placeholder="you@example.com"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-[#00875A]"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={isEmailBusy}
+                          onClick={handleSendNewEmailOtp}
+                          className="flex-1 bg-[#00875A] text-white py-2 rounded-xl text-xs font-extrabold cursor-pointer disabled:opacity-50"
+                        >
+                          {isEmailBusy ? 'Sending...' : 'Send Verification Code'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEmailStep('idle')}
+                          className="bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {emailStep === 'verify_new' && (
+                    <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3 space-y-2.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#00875A]">
+                        <ShieldCheck className="w-4 h-4 shrink-0" />
+                        <span>Enter the 6-digit OTP sent to {newEmailInput}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={emailOtpInput}
+                          onChange={(e) => setEmailOtpInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="000000"
+                          className="flex-1 bg-white border border-emerald-300 rounded-xl px-3 py-2 text-center text-sm font-black tracking-widest text-slate-900 outline-none focus:border-[#00875A]"
+                        />
+                        <button
+                          type="button"
+                          disabled={isEmailBusy}
+                          onClick={handleVerifyAndSaveNewEmail}
+                          className="bg-[#00875A] text-white px-3.5 py-2 rounded-xl text-xs font-extrabold cursor-pointer disabled:opacity-50"
+                        >
+                          {isEmailBusy ? '...' : 'Confirm'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEmailStep('idle')}
+                          className="bg-slate-200 text-slate-700 px-2.5 py-2 rounded-xl text-xs font-bold cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {notifPermission !== 'unsupported' && (
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">

@@ -14,6 +14,8 @@ import {
   EyeOff,
   Store,
   ChevronRight,
+  Mail,
+  ShieldCheck,
 } from 'lucide-react'
 import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
 import CustomerLangSwitcher from '@/components/CustomerLangSwitcher'
@@ -25,10 +27,11 @@ function ForgotPinContent() {
 
   const [step, setStep] = useState<1 | 2>(1)
   const [phoneInput, setPhoneInput] = useState('')
-  const [hasStoreVerification, setHasStoreVerification] = useState(false)
-  const [storeOptions, setStoreOptions] = useState<{ id: string; store_name: string }[]>([])
-  const [selectedStoreId, setSelectedStoreId] = useState('')
+  const [hasVerifiedEmail, setHasVerifiedEmail] = useState(false)
+  const [maskedEmail, setMaskedEmail] = useState('')
+  const [challengeToken, setChallengeToken] = useState('')
 
+  const [otpInput, setOtpInput] = useState('')
   const [newPin, setNewPin] = useState('')
   const [showNewPin, setShowNewPin] = useState(false)
 
@@ -78,9 +81,11 @@ function ForgotPinContent() {
         throw new Error(data.error || 'Account not found.')
       }
 
-      setHasStoreVerification(Boolean(data.hasStoreVerification))
-      setStoreOptions(data.storeOptions || [])
-      setSelectedStoreId('')
+      setHasVerifiedEmail(Boolean(data.hasVerifiedEmail))
+      setMaskedEmail(data.maskedEmail || '')
+      setChallengeToken(data.challengeToken || '')
+      setOtpInput('')
+      setNewPin('')
       setStep(2)
     } catch (err: any) {
       setError(err.message || 'Could not find account.')
@@ -95,8 +100,8 @@ function ForgotPinContent() {
     setMessage('')
 
     const cleanPhone = normalizePhone(phoneInput)
-    if (!selectedStoreId) {
-      setError(t.selectStoreErr)
+    if (!/^\d{6}$/.test(otpInput.trim())) {
+      setError('Please enter the 6-digit code sent to your email.')
       return
     }
     if (!/^\d{4}$/.test(newPin)) {
@@ -113,7 +118,8 @@ function ForgotPinContent() {
           action: 'reset-pin',
           phone: cleanPhone,
           pin: newPin,
-          store_id: selectedStoreId,
+          otp: otpInput.trim(),
+          challengeToken,
         }),
       })
       const data = await res.json()
@@ -193,7 +199,11 @@ function ForgotPinContent() {
               {t.resetPinTitle}
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-              {step === 1 ? t.resetStep1Desc : t.resetStep2Desc}
+              {step === 1
+                ? t.resetStep1Desc
+                : hasVerifiedEmail
+                ? `We sent a 6-digit verification code to ${maskedEmail}`
+                : t.counterVerifyDesc}
             </p>
           </div>
 
@@ -233,28 +243,34 @@ function ForgotPinContent() {
             </form>
           )}
 
-          {step === 2 && hasStoreVerification && (
+          {step === 2 && hasVerifiedEmail && (
             <form id="forgot-step-2" onSubmit={handleResetPin} className="space-y-5">
-              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl space-y-2.5">
-                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-[#00875A]">
-                  <Store className="size-3.5" />
-                  <span>{t.selectLastStoreLabel}</span>
+              <div className="bg-emerald-50/70 border border-emerald-200/80 p-3.5 rounded-2xl flex items-center gap-2.5">
+                <Mail className="size-4 text-[#00875A] shrink-0" />
+                <div className="min-w-0">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#00875A] block">
+                    Verified Recovery Email
+                  </span>
+                  <span className="text-xs font-bold text-slate-800">{maskedEmail}</span>
                 </div>
-                <div className="grid grid-cols-1 gap-2">
-                  {storeOptions.map((st) => (
-                    <button
-                      key={st.id}
-                      type="button"
-                      onClick={() => setSelectedStoreId(st.id)}
-                      className={`w-full text-left px-4 py-3 rounded-xl border text-xs font-extrabold transition cursor-pointer ${
-                        selectedStoreId === st.id
-                          ? 'bg-emerald-50 border-[#00875A] text-[#00875A] shadow-2xs'
-                          : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300'
-                      }`}
-                    >
-                      {st.store_name}
-                    </button>
-                  ))}
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-2">
+                  6-Digit Email Code
+                </label>
+                <div className="relative">
+                  <ShieldCheck className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    required
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    className="w-full rounded-2xl border-2 border-slate-200 bg-slate-50/70 pl-11 pr-4 py-3.5 text-center text-xl font-black tracking-[0.4em] text-slate-900 outline-none focus:border-[#00875A] focus:bg-white transition"
+                  />
                 </div>
               </div>
 
@@ -290,7 +306,7 @@ function ForgotPinContent() {
             </form>
           )}
 
-          {step === 2 && !hasStoreVerification && (
+          {step === 2 && !hasVerifiedEmail && (
             <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl text-center space-y-2.5">
               <div className="w-11 h-11 rounded-full bg-emerald-50 text-[#00875A] flex items-center justify-center mx-auto">
                 <Store className="size-5" />
@@ -316,11 +332,11 @@ function ForgotPinContent() {
           </button>
         )}
 
-        {step === 2 && hasStoreVerification && (
+        {step === 2 && hasVerifiedEmail && (
           <button
             type="submit"
             form="forgot-step-2"
-            disabled={loading || !selectedStoreId || newPin.length !== 4}
+            disabled={loading || otpInput.length !== 6 || newPin.length !== 4}
             className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#00875A] py-4 text-sm font-extrabold tracking-wide text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669] transition disabled:opacity-40 cursor-pointer"
           >
             <span>{loading ? t.updatingBtn : t.saveNewPinBtn}</span>
@@ -328,7 +344,7 @@ function ForgotPinContent() {
           </button>
         )}
 
-        {step === 2 && !hasStoreVerification && (
+        {step === 2 && !hasVerifiedEmail && (
           <Link
             href="/customer/login"
             className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#00875A] py-4 text-sm font-extrabold tracking-wide text-white shadow-lg shadow-emerald-600/20 hover:bg-[#059669]"
