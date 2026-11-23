@@ -1,47 +1,76 @@
-import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
-import { supabase } from '@/lib/supabase';
+import { NextResponse } from 'next/server'
+import { Resend } from 'resend'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+
+function getAdminClient() {
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase server environment variables')
+  }
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
 
 export async function POST(request: Request) {
   try {
-    const apiKey = process.env.RESEND_API_KEY;
+    const apiKey = process.env.RESEND_API_KEY
 
-    // API Key இல்லையெனில் Build அல்லது Server முடங்குவதைத் தவிர்க்கிறது
     if (!apiKey) {
-      return NextResponse.json({ error: 'RESEND_API_KEY is missing' }, { status: 500 });
+      return NextResponse.json({ error: 'RESEND_API_KEY is missing' }, { status: 500 })
     }
 
-    // Resend-ஐ POST ஃபங்ஷனுக்கு உள்ளே உருவாக்குவதால் Build பிழை வராது
-    const resend = new Resend(apiKey);
+    const resend = new Resend(apiKey)
+    const body = await request.json()
+    const cleanEmail = String(body?.email || '').trim().toLowerCase()
 
-    const { email } = await request.json();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return NextResponse.json({ error: 'Valid email is required' }, { status: 400 })
+    }
 
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    const supabase = getAdminClient()
+
+    // Rate-limit: 45 வினாடிகளுக்குள் மீண்டும் OTP அனுப்புவதைத் தடுத்தல்
+    const cooldownIso = new Date(Date.now() - 45 * 1000).toISOString()
+    const { data: recentOtp } = await supabase
+      .from('customer_otps')
+      .select('id')
+      .eq('email', cleanEmail)
+      .eq('is_used', false)
+      .gte('created_at', cooldownIso)
+      .limit(1)
+
+    if (recentOtp && recentOtp.length > 0) {
+      return NextResponse.json(
+        { error: 'Please wait 45 seconds before requesting another OTP.' },
+        { status: 429 }
+      )
     }
 
     // 1. Generate 6-Digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString()
 
     // 2. Invalidate old active OTPs for this email
     await supabase
       .from('customer_otps')
       .update({ is_used: true })
-      .eq('email', email);
+      .eq('email', cleanEmail)
 
     // 3. Save new OTP to Database
     const { error: dbError } = await supabase
       .from('customer_otps')
-      .insert([{ email, otp }]);
+      .insert([{ email: cleanEmail, otp }])
 
     if (dbError) {
-      return NextResponse.json({ error: 'Failed to save OTP' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to save OTP' }, { status: 500 })
     }
 
     // 4. Send Email via Resend with RETCASH Emerald Green Branding & Logo
     const { error: mailError } = await resend.emails.send({
       from: 'Retcash <support@retcashapp.com>',
-      to: [email],
+      to: [cleanEmail],
       subject: 'RETCASH Customer Password Reset Code',
       html: `
         <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 28px; background-color: #f8fafc; border-radius: 16px; max-width: 450px; margin: 0 auto; border: 1px solid #e2e8f0;">
@@ -74,14 +103,14 @@ export async function POST(request: Request) {
 
         </div>
       `,
-    });
+    })
 
     if (mailError) {
-      return NextResponse.json({ error: mailError.message }, { status: 400 });
+      return NextResponse.json({ error: mailError.message }, { status: 400 })
     }
 
-    return NextResponse.json({ success: true, message: 'OTP sent to email' });
+    return NextResponse.json({ success: true, message: 'OTP sent to email' })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
