@@ -29,7 +29,7 @@ function normalizePhones(raw: string) {
 
   const digits = decoded.replace(/\D/g, '')
   if (!digits || digits.length < 9) {
-    return { formatted94: '', local0: '', plus94: '' }
+    return { formatted94: '', local0: '', plus94: '', raw9: '' }
   }
 
   const formatted94 = digits.startsWith('94')
@@ -37,8 +37,20 @@ function normalizePhones(raw: string) {
     : `94${digits.replace(/^0+/, '')}`
   const local0 = formatted94.replace(/^94/, '0')
   const plus94 = `+${formatted94}`
+  const raw9 = formatted94.replace(/^94/, '')
 
-  return { formatted94, local0, plus94 }
+  return { formatted94, local0, plus94, raw9 }
+}
+
+function sanitizeStoreRow(store: any) {
+  if (!store || typeof store !== 'object') return store
+  const {
+    password,
+    password_hash,
+    pin_hash,
+    ...safeStore
+  } = store
+  return safeStore
 }
 
 export async function POST(req: Request) {
@@ -54,7 +66,7 @@ export async function POST(req: Request) {
       if (action === 'upload_avatar') {
         const file = formData.get('file') as File | null
         const customerId = String(formData.get('customerId') || '').trim()
-        const { formatted94, local0, plus94 } = normalizePhones(String(formData.get('phone') || ''))
+        const { formatted94, local0, plus94, raw9 } = normalizePhones(String(formData.get('phone') || ''))
 
         if (!file || !customerId || !formatted94) {
           return NextResponse.json({ error: 'Invalid upload request' }, { status: 400 })
@@ -74,12 +86,11 @@ export async function POST(req: Request) {
           )
         }
 
-        // Verify customer ownership
         const { data: ownerCheck } = await supabase
           .from('customers')
           .select('id')
           .eq('id', customerId)
-          .or(`phone_number.eq.${formatted94},phone_number.eq.${local0},phone_number.eq.${plus94}`)
+          .or(`phone_number.eq.${formatted94},phone_number.eq.${local0},phone_number.eq.${plus94},phone_number.eq.${raw9}`)
           .maybeSingle()
 
         if (!ownerCheck) {
@@ -128,33 +139,32 @@ export async function POST(req: Request) {
     const action = String(body?.action || '')
 
     if (action === 'get_wallet') {
-      const { formatted94, local0, plus94 } = normalizePhones(body?.phone || '')
+      const { formatted94, local0, plus94, raw9 } = normalizePhones(body?.phone || '')
       if (!formatted94) {
         return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 })
       }
 
-      const customerPhoneFilter = `phone_number.eq.${formatted94},phone_number.eq.${local0},phone_number.eq.${plus94}`
-      const claimPhoneFilter = `customer_phone.eq.${formatted94},customer_phone.eq.${local0},customer_phone.eq.${plus94}`
+      const customerPhoneFilter = `phone_number.eq.${formatted94},phone_number.eq.${local0},phone_number.eq.${plus94},phone_number.eq.${raw9}`
+      const claimPhoneFilter = `customer_phone.eq.${formatted94},customer_phone.eq.${local0},customer_phone.eq.${plus94},customer_phone.eq.${raw9}`
 
       const [customerRes, claimsRes, summariesRes, offersRes] = await Promise.all([
         supabase
           .from('customers')
-          .select('id, full_name, email, avatar_url')
+          .select('id, full_name, email, avatar_url, phone_number')
           .or(customerPhoneFilter)
           .limit(1),
         supabase
           .from('cashback_claims')
-          .select('id, store_id, customer_phone, claimable_amount, cashback_amount, visit_count, status, updated_at, created_at')
-          .or(claimPhoneFilter)
-          .order('updated_at', { ascending: false }),
+          .select('*')
+          .or(claimPhoneFilter),
         supabase
           .from('customer_wallet_summary')
-          .select('store_id, current_balance, status')
+          .select('*')
           .or(claimPhoneFilter),
         supabase
           .from('store_offers')
           .select(`
-            id, store_id, title, description, image_url, expires_at, created_at,
+            *,
             stores:store_id (
               id,
               store_name,
@@ -167,11 +177,23 @@ export async function POST(req: Request) {
       ])
 
       if (claimsRes.error) {
-        console.error('Wallet claims query error:', claimsRes.error.message)
+        console.error('Wallet claims query error:', claimsRes.error)
+        return NextResponse.json(
+          { error: `Claims DB Error: ${claimsRes.error.message}` },
+          { status: 500 }
+        )
       }
 
       const customer = customerRes.data?.[0] || null
-      const claimsData = claimsRes.data || []
+      const rawClaims = claimsRes.data || []
+
+      // Sort claims by updated_at or created_at safely in JS
+      const claimsData = [...rawClaims].sort((a: any, b: any) => {
+        const timeA = new Date(a.updated_at || a.created_at || 0).getTime()
+        const timeB = new Date(b.updated_at || b.created_at || 0).getTime()
+        return timeB - timeA
+      })
+
       const walletSummaries = summariesRes.data || []
       const activeOffers = offersRes.data || []
 
@@ -179,24 +201,38 @@ export async function POST(req: Request) {
       let userStores: any[] = []
 
       if (claimsData.length > 0) {
-        const claimIds = claimsData.map((c: any) => c.id)
-        const storeIds = Array.from(new Set(claimsData.map((c: any) => String(c.store_id))))
+        const claimIds = claimsData.map((c: any) => c.id).filter(Boolean)
+        const storeIds = Array.from(
+          new Set(claimsData.map((c: any) => c.store_id).filter(Boolean))
+        )
 
         const [redeemedRes, storesRes] = await Promise.all([
-          supabase
-            .from('cashback_history')
-            .select('claim_id, cashback_amount, created_at')
-            .in('claim_id', claimIds)
-            .eq('transaction_type', 'REDEEMED')
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('stores')
-            .select('id, store_name, store_slug, category, description, logo_url, location_url, review_url, target_visits, default_cashback_percent, created_at')
-            .in('id', storeIds),
+          claimIds.length > 0
+            ? supabase
+                .from('cashback_history')
+                .select('*')
+                .in('claim_id', claimIds)
+                .eq('transaction_type', 'REDEEMED')
+                .order('created_at', { ascending: false })
+            : Promise.resolve({ data: [], error: null }),
+          storeIds.length > 0
+            ? supabase
+                .from('stores')
+                .select('*')
+                .in('id', storeIds)
+            : Promise.resolve({ data: [], error: null }),
         ])
 
+        if (storesRes.error) {
+          console.error('Wallet stores query error:', storesRes.error)
+          return NextResponse.json(
+            { error: `Stores DB Error: ${storesRes.error.message}` },
+            { status: 500 }
+          )
+        }
+
         lastRedeemedTxs = redeemedRes.data || []
-        userStores = storesRes.data || []
+        userStores = (storesRes.data || []).map(sanitizeStoreRow)
       }
 
       return NextResponse.json({
@@ -212,7 +248,7 @@ export async function POST(req: Request) {
     if (action === 'update_profile') {
       const customerId = String(body?.customerId || '').trim()
       const fullName = String(body?.fullName || '').trim().slice(0, 100)
-      const { formatted94, local0, plus94 } = normalizePhones(body?.phone || '')
+      const { formatted94, local0, plus94, raw9 } = normalizePhones(body?.phone || '')
 
       if (!customerId || !formatted94 || !fullName) {
         return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
@@ -222,7 +258,7 @@ export async function POST(req: Request) {
         .from('customers')
         .select('id')
         .eq('id', customerId)
-        .or(`phone_number.eq.${formatted94},phone_number.eq.${local0},phone_number.eq.${plus94}`)
+        .or(`phone_number.eq.${formatted94},phone_number.eq.${local0},phone_number.eq.${plus94},phone_number.eq.${raw9}`)
         .maybeSingle()
 
       if (!ownerCheck) {
