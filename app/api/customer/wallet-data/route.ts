@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
+import {
+  CUSTOMER_SESSION_COOKIE,
+  verifyCustomerSessionToken,
+} from '@/lib/customerSession'
+
+export const preferredRegion = 'sin1'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -53,6 +60,16 @@ function sanitizeStoreRow(store: any) {
   return safeStore
 }
 
+async function verifySessionForPhone(formatted94: string) {
+  const cookieStore = await cookies()
+  const rawToken = cookieStore.get(CUSTOMER_SESSION_COOKIE)?.value
+  const session = verifyCustomerSessionToken(rawToken)
+
+  if (!session) return { ok: false, status: 401 }
+  if (formatted94 && session.phone !== formatted94) return { ok: false, status: 403 }
+  return { ok: true, status: 200, session }
+}
+
 export async function POST(req: Request) {
   try {
     const supabase = getAdminClient()
@@ -70,6 +87,11 @@ export async function POST(req: Request) {
 
         if (!file || !customerId || !formatted94) {
           return NextResponse.json({ error: 'Invalid upload request' }, { status: 400 })
+        }
+
+        const authCheck = await verifySessionForPhone(formatted94)
+        if (!authCheck.ok) {
+          return NextResponse.json({ error: 'Unauthorized', authenticated: false }, { status: authCheck.status })
         }
 
         if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
@@ -144,6 +166,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 })
       }
 
+      // Single-hop Session Verification (eliminates separate /api/customer/pin-auth call)
+      const authCheck = await verifySessionForPhone(formatted94)
+      if (!authCheck.ok) {
+        return NextResponse.json({ error: 'Unauthorized', authenticated: false }, { status: authCheck.status })
+      }
+
       const customerPhoneFilter = `phone_number.eq.${formatted94},phone_number.eq.${local0},phone_number.eq.${plus94},phone_number.eq.${raw9}`
       const claimPhoneFilter = `customer_phone.eq.${formatted94},customer_phone.eq.${local0},customer_phone.eq.${plus94},customer_phone.eq.${raw9}`
 
@@ -187,7 +215,6 @@ export async function POST(req: Request) {
       const customer = customerRes.data?.[0] || null
       const rawClaims = claimsRes.data || []
 
-      // Sort claims by updated_at or created_at safely in JS
       const claimsData = [...rawClaims].sort((a: any, b: any) => {
         const timeA = new Date(a.updated_at || a.created_at || 0).getTime()
         const timeB = new Date(b.updated_at || b.created_at || 0).getTime()
@@ -236,6 +263,7 @@ export async function POST(req: Request) {
       }
 
       return NextResponse.json({
+        authenticated: true,
         customer,
         claimsData,
         walletSummaries,
@@ -252,6 +280,11 @@ export async function POST(req: Request) {
 
       if (!customerId || !formatted94 || !fullName) {
         return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+      }
+
+      const authCheck = await verifySessionForPhone(formatted94)
+      if (!authCheck.ok) {
+        return NextResponse.json({ error: 'Unauthorized', authenticated: false }, { status: authCheck.status })
       }
 
       const { data: ownerCheck } = await supabase

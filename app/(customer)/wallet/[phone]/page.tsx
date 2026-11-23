@@ -320,29 +320,8 @@ export default function CustomerWalletPage() {
     reloadFromCache()
     setIsCheckingAuth(false)
 
-    const verifyAndLoadWallet = async () => {
-      try {
-        const sessionRes = await fetch('/api/customer/pin-auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'session', phone }),
-        })
-
-        if (!sessionRes.ok) {
-          localStorage.removeItem(`retcash_wallet_session_${phone}`)
-          localStorage.removeItem(`retcash_wallet_auth_${phone}`)
-          router.replace('/customer/login')
-          return
-        }
-
-        await fetchWalletAndClaimsData(true)
-      } catch (err) {
-        console.error('Authentication verification error:', err)
-        await fetchWalletAndClaimsData(true)
-      }
-    }
-
-    verifyAndLoadWallet()
+    // Single unified call: verifies session cookie AND loads wallet data in 1 network hop
+    fetchWalletAndClaimsData(true)
 
     let syncChannel: BroadcastChannel | null = null
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -388,7 +367,6 @@ export default function CustomerWalletPage() {
     window.addEventListener('visibilitychange', handleFocusOrVisibility)
     window.addEventListener('focus', handleFocusOrVisibility)
 
-    // Secure background polling every 15s while tab is visible (replaces public anon Realtime)
     const pollInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         fetchWalletAndClaimsData(false)
@@ -430,6 +408,13 @@ export default function CustomerWalletPage() {
       })
 
       const payload = await res.json().catch(() => ({}))
+
+      if (res.status === 401 || res.status === 403 || payload?.authenticated === false) {
+        localStorage.removeItem(`retcash_wallet_session_${phone}`)
+        localStorage.removeItem(`retcash_wallet_auth_${phone}`)
+        router.replace('/customer/login')
+        return
+      }
 
       if (!res.ok) {
         throw new Error(payload?.error || 'Failed to fetch wallet data')
