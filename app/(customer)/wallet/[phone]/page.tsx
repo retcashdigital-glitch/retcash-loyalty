@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useTransition, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 import ProfileInstallSection from '@/components/ProfileInstallSection'
 import CustomerLangSwitcher from '@/components/CustomerLangSwitcher'
 import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
@@ -37,7 +36,8 @@ import {
   Loader2,
   Lock,
   Bell,
-  BellRing
+  BellRing,
+  RefreshCw
 } from 'lucide-react'
 
 const NAV_TAB_IDS = [
@@ -119,7 +119,19 @@ export default function CustomerWalletPage() {
   const rawPhone = (params?.phone as string) || ''
 
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
-  const phone = rawPhone ? (rawPhone.startsWith('94') ? rawPhone : `94${rawPhone.replace(/^0/, '')}`) : ''
+
+  let decodedRawPhone = rawPhone
+  try {
+    decodedRawPhone = decodeURIComponent(rawPhone)
+  } catch {
+    decodedRawPhone = rawPhone
+  }
+  const cleanedDigits = decodedRawPhone.replace(/\D/g, '')
+  const phone = cleanedDigits
+    ? cleanedDigits.startsWith('94')
+      ? cleanedDigits
+      : `94${cleanedDigits.replace(/^0+/, '')}`
+    : ''
 
   const [customerName, setCustomerName] = useState<string>('')
   const [customerEmail, setCustomerEmail] = useState<string>('')
@@ -132,6 +144,7 @@ export default function CustomerWalletPage() {
 
   const [activeTab, setActiveTab] = useState<NavTabId>('wallet')
   const [loading, setLoading] = useState(true)
+  const [walletError, setWalletError] = useState<string | null>(null)
   const [stores, setStores] = useState<any[]>([])
   const [activeOffers, setActiveOffers] = useState<any[]>([])
   const [offersLoading, setOffersLoading] = useState(false)
@@ -325,6 +338,7 @@ export default function CustomerWalletPage() {
         await fetchWalletAndClaimsData(true)
       } catch (err) {
         console.error('Authentication verification error:', err)
+        await fetchWalletAndClaimsData(true)
       }
     }
 
@@ -374,29 +388,15 @@ export default function CustomerWalletPage() {
     window.addEventListener('visibilitychange', handleFocusOrVisibility)
     window.addEventListener('focus', handleFocusOrVisibility)
 
-    const cleanPhone = phone.replace(/\D/g, '')
-    const phoneWithZero = cleanPhone.startsWith('94') ? `0${cleanPhone.slice(2)}` : cleanPhone
-
-    const channel = supabase
-      .channel(`wallet_realtime_${phone}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'cashback_claims'
-        },
-        (payload: any) => {
-          const updatedPhone = payload.new?.customer_phone || payload.old?.customer_phone
-          if (updatedPhone === phone || updatedPhone === phoneWithZero) {
-            fetchWalletAndClaimsData(false)
-          }
-        }
-      )
-      .subscribe()
+    // Secure background polling every 15s while tab is visible (replaces public anon Realtime)
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchWalletAndClaimsData(false)
+      }
+    }, 15000)
 
     return () => {
-      supabase.removeChannel(channel)
+      clearInterval(pollInterval)
       if (syncChannel) syncChannel.close()
       window.removeEventListener('visibilitychange', handleFocusOrVisibility)
       window.removeEventListener('focus', handleFocusOrVisibility)
@@ -406,6 +406,7 @@ export default function CustomerWalletPage() {
   const fetchWalletAndClaimsData = async (verifyCustomerExists = false) => {
     try {
       setOffersLoading(true)
+      setWalletError(null)
 
       const existingCacheMap = new Map<string, any>()
       if (typeof window !== 'undefined') {
@@ -428,7 +429,11 @@ export default function CustomerWalletPage() {
         body: JSON.stringify({ action: 'get_wallet', phone }),
       })
 
-      if (!res.ok) throw new Error('Failed to fetch wallet data')
+      const payload = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to fetch wallet data')
+      }
 
       const {
         customer,
@@ -437,7 +442,7 @@ export default function CustomerWalletPage() {
         lastRedeemedTxs,
         userStores,
         activeOffers: fetchedOffers,
-      } = await res.json()
+      } = payload
 
       if (verifyCustomerExists) {
         if (!customer) {
@@ -538,8 +543,9 @@ export default function CustomerWalletPage() {
 
       setStores(sortedStores)
       localStorage.setItem(`wallet_cache_${phone}`, JSON.stringify(sortedStores))
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error in fetching wallet data:', err)
+      setWalletError(err?.message || 'Unable to load store cards right now.')
     } finally {
       setLoading(false)
       setOffersLoading(false)
@@ -980,6 +986,22 @@ export default function CustomerWalletPage() {
                   {t.storesCount(filteredStores.length, selectedCategory)}
                 </h2>
               </div>
+
+              {walletError && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold text-amber-900 leading-snug">
+                    {walletError}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => fetchWalletAndClaimsData(true)}
+                    className="flex items-center gap-1 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shrink-0 cursor-pointer"
+                  >
+                    <RefreshCw size={12} />
+                    <span>Retry</span>
+                  </button>
+                </div>
+              )}
 
               {loading && stores.length === 0 ? (
                 <div className="space-y-3">
