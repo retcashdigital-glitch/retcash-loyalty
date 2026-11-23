@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 
+export const preferredRegion = 'sin1'
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
@@ -14,7 +16,6 @@ function getAdminClient() {
   })
 }
 
-// பழைய SHA-256 + Salt முறையை அப்படியே பின்பற்றுவதால் ஏற்கனவே உள்ள Admin Password மாறாமல் இயங்கும்
 function hashAdminPassword(password: string): string {
   return crypto
     .createHash('sha256')
@@ -42,6 +43,19 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
     const action = String(body?.action || '')
+
+    if (action === 'logout') {
+      const response = NextResponse.json({ success: true })
+      response.cookies.set('admin_authenticated', '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+        maxAge: 0,
+      })
+      return response
+    }
+
     const supabase = getAdminClient()
 
     if (action === 'check_setup') {
@@ -100,7 +114,7 @@ export async function POST(req: Request) {
       response.cookies.set('admin_authenticated', createSignedAdminCookie(), {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/',
         maxAge: 86400,
       })
@@ -124,7 +138,13 @@ export async function POST(req: Request) {
         )
       }
 
-      if (data.value !== hashedPassword) {
+      const dbHashBuf = Buffer.from(String(data.value || ''))
+      const inputHashBuf = Buffer.from(hashedPassword)
+      const isMatch =
+        dbHashBuf.length === inputHashBuf.length &&
+        crypto.timingSafeEqual(dbHashBuf, inputHashBuf)
+
+      if (!isMatch) {
         return NextResponse.json(
           { error: 'தவறான அட்மின் கடவுச்சொல்!', invalidPassword: true },
           { status: 401 }
@@ -135,7 +155,7 @@ export async function POST(req: Request) {
       response.cookies.set('admin_authenticated', createSignedAdminCookie(), {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/',
         maxAge: 86400,
       })
