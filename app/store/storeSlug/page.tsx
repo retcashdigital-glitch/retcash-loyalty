@@ -5,6 +5,9 @@ import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { Store, MapPin, Star, Wallet, Loader2, ArrowLeft } from 'lucide-react'
 
+const SAFE_STORE_COLUMNS =
+  'id, store_name, store_slug, logo_url, default_cashback_percent, location_url, review_url'
+
 export default function DynamicStorePage({ params }: { params: Promise<{ storeSlug: string }> }) {
     const { storeSlug } = use(params)
 
@@ -22,17 +25,16 @@ export default function DynamicStorePage({ params }: { params: Promise<{ storeSl
         try {
             const { data, error } = await supabase
                 .from('stores')
-                .select('*')
+                .select(SAFE_STORE_COLUMNS)
                 .eq('store_slug', storeSlug)
-                .single()
+                .maybeSingle()
 
-            if (error && storeSlug) {
-                // Fallback: If slug match fails, try ID
+            if ((error || !data) && storeSlug) {
                 const { data: idData } = await supabase
                     .from('stores')
-                    .select('*')
+                    .select(SAFE_STORE_COLUMNS)
                     .eq('id', storeSlug)
-                    .single()
+                    .maybeSingle()
                 setStore(idData)
             } else {
                 setStore(data)
@@ -47,15 +49,17 @@ export default function DynamicStorePage({ params }: { params: Promise<{ storeSl
     const handlePhoneCheck = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!userPhone) return
-        const cleanPhone = userPhone.replace(/\D/g, '')
+        const digits = userPhone.replace(/\D/g, '')
+        if (digits.length < 9) return
 
-        // Fetch all balances for this customer across ALL stores
+        const formatted94 = digits.startsWith('94') ? digits : `94${digits.replace(/^0+/, '')}`
+        const local0 = formatted94.replace(/^94/, '0')
+
         const { data: transactions } = await supabase
             .from('transactions')
             .select('store_id, cashback_amount, stores(store_name, logo_url)')
-            .eq('customer_phone', cleanPhone)
+            .or(`customer_phone.eq.${formatted94},customer_phone.eq.${local0}`)
 
-        // Calculate aggregated balances per store
         const storeMap: Record<string, any> = {}
         transactions?.forEach((tx: any) => {
             const sId = tx.store_id

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 
+export const preferredRegion = 'sin1'
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
@@ -55,6 +57,67 @@ function formatCustomerPhone(inputPhone: string) {
   if (cleaned.startsWith('0')) cleaned = cleaned.substring(1)
   if (!cleaned.startsWith('94')) cleaned = '94' + cleaned
   return cleaned
+}
+
+async function broadcastCustomerUpdate(
+  supabase: ReturnType<typeof getAdminClient>,
+  claimId?: string | number | null,
+  customerPhone?: string | null
+) {
+  const tasks: Promise<unknown>[] = []
+  const cleanPhone = customerPhone ? formatCustomerPhone(customerPhone) : ''
+
+  const sendToTopic = async (channelName: string, event: string, payload: Record<string, unknown>) => {
+    try {
+      const ch = supabase.channel(channelName)
+      if (typeof (ch as any).httpSend === 'function') {
+        await (ch as any).httpSend(event, payload)
+      } else {
+        await fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+          method: 'POST',
+          headers: {
+            apikey: serviceRoleKey,
+            Authorization: `Bearer ${serviceRoleKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages: [
+              {
+                topic: `realtime:${channelName}`,
+                event,
+                payload,
+              },
+            ],
+          }),
+        })
+      }
+      await supabase.removeChannel(ch)
+    } catch {
+      // Never block merchant POS flow if broadcast fails
+    }
+  }
+
+  if (claimId) {
+    tasks.push(
+      sendToTopic(`realtime-card-${claimId}`, 'claim_updated', {
+        claimId: String(claimId),
+        ts: Date.now(),
+      })
+    )
+  }
+
+  if (cleanPhone) {
+    tasks.push(
+      sendToTopic(`realtime-wallet-${cleanPhone}`, 'wallet_updated', {
+        phone: cleanPhone,
+        ts: Date.now(),
+      })
+    )
+  }
+
+  if (tasks.length > 0) {
+    await Promise.allSettled(tasks)
+  }
 }
 
 export async function POST(req: Request) {
@@ -417,18 +480,21 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Redemption DB Update Failed: ' + updateErr.message }, { status: 500 })
       }
 
-      await supabase.from('cashback_history').insert({
-        claim_id: claim.id,
-        store_id: storeId,
-        customer_phone: claim.customer_phone,
-        visit_count: claim.visit_count,
-        bill_amount: lastBillAmt,
-        cashback_percentage: 0,
-        cashback_amount: redeemedAmt,
-        net_paid_amount: calculatedNetPaid,
-        transaction_type: 'REDEEMED',
-        status: 'REDEEMED',
-      })
+      await Promise.allSettled([
+        supabase.from('cashback_history').insert({
+          claim_id: claim.id,
+          store_id: storeId,
+          customer_phone: claim.customer_phone,
+          visit_count: claim.visit_count,
+          bill_amount: lastBillAmt,
+          cashback_percentage: 0,
+          cashback_amount: redeemedAmt,
+          net_paid_amount: calculatedNetPaid,
+          transaction_type: 'REDEEMED',
+          status: 'REDEEMED',
+        }),
+        broadcastCustomerUpdate(supabase, claim.id, claim.customer_phone),
+      ])
 
       return NextResponse.json({ success: true })
     }
@@ -543,18 +609,21 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Cashback claim update failed: ' + upsertError.message }, { status: 500 })
       }
 
-      await supabase.from('cashback_history').insert({
-        claim_id: upsertedData?.id,
-        store_id: storeId,
-        customer_phone: cleanCustPhone,
-        visit_count: newVisitCount,
-        bill_amount: initialBillNum,
-        cashback_percentage: cashbackAmount > 0 ? cashbackPercentage : 0,
-        cashback_amount: cashbackAmount,
-        net_paid_amount: initialBillNum,
-        transaction_type: 'BILL_ADDED',
-        status: claimStatus,
-      })
+      await Promise.allSettled([
+        supabase.from('cashback_history').insert({
+          claim_id: upsertedData?.id,
+          store_id: storeId,
+          customer_phone: cleanCustPhone,
+          visit_count: newVisitCount,
+          bill_amount: initialBillNum,
+          cashback_percentage: cashbackAmount > 0 ? cashbackPercentage : 0,
+          cashback_amount: cashbackAmount,
+          net_paid_amount: initialBillNum,
+          transaction_type: 'BILL_ADDED',
+          status: claimStatus,
+        }),
+        broadcastCustomerUpdate(supabase, upsertedData?.id, cleanCustPhone),
+      ])
 
       return NextResponse.json({
         upsertedData,
@@ -636,18 +705,21 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Failed to void transaction: ' + updateErr.message }, { status: 500 })
       }
 
-      await supabase.from('cashback_history').insert({
-        claim_id: freshClaim.id,
-        store_id: storeId,
-        customer_phone: freshClaim.customer_phone,
-        visit_count: revertedVisitCount,
-        bill_amount: voidBillAmt,
-        cashback_percentage: 0,
-        cashback_amount: -voidCashbackAmt,
-        net_paid_amount: 0,
-        transaction_type: 'VOIDED',
-        status: 'VOIDED',
-      })
+      await Promise.allSettled([
+        supabase.from('cashback_history').insert({
+          claim_id: freshClaim.id,
+          store_id: storeId,
+          customer_phone: freshClaim.customer_phone,
+          visit_count: revertedVisitCount,
+          bill_amount: voidBillAmt,
+          cashback_percentage: 0,
+          cashback_amount: -voidCashbackAmt,
+          net_paid_amount: 0,
+          transaction_type: 'VOIDED',
+          status: 'VOIDED',
+        }),
+        broadcastCustomerUpdate(supabase, freshClaim.id, freshClaim.customer_phone),
+      ])
 
       return NextResponse.json({
         voidCashbackAmt,

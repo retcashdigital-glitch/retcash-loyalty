@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
+import {
+  CUSTOMER_SESSION_COOKIE,
+  verifyCustomerSessionToken,
+} from '@/lib/customerSession'
+
+export const preferredRegion = 'sin1'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -14,13 +21,36 @@ function getAdminClient() {
 }
 
 function normalizePhones(raw: string) {
-  const digits = String(raw || '').replace(/\D/g, '')
-  if (!digits) return { formatted94: '', local0: '' }
+  let decoded = String(raw || '')
+  try {
+    decoded = decodeURIComponent(decoded)
+  } catch {
+    // Keep original if decoding fails
+  }
+
+  const digits = decoded.replace(/\D/g, '')
+  if (!digits || digits.length < 9) {
+    return { formatted94: '', local0: '', plus94: '', raw9: '' }
+  }
+
   const formatted94 = digits.startsWith('94')
     ? digits
-    : `94${digits.replace(/^0/, '')}`
+    : `94${digits.replace(/^0+/, '')}`
   const local0 = formatted94.replace(/^94/, '0')
-  return { formatted94, local0 }
+  const plus94 = `+${formatted94}`
+  const raw9 = formatted94.replace(/^94/, '')
+
+  return { formatted94, local0, plus94, raw9 }
+}
+
+async function verifySessionForPhone(formatted94: string) {
+  const cookieStore = await cookies()
+  const rawToken = cookieStore.get(CUSTOMER_SESSION_COOKIE)?.value
+  const session = verifyCustomerSessionToken(rawToken)
+
+  if (!session) return { ok: false, status: 401 }
+  if (formatted94 && session.phone !== formatted94) return { ok: false, status: 403 }
+  return { ok: true, status: 200, session }
 }
 
 export async function POST(req: Request) {
@@ -78,11 +108,22 @@ export async function POST(req: Request) {
     // 2. FETCH OR INITIALIZE SINGLE CUSTOMER LOYALTY CARD
     if (action === 'get_card') {
       const paramId = String(body?.paramId || '').trim()
-      const { formatted94, local0 } = normalizePhones(body?.phone || '')
+      const { formatted94, local0, plus94, raw9 } = normalizePhones(body?.phone || '')
 
       if (!paramId || !formatted94) {
         return NextResponse.json({ error: 'Invalid request parameters' }, { status: 400 })
       }
+
+      const authCheck = await verifySessionForPhone(formatted94)
+      if (!authCheck.ok) {
+        return NextResponse.json(
+          { error: 'Unauthorized', accessDenied: authCheck.status === 403 },
+          { status: authCheck.status }
+        )
+      }
+
+      const claimPhoneFilter = `customer_phone.eq.${formatted94},customer_phone.eq.${local0},customer_phone.eq.${plus94},customer_phone.eq.${raw9}`
+      const customerPhoneFilter = `phone_number.eq.${formatted94},phone_number.eq.${local0},phone_number.eq.${plus94},phone_number.eq.${raw9}`
 
       let currentClaim: any = null
 
@@ -109,7 +150,7 @@ export async function POST(req: Request) {
             )
           `)
           .eq('store_id', paramId)
-          .or(`customer_phone.eq.${formatted94},customer_phone.eq.${local0}`)
+          .or(claimPhoneFilter)
           .maybeSingle()
 
         currentClaim = claimByStore
@@ -127,7 +168,7 @@ export async function POST(req: Request) {
           const { data: existingCust } = await supabase
             .from('customers')
             .select('id')
-            .or(`phone_number.eq.${formatted94},phone_number.eq.${local0}`)
+            .or(customerPhoneFilter)
             .maybeSingle()
 
           if (existingCust) {
@@ -185,22 +226,24 @@ export async function POST(req: Request) {
       let walletSummary: any = null
 
       if (currentClaim.store_id) {
-        const { data: lastTx } = await supabase
-          .from('cashback_history')
-          .select('bill_amount, cashback_percentage, cashback_amount, net_paid_amount, transaction_type, created_at')
-          .eq('claim_id', currentClaim.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
+        const [lastTxRes, summaryRes] = await Promise.all([
+          supabase
+            .from('cashback_history')
+            .select('bill_amount, cashback_percentage, cashback_amount, net_paid_amount, transaction_type, created_at')
+            .eq('claim_id', currentClaim.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('customer_wallet_summary')
+            .select('last_bill_amount, total_redeemed_amount, current_balance, status')
+            .eq('store_id', currentClaim.store_id)
+            .or(claimPhoneFilter)
+            .maybeSingle(),
+        ])
 
-        const { data: summaryData } = await supabase
-          .from('customer_wallet_summary')
-          .select('last_bill_amount, total_redeemed_amount, current_balance, status')
-          .eq('store_id', currentClaim.store_id)
-          .or(`customer_phone.eq.${formatted94},customer_phone.eq.${local0}`)
-          .maybeSingle()
-
-        walletSummary = summaryData
+        const lastTx = lastTxRes.data
+        walletSummary = summaryRes.data
 
         if (lastTx) {
           const calculatedBill =
@@ -256,14 +299,21 @@ export async function POST(req: Request) {
     // 4. FETCH FULL CUSTOMER HISTORY FOR THIS STORE
     if (action === 'get_history') {
       const storeId = String(body?.storeId || '').trim()
-      const { formatted94, local0 } = normalizePhones(body?.phone || '')
+      const { formatted94, local0, plus94, raw9 } = normalizePhones(body?.phone || '')
       if (!storeId || !formatted94) return NextResponse.json({ history: [] })
+
+      const authCheck = await verifySessionForPhone(formatted94)
+      if (!authCheck.ok) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: authCheck.status })
+      }
+
+      const claimPhoneFilter = `customer_phone.eq.${formatted94},customer_phone.eq.${local0},customer_phone.eq.${plus94},customer_phone.eq.${raw9}`
 
       const { data } = await supabase
         .from('cashback_history')
         .select('id, visit_count, bill_amount, net_paid_amount, cashback_amount, transaction_type, created_at')
         .eq('store_id', storeId)
-        .or(`customer_phone.eq.${formatted94},customer_phone.eq.${local0}`)
+        .or(claimPhoneFilter)
         .order('created_at', { ascending: false })
 
       return NextResponse.json({ history: data || [] })

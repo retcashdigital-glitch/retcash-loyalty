@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 import ProfileInstallSection from '@/components/ProfileInstallSection'
 import CustomerLangSwitcher from '@/components/CustomerLangSwitcher'
 import { useCustomerLang } from '@/lib/i18n/useCustomerLang'
@@ -168,6 +169,7 @@ export default function CustomerWalletPage() {
   const hasDraggedRef = useRef<boolean>(false)
   const isPointerDownRef = useRef<boolean>(false)
 
+  const isFetchingRef = useRef<boolean>(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -214,11 +216,18 @@ export default function CustomerWalletPage() {
           if (Notification.permission === 'granted') {
             const existingSub = await reg.pushManager.getSubscription()
             if (existingSub) {
-              await fetch('/api/push/subscribe', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, subscription: existingSub.toJSON() }),
-              })
+              const syncKey = `retcash_push_synced_${phone}`
+              const alreadySyncedEndpoint = localStorage.getItem(syncKey)
+              if (alreadySyncedEndpoint !== existingSub.endpoint) {
+                const res = await fetch('/api/push/subscribe', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ phone, subscription: existingSub.toJSON() }),
+                })
+                if (res.ok) {
+                  localStorage.setItem(syncKey, existingSub.endpoint)
+                }
+              }
             }
           }
         })
@@ -257,7 +266,7 @@ export default function CustomerWalletPage() {
         })
       }
 
-      await fetch('/api/push/subscribe', {
+      const res = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -265,6 +274,9 @@ export default function CustomerWalletPage() {
           subscription: subscription.toJSON(),
         }),
       })
+      if (res.ok) {
+        localStorage.setItem(`retcash_push_synced_${phone}`, subscription.endpoint)
+      }
     } catch (err) {
       console.error('Failed to enable push notifications:', err)
     } finally {
@@ -323,6 +335,18 @@ export default function CustomerWalletPage() {
     // Single unified call: verifies session cookie AND loads wallet data in 1 network hop
     fetchWalletAndClaimsData(true)
 
+    // RLS-safe Realtime Broadcast listener for instant updates when merchant bills or redeems
+    const realtimeWalletChannel = supabase
+      .channel(`realtime-wallet-${phone}`)
+      .on(
+        'broadcast',
+        { event: 'wallet_updated' },
+        () => {
+          fetchWalletAndClaimsData(false)
+        }
+      )
+      .subscribe()
+
     let syncChannel: BroadcastChannel | null = null
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       syncChannel = new BroadcastChannel('retcash_wallet_sync')
@@ -371,10 +395,11 @@ export default function CustomerWalletPage() {
       if (document.visibilityState === 'visible') {
         fetchWalletAndClaimsData(false)
       }
-    }, 15000)
+    }, 10000)
 
     return () => {
       clearInterval(pollInterval)
+      supabase.removeChannel(realtimeWalletChannel)
       if (syncChannel) syncChannel.close()
       window.removeEventListener('visibilitychange', handleFocusOrVisibility)
       window.removeEventListener('focus', handleFocusOrVisibility)
@@ -382,8 +407,13 @@ export default function CustomerWalletPage() {
   }, [phone, router])
 
   const fetchWalletAndClaimsData = async (verifyCustomerExists = false) => {
+    if (isFetchingRef.current && !verifyCustomerExists) return
+    isFetchingRef.current = true
+
     try {
-      setOffersLoading(true)
+      if (activeOffers.length === 0) {
+        setOffersLoading(true)
+      }
       setWalletError(null)
 
       const existingCacheMap = new Map<string, any>()
@@ -532,6 +562,7 @@ export default function CustomerWalletPage() {
       console.error('Error in fetching wallet data:', err)
       setWalletError(err?.message || 'Unable to load store cards right now.')
     } finally {
+      isFetchingRef.current = false
       setLoading(false)
       setOffersLoading(false)
     }
@@ -559,6 +590,7 @@ export default function CustomerWalletPage() {
     localStorage.removeItem(`retcash_wallet_session_${phone}`)
     localStorage.removeItem(`retcash_wallet_auth_${phone}`)
     localStorage.removeItem(`customer_name_${phone}`)
+    localStorage.removeItem(`retcash_push_synced_${phone}`)
     router.replace('/customer/login')
   }
 
