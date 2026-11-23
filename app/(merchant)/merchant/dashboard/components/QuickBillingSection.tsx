@@ -16,7 +16,6 @@ import {
   X,
   Sparkles,
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 
 interface CashbackClaim {
   id: string
@@ -52,6 +51,13 @@ interface QuickBillingSectionProps {
   onDismissLastClaim?: () => void
 }
 
+function normalizePhoneCore(raw: string): string {
+  const digits = String(raw || '').replace(/\D/g, '')
+  if (digits.startsWith('94')) return digits.slice(2)
+  if (digits.startsWith('0')) return digits.slice(1)
+  return digits
+}
+
 export default function QuickBillingSection({
   customerPhone,
   setCustomerPhone,
@@ -67,74 +73,80 @@ export default function QuickBillingSection({
   startScanner,
   startPhoneScanner,
   onOpenProfile,
-  merchantStoreId,
   lastAddedClaim,
   targetVisits = 6,
   onVoidLastClaim,
   onDismissLastClaim,
 }: QuickBillingSectionProps) {
-  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [suggestions, setSuggestions] = useState<CashbackClaim[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [confirmVoidLast, setConfirmVoidLast] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const skipNextDropdownRef = useRef(false)
 
   useEffect(() => {
     setConfirmVoidLast(false)
   }, [lastAddedClaim?.id])
 
-  // 1. Phone number Auto-complete (Supabase Search Logic)
+  // Instant 0ms in-memory phone auto-complete from verified store customersList
   useEffect(() => {
-    let digitsOnly = customerPhone.trim().replace(/\D/g, '')
-
-    if (digitsOnly.startsWith('94')) {
-      digitsOnly = digitsOnly.slice(2)
-    } else if (digitsOnly.startsWith('0')) {
-      digitsOnly = digitsOnly.slice(1)
+    if (skipNextDropdownRef.current) {
+      skipNextDropdownRef.current = false
+      return
     }
 
-    if (digitsOnly.length >= 3) {
-      const fetchSuggestions = async () => {
-        let query = supabase
-          .from('cashback_claims')
-          .select('customer_phone')
-          .ilike('customer_phone', `%${digitsOnly}%`)
-          .limit(15)
+    const typedCore = normalizePhoneCore(customerPhone.trim())
 
-        if (merchantStoreId) {
-          query = query.eq('store_id', merchantStoreId)
-        }
+    if (typedCore.length >= 2 && Array.isArray(customersList) && customersList.length > 0) {
+      const seenPhones = new Set<string>()
+      const prefixMatches: CashbackClaim[] = []
+      const partialMatches: CashbackClaim[] = []
 
-        const { data, error } = await query
+      for (const item of customersList) {
+        const phoneStr = String(item?.customer_phone || '').trim()
+        if (!phoneStr || seenPhones.has(phoneStr)) continue
 
-        if (!error && data) {
-          const uniquePhones = Array.from(
-            new Set(data.map((item) => item.customer_phone))
-          ).filter(Boolean).slice(0, 5)
+        const itemCore = normalizePhoneCore(phoneStr)
+        if (!itemCore) continue
 
-          setSuggestions(uniquePhones)
-          setShowDropdown(uniquePhones.length > 0)
-        } else {
-          setSuggestions([])
-          setShowDropdown(false)
+        if (itemCore.startsWith(typedCore)) {
+          seenPhones.add(phoneStr)
+          prefixMatches.push(item)
+        } else if (typedCore.length >= 3 && itemCore.includes(typedCore)) {
+          seenPhones.add(phoneStr)
+          partialMatches.push(item)
         }
       }
 
-      const timer = setTimeout(fetchSuggestions, 300)
-      return () => clearTimeout(timer)
+      const combined = [...prefixMatches, ...partialMatches].slice(0, 6)
+      const isExactSingleMatch =
+        combined.length === 1 && normalizePhoneCore(combined[0].customer_phone) === typedCore
+
+      if (combined.length > 0 && !isExactSingleMatch) {
+        setSuggestions(combined)
+        setShowDropdown(true)
+      } else {
+        setSuggestions([])
+        setShowDropdown(false)
+      }
     } else {
       setSuggestions([])
       setShowDropdown(false)
     }
-  }, [customerPhone, merchantStoreId])
+  }, [customerPhone, customersList])
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setShowDropdown(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
   }, [])
 
   const isLastClaimStillUndoable = (() => {
@@ -273,6 +285,7 @@ export default function QuickBillingSection({
                   <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400 z-10" />
                   <input
                     type="tel"
+                    autoComplete="off"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
                     onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
@@ -281,24 +294,29 @@ export default function QuickBillingSection({
                     required
                   />
 
-                  {/* Auto-complete Dropdown */}
+                  {/* Instant Auto-complete Dropdown */}
                   {showDropdown && (
                     <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl animate-in fade-in duration-150">
                       <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                         Previous Store Customers
                       </p>
-                      {suggestions.map((phone) => (
+                      {suggestions.map((item) => (
                         <button
-                          key={phone}
+                          key={item.id || item.customer_phone}
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
-                            setCustomerPhone(phone)
+                            skipNextDropdownRef.current = true
+                            setCustomerPhone(item.customer_phone)
                             setShowDropdown(false)
                           }}
-                          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-700 hover:bg-emerald-50 hover:text-[#00875A] transition cursor-pointer"
+                          className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-mono font-bold text-slate-700 hover:bg-emerald-50 hover:text-[#00875A] active:bg-emerald-100 transition cursor-pointer"
                         >
-                          <span>{phone}</span>
-                          <Search className="size-3 text-slate-400" />
+                          <span>{item.customer_phone}</span>
+                          <span className="flex items-center gap-1.5 text-[10px] font-sans font-semibold text-slate-400">
+                            <span>{item.visit_count || 0}/{targetVisits} visits</span>
+                            <Search className="size-3 text-slate-400" />
+                          </span>
                         </button>
                       ))}
                     </div>
