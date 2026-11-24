@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { QrCode } from 'lucide-react';
+import UniversalQrGeneratorModal from '../components/UniversalQrGeneratorModal';
 
 interface Store {
   id: string;
@@ -18,6 +20,7 @@ export default function AdminSubscriptionsPage() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [updatingStoreId, setUpdatingStoreId] = useState<string | null>(null);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -165,12 +168,24 @@ export default function AdminSubscriptionsPage() {
             மொத்த கடைகள்: <span className="text-white font-bold">{stores.length}</span>
           </p>
         </div>
-        <button
-          onClick={handleLogout}
-          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition duration-200 cursor-pointer"
-        >
-          Logout
-        </button>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsQrModalOpen(true)}
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition duration-200 cursor-pointer"
+          >
+            <QrCode className="size-4" />
+            Universal QR Standee
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition duration-200 cursor-pointer"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 max-w-md">
@@ -277,6 +292,12 @@ export default function AdminSubscriptionsPage() {
           </table>
         </div>
       )}
+
+      {/* Universal QR Standee Generator Modal */}
+      <UniversalQrGeneratorModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+      />
     </div>
   );
 }
