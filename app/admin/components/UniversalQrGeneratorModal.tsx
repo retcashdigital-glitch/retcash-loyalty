@@ -292,7 +292,7 @@ export default function UniversalQrGeneratorModal({
       ctx.fill();
 
       // 2. Top Brand Header (Logo + RETCASH QR)
-      const headerY = 148;
+      const headerY = 122;
       ctx.font = '800 42px system-ui, -apple-system, sans-serif';
       const brandText = 'RETCASH QR';
       const textWidth = ctx.measureText(brandText).width;
@@ -313,33 +313,33 @@ export default function UniversalQrGeneratorModal({
       ctx.fillText(brandText, startX + logoSize + gap, headerY + 2);
 
       // 3. Primary 2-Line Action Headline
-      const headlineSize = lang === 'en' ? 88 : 68;
+      const headlineSize = lang === 'en' ? 84 : 66;
       ctx.fillStyle = '#0F172A';
       ctx.font = `900 ${headlineSize}px ${copy.fontStack}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText(copy.line1, W / 2, 325);
-      ctx.fillText(copy.line2, W / 2, 325 + headlineSize + 18);
+      ctx.fillText(copy.line1, W / 2, 275);
+      ctx.fillText(copy.line2, W / 2, 275 + headlineSize + 14);
 
-      // 4. Center QR Code + Precision Viewfinder Corner Brackets
-      const qrSize = 560;
+      // 4. Center QR Code (Enlarged to 700px for high-visibility counter scanning)
+      const qrSize = 700;
       const qrX = (W - qrSize) / 2;
-      const qrY = 530;
+      const qrY = 445;
 
       const offscreenQr = document.createElement('canvas');
       renderStyledModernQr(offscreenQr, TARGET_WALLET_URL, qrSize, logoImg);
       ctx.drawImage(offscreenQr, qrX, qrY, qrSize, qrSize);
 
       // Precision Fintech Viewfinder Brackets around QR
-      const pad = 34;
-      const bLen = 84;
+      const pad = 32;
+      const bLen = 92;
       const bx1 = qrX - pad;
       const by1 = qrY - pad;
       const bx2 = qrX + qrSize + pad;
       const by2 = qrY + qrSize + pad;
 
       ctx.strokeStyle = '#006B3E';
-      ctx.lineWidth = 14;
+      ctx.lineWidth = 15;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
@@ -377,24 +377,24 @@ export default function UniversalQrGeneratorModal({
       ctx.font = `800 ${stepsSize}px ${copy.fontStack}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText(copy.steps, W / 2, 1225);
+      ctx.fillText(copy.steps, W / 2, 1265);
 
       // 6. Trust Pill ("Not for payment • 100% Free")
       const trustSize = lang === 'en' ? 28 : 25;
       ctx.font = `700 ${trustSize}px ${copy.fontStack}`;
       const trustTextW = ctx.measureText(copy.trust).width;
       const pillW = trustTextW + 84;
-      const pillH = 62;
+      const pillH = 60;
       const pillX = (W - pillW) / 2;
-      const pillY = 1272;
+      const pillY = 1308;
 
       ctx.fillStyle = '#F1F5F9';
-      drawRoundRect(ctx, pillX, pillY, pillW, pillH, 31);
+      drawRoundRect(ctx, pillX, pillY, pillW, pillH, 30);
       ctx.fill();
 
       ctx.strokeStyle = '#CBD5E1';
       ctx.lineWidth = 2;
-      drawRoundRect(ctx, pillX, pillY, pillW, pillH, 31);
+      drawRoundRect(ctx, pillX, pillY, pillW, pillH, 30);
       ctx.stroke();
 
       ctx.fillStyle = '#334155';
@@ -408,7 +408,7 @@ export default function UniversalQrGeneratorModal({
       ctx.font = `700 ${eqSize}px ${copy.fontStack}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText(copy.equation, W / 2, 1445);
+      ctx.fillText(copy.equation, W / 2, 1465);
 
       // 8. Clean Horizontal Divider & Brand Footer
       ctx.strokeStyle = '#CBD5E1';
